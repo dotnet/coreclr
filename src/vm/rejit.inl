@@ -5,8 +5,8 @@
 // File: REJIT.INL
 //
 
-// 
-// Inline definitions of various items declared in REJIT.H\
+//
+// Inline definitions of various items declared in REJIT.H
 // ===========================================================================
 #ifndef _REJIT_INL_
 #define _REJIT_INL_
@@ -30,6 +30,14 @@ inline BOOL ReJitManager::IsReJITEnabled()
     static ConfigDWORD rejitOnAttachEnabled;
 
     return  profilerStartupRejit || (rejitOnAttachEnabled.val(CLRConfig::EXTERNAL_ProfAPI_RejitOnAttach) != 0);
+}
+
+inline BOOL ReJitManager::IsReJITInlineTrackingEnabled()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    static ConfigDWORD rejitInliningEnabled;
+    return rejitInliningEnabled.val(CLRConfig::EXTERNAL_ProfAPI_RejitOnAttach) != 0;
 }
 
 #ifndef DACCESS_COMPILE
@@ -88,9 +96,14 @@ inline BOOL ReJitManager::IsReJITEnabled()
     return FALSE;
 }
 
-// static 
+// static
 inline void ReJitManager::InitStatic()
 {
+}
+
+inline BOOL ReJitManager::IsReJITInlineTrackingEnabled()
+{
+    return FALSE;
 }
 
 #endif // FEATURE_REJIT

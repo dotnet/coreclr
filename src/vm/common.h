@@ -8,11 +8,11 @@
 //
 
 
-#ifndef _common_h_ 
+#ifndef _common_h_
 #define _common_h_
 
 #if defined(_MSC_VER) && defined(_X86_) && !defined(FPO_ON)
-#pragma optimize("y", on)       // Small critical routines, don't put in EBP frame 
+#pragma optimize("y", on)       // Small critical routines, don't put in EBP frame
 #define FPO_ON 1
 #define COMMON_TURNED_FPO_ON 1
 #endif
@@ -23,7 +23,7 @@
 #define DEBUG_REGDISPLAY
 #endif
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 
     // These don't seem useful, so turning them off is no big deal
 #pragma warning(disable:4201)   // nameless struct/union
@@ -46,7 +46,7 @@
 
 #pragma warning(1:4189)   // local variable initialized but not used
 
-#ifndef DEBUG 
+#ifndef DEBUG
 #pragma warning(disable:4505)   // unreferenced local function has been removed
 //#pragma warning(disable:4702)   // unreachable code
 #pragma warning(disable:4313)   // 'format specifier' in format string conflicts with argument %d of type 'type'
@@ -75,7 +75,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <objbase.h>
-#include <stddef.h>
 #include <float.h>
 #include <math.h>
 #include <time.h>
@@ -84,15 +83,12 @@
 
 #include <olectl.h>
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 //non inline intrinsics are faster
 #pragma function(memcpy,memcmp,strcmp,strcpy,strlen,strcat)
 #endif // _MSC_VER
 
 #include "volatile.h"
-
-// make all the unsafe redefinitions available
-#include "unsafe.h"
 
 #include <../../debug/inc/dbgtargetcontext.h>
 
@@ -115,11 +111,11 @@
 
 typedef VPTR(class LoaderAllocator)     PTR_LoaderAllocator;
 typedef VPTR(class AppDomain)           PTR_AppDomain;
-typedef VPTR(class AppDomainBaseObject) PTR_AppDomainBaseObject;
 typedef DPTR(class ArrayBase)           PTR_ArrayBase;
 typedef DPTR(class ArrayTypeDesc)       PTR_ArrayTypeDesc;
 typedef DPTR(class Assembly)            PTR_Assembly;
 typedef DPTR(class AssemblyBaseObject)  PTR_AssemblyBaseObject;
+typedef DPTR(class AssemblyLoadContextBaseObject) PTR_AssemblyLoadContextBaseObject;
 typedef DPTR(class AssemblyNameBaseObject) PTR_AssemblyNameBaseObject;
 typedef VPTR(class BaseDomain)          PTR_BaseDomain;
 typedef DPTR(class ClassLoader)         PTR_ClassLoader;
@@ -142,6 +138,7 @@ typedef VPTR(class EEDbgInterfaceImpl)  PTR_EEDbgInterfaceImpl;
 typedef VPTR(class DebugInfoManager)    PTR_DebugInfoManager;
 typedef DPTR(class FieldDesc)           PTR_FieldDesc;
 typedef VPTR(class Frame)               PTR_Frame;
+typedef DPTR(class GCFrame)             PTR_GCFrame;
 typedef VPTR(class ICodeManager)        PTR_ICodeManager;
 typedef VPTR(class IJitManager)         PTR_IJitManager;
 typedef VPTR(struct IUnknown)           PTR_IUnknown;
@@ -154,9 +151,10 @@ typedef DPTR(class MethodTable)         PTR_MethodTable;
 typedef DPTR(class MscorlibBinder)      PTR_MscorlibBinder;
 typedef VPTR(class Module)              PTR_Module;
 typedef DPTR(class NDirectMethodDesc)   PTR_NDirectMethodDesc;
-typedef VPTR(class Thread)              PTR_Thread;
+typedef DPTR(class Thread)              PTR_Thread;
 typedef DPTR(class Object)              PTR_Object;
 typedef DPTR(PTR_Object)                PTR_PTR_Object;
+typedef DPTR(class DelegateObject)      PTR_DelegateObject;
 typedef DPTR(class ObjHeader)           PTR_ObjHeader;
 typedef DPTR(class Precode)             PTR_Precode;
 typedef VPTR(class ReflectionModule)    PTR_ReflectionModule;
@@ -168,6 +166,9 @@ typedef DPTR(class ReJitManager)        PTR_ReJitManager;
 typedef DPTR(struct ReJitInfo)          PTR_ReJitInfo;
 typedef DPTR(struct SharedReJitInfo)    PTR_SharedReJitInfo;
 typedef DPTR(class StringObject)        PTR_StringObject;
+#ifdef FEATURE_UTF8STRING
+typedef DPTR(class Utf8StringObject)    PTR_Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
@@ -210,7 +211,7 @@ Thread * const CURRENT_THREAD = NULL;
 EXTERN_C AppDomain* STDCALL GetAppDomain();
 #endif //!DACCESS_COMPILE
 
-inline void RetailBreak()  
+inline void RetailBreak()
 {
 #ifdef _TARGET_X86_
     __asm int 3
@@ -221,7 +222,7 @@ inline void RetailBreak()
 
 extern BOOL isMemoryReadable(const TADDR start, unsigned len);
 
-#ifndef memcpyUnsafe_f 
+#ifndef memcpyUnsafe_f
 #define memcpyUnsafe_f
 
 // use this when you want to memcpy something that contains GC refs
@@ -260,7 +261,7 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
             #else //FEATURE_PAL
                 return PAL_memcpy(dest, src, len);
             #endif //FEATURE_PAL
-            
+
         }
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
@@ -268,14 +269,14 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
-            
+
             return memcpy(dest, src, len);
         }
 #endif // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 namespace Loader
 {
-    typedef enum 
+    typedef enum
     {
         Load, //should load
         DontLoad, //should not load
@@ -288,7 +289,6 @@ namespace Loader
 #include "log.h"
 #include "loaderheap.h"
 #include "fixuppointer.h"
-#include "lazycow.h"
 
 // src/vm
 #include "gcenv.interlocked.h"
@@ -309,19 +309,16 @@ namespace Loader
 #include "pedecoder.h"
 #include "sstring.h"
 #include "slist.h"
-#include "yieldprocessornormalized.h"
 
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "declsec.h"
 
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
 #include "stdinterfaces.h"
 #endif
 
 #include "typehandle.h"
-#include "perfcounters.h"
 #include "methodtable.h"
 #include "typectxt.h"
 
@@ -334,7 +331,6 @@ namespace Loader
 #include "regdisp.h"
 #include "stackframe.h"
 #include "gms.h"
-#include "stackprobe.h"
 #include "fcall.h"
 #include "syncblk.h"
 #include "gcdesc.h"
@@ -378,43 +374,6 @@ namespace Loader
 
 #include "gcstress.h"
 
-#ifndef DACCESS_COMPILE 
-
-inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_CAN_TAKE_LOCK;
-
-    UnsafeEnterCriticalSection(lpCriticalSection);
-    INCTHREADLOCKCOUNT();
-}
-
-inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-
-    UnsafeLeaveCriticalSection(lpCriticalSection);
-    DECTHREADLOCKCOUNT();
-}
-
-inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_CAN_TAKE_LOCK;
-
-    BOOL fEnteredCriticalSection = UnsafeTryEnterCriticalSection(lpCriticalSection);
-    if(fEnteredCriticalSection)
-    {
-        INCTHREADLOCKCOUNT();
-    }
-    return fEnteredCriticalSection;
-}
-
-#endif // !DACCESS_COMPILE
-
 HRESULT EnsureRtlFunctions();
 HINSTANCE GetModuleInst();
 
@@ -426,9 +385,9 @@ HINSTANCE GetModuleInst();
 #else
 //
 // The weak memory model forces us to raise memory barriers before writing object references into GC heap. This is required
-// for both security and to make most managed code written against strong memory model work. Under normal circumstances, this memory 
-// barrier is part of GC write barrier. However, there are a few places in the VM that set cards manually without going through 
-// regular GC write barrier. These places need to this macro. This macro is usually used before memcpy-like operation followed 
+// for both security and to make most managed code written against strong memory model work. Under normal circumstances, this memory
+// barrier is part of GC write barrier. However, there are a few places in the VM that set cards manually without going through
+// regular GC write barrier. These places need to this macro. This macro is usually used before memcpy-like operation followed
 // by SetCardsAfterBulkCopy.
 //
 #define GCHeapMemoryBarrier() MemoryBarrier()
@@ -465,7 +424,6 @@ extern DummyGlobalContract ___contract;
 #include "clsload.inl"
 #include "domainfile.inl"
 #include "method.inl"
-#include "stackprobe.inl"
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"
@@ -473,17 +431,13 @@ extern DummyGlobalContract ___contract;
 #include "WinRTRedirector.h"
 #include "winrtredirector.inl"
 #endif // FEATURE_COMINTEROP
+#include "eventtrace.inl"
 
 #if defined(COMMON_TURNED_FPO_ON)
 #pragma optimize("", on)        // Go back to command line default optimizations
 #undef COMMON_TURNED_FPO_ON
 #undef FPO_ON
 #endif
-
-extern INT64 g_PauseTime;          // Total duration of all pauses in the runtime
-extern Volatile<BOOL> g_IsPaused;   // True if the runtime is Paused for FAS
-extern CLREventStatic g_ClrResumeEvent;  // Event fired when the runtime is resumed after a Pause for FAS
-INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration);
 
 #endif // !_common_h_
 

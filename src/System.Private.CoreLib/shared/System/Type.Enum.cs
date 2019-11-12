@@ -32,7 +32,7 @@ namespace System
             if (valueType.IsEnum)
             {
                 if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), this.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, this));
 
                 valueType = valueType.GetEnumUnderlyingType();
             }
@@ -53,10 +53,10 @@ namespace System
                 Type underlyingType = GetEnumUnderlyingType();
                 // We cannot compare the types directly because valueType is always a runtime type but underlyingType might not be.
                 if (underlyingType.GetTypeCodeImpl() != valueType.GetTypeCodeImpl())
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), underlyingType.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, underlyingType));
 
                 Array values = GetEnumRawConstantValues();
-                return (BinarySearch(values, value) >= 0);
+                return BinarySearch(values, value) >= 0;
             }
             else
             {
@@ -64,7 +64,7 @@ namespace System
             }
         }
 
-        public virtual string GetEnumName(object value)
+        public virtual string? GetEnumName(object value)
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
@@ -100,13 +100,10 @@ namespace System
             return names;
         }
 
-
         // Returns the enum values as an object array.
         private Array GetEnumRawConstantValues()
         {
-            string[] names;
-            Array values;
-            GetEnumData(out names, out values);
+            GetEnumData(out _, out Array values);
             return values;
         }
 
@@ -121,7 +118,7 @@ namespace System
             for (int i = 0; i < flds.Length; i++)
             {
                 names[i] = flds[i].Name;
-                values[i] = flds[i].GetRawConstantValue();
+                values[i] = flds[i].GetRawConstantValue()!;
             }
 
             // Insertion Sort these values in ascending order.
@@ -162,7 +159,7 @@ namespace System
         {
             ulong[] ulArray = new ulong[array.Length];
             for (int i = 0; i < array.Length; ++i)
-                ulArray[i] = Enum.ToUInt64(array.GetValue(i));
+                ulArray[i] = Enum.ToUInt64(array.GetValue(i)!);
 
             ulong ulValue = Enum.ToUInt64(value);
 
@@ -171,7 +168,7 @@ namespace System
 
         internal static bool IsIntegerType(Type t)
         {
-            return (t == typeof(int) ||
+            return t == typeof(int) ||
                     t == typeof(short) ||
                     t == typeof(ushort) ||
                     t == typeof(byte) ||
@@ -180,7 +177,7 @@ namespace System
                     t == typeof(long) ||
                     t == typeof(ulong) ||
                     t == typeof(char) ||
-                    t == typeof(bool));
+                    t == typeof(bool);
         }
     }
 }

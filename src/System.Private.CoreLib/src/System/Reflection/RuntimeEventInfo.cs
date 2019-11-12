@@ -8,19 +8,19 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeEventInfo : EventInfo
+    internal sealed unsafe class RuntimeEventInfo : EventInfo
     {
         #region Private Data Members
         private int m_token;
         private EventAttributes m_flags;
-        private string m_name;
+        private string? m_name;
         private void* m_utf8name;
-        private RuntimeTypeCache m_reflectedTypeCache;
-        private RuntimeMethodInfo m_addMethod;
-        private RuntimeMethodInfo m_removeMethod;
-        private RuntimeMethodInfo m_raiseMethod;
-        private MethodInfo[] m_otherMethod;
-        private RuntimeType m_declaringType;
+        private RuntimeTypeCache m_reflectedTypeCache = null!;
+        private RuntimeMethodInfo? m_addMethod;
+        private RuntimeMethodInfo? m_removeMethod;
+        private RuntimeMethodInfo? m_raiseMethod;
+        private MethodInfo[]? m_otherMethod;
+        private RuntimeType m_declaringType = null!;
         private BindingFlags m_bindingFlags;
         #endregion
 
@@ -46,27 +46,23 @@ namespace System.Reflection
 
             scope.GetEventProps(tkEvent, out m_utf8name, out m_flags);
 
-            RuntimeMethodInfo dummy;
             Associates.AssignAssociates(scope, tkEvent, declaredType, reflectedType,
                 out m_addMethod, out m_removeMethod, out m_raiseMethod,
-                out dummy, out dummy, out m_otherMethod, out isPrivate, out m_bindingFlags);
+                out _, out _, out m_otherMethod, out isPrivate, out m_bindingFlags);
         }
         #endregion
 
         #region Internal Members
-        internal override bool CacheEquals(object o)
+        internal override bool CacheEquals(object? o)
         {
-            RuntimeEventInfo m = o as RuntimeEventInfo;
-
-            if ((object)m == null)
-                return false;
-
-            return m.m_token == m_token &&
+            return
+                o is RuntimeEventInfo m &&
+                m.m_token == m_token &&
                 RuntimeTypeHandle.GetModule(m_declaringType).Equals(
                     RuntimeTypeHandle.GetModule(m.m_declaringType));
         }
 
-        internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
+        internal BindingFlags BindingFlags => m_bindingFlags;
         #endregion
 
         #region Object Overrides
@@ -82,7 +78,7 @@ namespace System.Reflection
         #region ICustomAttributeProvider
         public override object[] GetCustomAttributes(bool inherit)
         {
-            return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
+            return CustomAttribute.GetCustomAttributes(this, (typeof(object) as RuntimeType)!);
         }
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
@@ -90,7 +86,7 @@ namespace System.Reflection
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
@@ -103,7 +99,7 @@ namespace System.Reflection
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
@@ -118,37 +114,16 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return MemberTypes.Event; } }
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = new MdUtf8String(m_utf8name).ToString();
-
-                return m_name;
-            }
-        }
-        public override Type DeclaringType { get { return m_declaringType; } }
+        public override MemberTypes MemberType => MemberTypes.Event;
+        public override string Name => m_name ??= new MdUtf8String(m_utf8name).ToString();
+        public override Type? DeclaringType => m_declaringType;
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeEventInfo>(other);
-        public override Type ReflectedType
-        {
-            get
-            {
-                return ReflectedTypeInternal;
-            }
-        }
+        public override Type? ReflectedType => ReflectedTypeInternal;
 
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
-                return m_reflectedTypeCache.GetRuntimeType();
-            }
-        }
+        private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
-        public override int MetadataToken { get { return m_token; } }
-        public override Module Module { get { return GetRuntimeModule(); } }
+        public override int MetadataToken => m_token;
+        public override Module Module => GetRuntimeModule();
         internal RuntimeModule GetRuntimeModule() { return m_declaringType.GetRuntimeModule(); }
         #endregion
 
@@ -157,8 +132,8 @@ namespace System.Reflection
         {
             List<MethodInfo> ret = new List<MethodInfo>();
 
-            if ((object)m_otherMethod == null)
-                return new MethodInfo[0];
+            if (m_otherMethod is null)
+                return Array.Empty<MethodInfo>();
 
             for (int i = 0; i < m_otherMethod.Length; i++)
             {
@@ -169,7 +144,7 @@ namespace System.Reflection
             return ret.ToArray();
         }
 
-        public override MethodInfo GetAddMethod(bool nonPublic)
+        public override MethodInfo? GetAddMethod(bool nonPublic)
         {
             if (!Associates.IncludeAccessor(m_addMethod, nonPublic))
                 return null;
@@ -177,7 +152,7 @@ namespace System.Reflection
             return m_addMethod;
         }
 
-        public override MethodInfo GetRemoveMethod(bool nonPublic)
+        public override MethodInfo? GetRemoveMethod(bool nonPublic)
         {
             if (!Associates.IncludeAccessor(m_removeMethod, nonPublic))
                 return null;
@@ -185,7 +160,7 @@ namespace System.Reflection
             return m_removeMethod;
         }
 
-        public override MethodInfo GetRaiseMethod(bool nonPublic)
+        public override MethodInfo? GetRaiseMethod(bool nonPublic)
         {
             if (!Associates.IncludeAccessor(m_raiseMethod, nonPublic))
                 return null;
@@ -193,13 +168,7 @@ namespace System.Reflection
             return m_raiseMethod;
         }
 
-        public override EventAttributes Attributes
-        {
-            get
-            {
-                return m_flags;
-            }
-        }
-        #endregion    
+        public override EventAttributes Attributes => m_flags;
+        #endregion
     }
 }

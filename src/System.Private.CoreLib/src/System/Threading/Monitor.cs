@@ -7,21 +7,16 @@
 **
 **
 **
-** Purpose: Synchronizes access to a shared resource or region of code in a multi-threaded 
+** Purpose: Synchronizes access to a shared resource or region of code in a multi-threaded
 **             program.
 **
 **
 =============================================================================*/
 
-
-
-using System;
-using System.Runtime;
-using System.Threading;
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.Versioning;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Threading
 {
@@ -35,12 +30,12 @@ namespace System.Threading
         **
         ** Exceptions: ArgumentNullException if object is null.
         =========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Enter(object obj);
 
 
         // Use a ref bool instead of out to ensure that unverifiable code must
-        // initialize this value to something.  If we used out, the value 
+        // initialize this value to something.  If we used out, the value
         // could be uninitialized if we threw an exception in our prolog.
         // The JIT should inline this method to allow check of lockTaken argument to be optimized out
         // in the typical case. Note that the method has to be transparent for inlining to be allowed by the VM.
@@ -53,12 +48,13 @@ namespace System.Threading
             Debug.Assert(lockTaken);
         }
 
+        [DoesNotReturn]
         private static void ThrowLockTakenException()
         {
             throw new ArgumentException(SR.Argument_MustBeFalse, "lockTaken");
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnter(object obj, ref bool lockTaken);
 
 
@@ -72,7 +68,7 @@ namespace System.Threading
         **             SynchronizationLockException if the current thread does not
         **             own the lock.
         =========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Exit(object obj);
 
         /*=========================================================================
@@ -147,7 +143,7 @@ namespace System.Threading
             ReliableEnterTimeout(obj, MillisecondsTimeoutFromTimeSpan(timeout), ref lockTaken);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnterTimeout(object obj, int timeout, ref bool lockTaken);
 
         public static bool IsEntered(object obj)
@@ -158,21 +154,21 @@ namespace System.Threading
             return IsEnteredNative(obj);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsEnteredNative(object obj);
 
         /*========================================================================
-    ** Waits for notification from the object (via a Pulse/PulseAll). 
+    ** Waits for notification from the object (via a Pulse/PulseAll).
     ** timeout indicates how long to wait before the method returns.
-    ** This method acquires the monitor waithandle for the object 
-    ** If this thread holds the monitor lock for the object, it releases it. 
-    ** On exit from the method, it obtains the monitor lock back. 
-    ** If exitContext is true then the synchronization domain for the context 
-    ** (if in a synchronized context) is exited before the wait and reacquired 
+    ** This method acquires the monitor waithandle for the object
+    ** If this thread holds the monitor lock for the object, it releases it.
+    ** On exit from the method, it obtains the monitor lock back.
+    ** If exitContext is true then the synchronization domain for the context
+    ** (if in a synchronized context) is exited before the wait and reacquired
     **
         ** Exceptions: ArgumentNullException if object is null.
     ========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool ObjWait(bool exitContext, int millisecondsTimeout, object obj);
 
         public static bool Wait(object obj, int millisecondsTimeout, bool exitContext)
@@ -203,11 +199,11 @@ namespace System.Threading
         }
 
         /*========================================================================
-        ** Sends a notification to a single waiting object. 
+        ** Sends a notification to a single waiting object.
         * Exceptions: SynchronizationLockException if this method is not called inside
         * a synchronized block of code.
         ========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ObjPulse(object obj);
 
         public static void Pulse(object obj)
@@ -220,9 +216,9 @@ namespace System.Threading
             ObjPulse(obj);
         }
         /*========================================================================
-        ** Sends a notification to all waiting objects. 
+        ** Sends a notification to all waiting objects.
         ========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ObjPulseAll(object obj);
 
         public static void PulseAll(object obj)
@@ -234,5 +230,13 @@ namespace System.Threading
 
             ObjPulseAll(obj);
         }
+
+        /// <summary>
+        /// Gets the number of times there was contention upon trying to take a <see cref="Monitor"/>'s lock so far.
+        /// </summary>
+        public static long LockContentionCount => GetLockContentionCount();
+
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern long GetLockContentionCount();
     }
 }

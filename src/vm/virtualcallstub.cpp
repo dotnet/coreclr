@@ -24,7 +24,7 @@
 #include "perfmap.h"
 #endif
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 //@TODO: make these conditional on whether logs are being produced
 //instrumentation counters
@@ -36,6 +36,7 @@ UINT32 g_site_write_mono = 0;           //# of call site backpatch writes to poi
 UINT32 g_stub_lookup_counter = 0;       //# of lookup stubs
 UINT32 g_stub_mono_counter = 0;         //# of dispatch stubs
 UINT32 g_stub_poly_counter = 0;         //# of resolve stubs
+UINT32 g_stub_vtable_counter = 0;       //# of vtable call stubs
 UINT32 g_stub_space = 0;                //# of bytes of stubs
 
 UINT32 g_reclaim_counter = 0;           //# of times a ReclaimAll was performed
@@ -97,9 +98,9 @@ extern size_t g_dispatch_cache_chain_success_counter;
 
 SPTR_IMPL_INIT(VirtualCallStubManagerManager, VirtualCallStubManagerManager, g_pManager, NULL);
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
 UINT32 STUB_MISS_COUNT_VALUE = 100;
 UINT32 STUB_COLLIDE_WRITE_PCT = 100;
 UINT32 STUB_COLLIDE_MONO_PCT  =   0;
@@ -111,7 +112,7 @@ DispatchCache *g_resolveCache = NULL;    //cache of dispatch stubs for in line l
 
 size_t g_dispatch_cache_chain_success_counter = CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT;
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
 UINT32 g_resetCacheCounter;
 UINT32 g_resetCacheIncr;
 UINT32 g_dumpLogCounter;
@@ -187,7 +188,7 @@ void VirtualCallStubManager::LoggingDump()
 
     if(g_hStubLogFile)
     {
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), "\r\nstub tuning parameters\r\n");
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 
@@ -239,10 +240,12 @@ void VirtualCallStubManager::LoggingDump()
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), OUTPUT_FORMAT_INT, "stub_poly_counter", g_stub_poly_counter);
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
+        sprintf_s(szPrintStr, COUNTOF(szPrintStr), OUTPUT_FORMAT_INT, "stub_vtable_counter", g_stub_vtable_counter);
+        WriteFile(g_hStubLogFile, szPrintStr, (DWORD)strlen(szPrintStr), &dwWriteByte, NULL);
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), OUTPUT_FORMAT_INT, "stub_space", g_stub_space);
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
 
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), "\r\nlookup stub data\r\n");
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
@@ -280,11 +283,11 @@ void VirtualCallStubManager::LoggingDump()
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 #endif // STUB_LOGGING
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), "\r\nchain lookup data\r\n");
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), OUTPUT_FORMAT_INT, "chained_lookup_call_counter", g_chained_lookup_call_counter);
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), OUTPUT_FORMAT_INT, "chained_lookup_miss_counter", g_chained_lookup_miss_counter);
@@ -305,7 +308,7 @@ void VirtualCallStubManager::LoggingDump()
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 #endif // CHAIN_LOOKUP
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), "\r\n%-30s %#5.2f%%\r\n", "worker (slow resolver) data",
                 100.0 * double(g_worker_call)/double(total_calls));
 #else // !STUB_LOGGING
@@ -382,7 +385,7 @@ void VirtualCallStubManager::LoggingDump()
                 used, total, 100.0 * double(used) / double(total));
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
         sprintf_s(szPrintStr, COUNTOF(szPrintStr), "\r\ncache entry write counts\r\n");
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
         DispatchCache::CacheEntryData *rgCacheData = g_resolveCache->cacheData;
@@ -400,7 +403,7 @@ void VirtualCallStubManager::LoggingDump()
         WriteFile (g_hStubLogFile, szPrintStr, (DWORD) strlen(szPrintStr), &dwWriteByte, NULL);
 #endif // STUB_LOGGING
 
-#if 0 
+#if 0
         for (unsigned i = 0; i < ContractImplMap::max_delta_count; i++)
         {
             if (ContractImplMap::deltasDescs[i] != 0)
@@ -486,7 +489,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 
     // Record the parent domain
     parentDomain        = pDomain;
-    isCollectible       = !!pLoaderAllocator->IsCollectible();
+    m_loaderAllocator   = pLoaderAllocator;
 
     //
     // Init critical sections
@@ -501,6 +504,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<BucketTable> resolvers_holder(new BucketTable(CALL_STUB_MIN_BUCKETS));
     NewHolder<BucketTable> dispatchers_holder(new BucketTable(CALL_STUB_MIN_BUCKETS*2));
     NewHolder<BucketTable> lookups_holder(new BucketTable(CALL_STUB_MIN_BUCKETS));
+    NewHolder<BucketTable> vtableCallers_holder(new BucketTable(CALL_STUB_MIN_BUCKETS));
     NewHolder<BucketTable> cache_entries_holder(new BucketTable(CALL_STUB_MIN_BUCKETS));
 
     //
@@ -521,6 +525,8 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     DWORD dispatch_heap_commit_size;
     DWORD resolve_heap_reserve_size;
     DWORD resolve_heap_commit_size;
+    DWORD vtable_heap_reserve_size;
+    DWORD vtable_heap_commit_size;
 
     //
     // Setup an expected number of items to commit and reserve
@@ -538,11 +544,12 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
         lookup_heap_commit_size      = 24;        lookup_heap_reserve_size       =  250;
         dispatch_heap_commit_size    = 24;        dispatch_heap_reserve_size     =  600;
         resolve_heap_commit_size     = 24;        resolve_heap_reserve_size      =  300;
+        vtable_heap_commit_size      = 24;        vtable_heap_reserve_size       =  600;
     }
     else if (parentDomain->IsSharedDomain())
     {
         indcell_heap_commit_size     = 16;        indcell_heap_reserve_size      =  100;
-#ifdef _WIN64 
+#ifdef BIT64
                                                   indcell_heap_reserve_size      = 2000;
 #endif
         cache_entry_heap_commit_size = 16;        cache_entry_heap_reserve_size  =  500;
@@ -550,6 +557,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
         lookup_heap_commit_size      = 24;        lookup_heap_reserve_size       =  200;
         dispatch_heap_commit_size    = 24;        dispatch_heap_reserve_size     =  450;
         resolve_heap_commit_size     = 24;        resolve_heap_reserve_size      =  200;
+        vtable_heap_commit_size      = 24;        vtable_heap_reserve_size       =  450;
     }
     else
     {
@@ -559,9 +567,10 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
         lookup_heap_commit_size      = 8;         lookup_heap_reserve_size       = 8;
         dispatch_heap_commit_size    = 8;         dispatch_heap_reserve_size     = 8;
         resolve_heap_commit_size     = 8;         resolve_heap_reserve_size      = 8;
+        vtable_heap_commit_size      = 8;         vtable_heap_reserve_size       = 8;
     }
 
-#ifdef _WIN64
+#ifdef BIT64
     // If we're on 64-bit, there's a ton of address space, so reserve more space to
     // try to avoid getting into the situation where the resolve heap is more than
     // a rel32 jump away from the dispatch heap, since this will cause us to produce
@@ -571,7 +580,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
 #endif
 
     //
-    // Convert the number of items into a size in bytes to commit abd reserve
+    // Convert the number of items into a size in bytes to commit and reserve
     //
     indcell_heap_reserve_size       *= sizeof(void *);
     indcell_heap_commit_size        *= sizeof(void *);
@@ -593,6 +602,9 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     resolve_heap_reserve_size       *= sizeof(ResolveHolder);
     resolve_heap_commit_size        *= sizeof(ResolveHolder);
 
+    vtable_heap_reserve_size       *= static_cast<DWORD>(VTableCallHolder::GetHolderSize(0));
+    vtable_heap_commit_size        *= static_cast<DWORD>(VTableCallHolder::GetHolderSize(0));
+
     //
     // Align up all of the commit and reserve sizes
     //
@@ -611,15 +623,19 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     resolve_heap_reserve_size        = (DWORD) ALIGN_UP(resolve_heap_reserve_size,     GetOsPageSize());
     resolve_heap_commit_size         = (DWORD) ALIGN_UP(resolve_heap_commit_size,      GetOsPageSize());
 
+    vtable_heap_reserve_size         = (DWORD) ALIGN_UP(vtable_heap_reserve_size,      GetOsPageSize());
+    vtable_heap_commit_size          = (DWORD) ALIGN_UP(vtable_heap_commit_size,       GetOsPageSize());
+
     BYTE * initReservedMem = NULL;
 
-    if (!isCollectible)
+    if (!m_loaderAllocator->IsCollectible())
     {
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
                                            cache_entry_heap_reserve_size +
                                            lookup_heap_reserve_size      +
                                            dispatch_heap_reserve_size    +
-                                           resolve_heap_reserve_size;
+                                           resolve_heap_reserve_size     +
+                                           vtable_heap_reserve_size;
 
         DWORD dwTotalReserveMemSize = (DWORD) ALIGN_UP(dwTotalReserveMemSizeCalc, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 
@@ -629,13 +645,14 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
             if (dwWastedReserveMemSize != 0)
             {
                 DWORD cWastedPages = dwWastedReserveMemSize / GetOsPageSize();
-                DWORD cPagesPerHeap = cWastedPages / 5;
-                DWORD cPagesRemainder = cWastedPages % 5; // We'll throw this at the resolve heap
+                DWORD cPagesPerHeap = cWastedPages / 6;
+                DWORD cPagesRemainder = cWastedPages % 6; // We'll throw this at the resolve heap
 
                 indcell_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
                 cache_entry_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
                 lookup_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
                 dispatch_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                vtable_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
                 resolve_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
                 resolve_heap_reserve_size += cPagesRemainder * GetOsPageSize();
             }
@@ -644,7 +661,8 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
                                cache_entry_heap_reserve_size +
                                lookup_heap_reserve_size      +
                                dispatch_heap_reserve_size    +
-                               resolve_heap_reserve_size)    == 
+                               resolve_heap_reserve_size     +
+                               vtable_heap_reserve_size)    ==
                               dwTotalReserveMemSize);
         }
 
@@ -672,12 +690,20 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
         resolve_heap_reserve_size        = GetOsPageSize();
         resolve_heap_commit_size         = GetOsPageSize();
 
+        // Heap for the collectible case is carefully tuned to sum up to 16 pages. Today, we only use the
+        // vtable jump stubs in the R2R scenario, which is unlikely to be loaded in the collectible context,
+        // so we'll keep the heap numbers at zero for now. If we ever use vtable stubs in the collectible
+        // scenario, we'll just allocate the memory on demand.
+        vtable_heap_reserve_size         = 0;
+        vtable_heap_commit_size          = 0;
+
 #ifdef _DEBUG
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
                                            cache_entry_heap_reserve_size +
                                            lookup_heap_reserve_size      +
                                            dispatch_heap_reserve_size    +
-                                           resolve_heap_reserve_size;
+                                           resolve_heap_reserve_size     +
+                                           vtable_heap_reserve_size;
 #endif
 
         DWORD dwActualVSDSize = 0;
@@ -695,12 +721,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<LoaderHeap> indcell_heap_holder(
                                new LoaderHeap(indcell_heap_reserve_size, indcell_heap_commit_size,
                                               initReservedMem, indcell_heap_reserve_size,
-#ifdef ENABLE_PERF_COUNTERS
-                                              &(GetPerfCounters().m_Loading.cbLoaderHeapSize),
-#else
-                                              NULL,
-#endif                                              
-                                              NULL, FALSE));
+                                              NULL, NULL, FALSE));
 
     initReservedMem += indcell_heap_reserve_size;
 
@@ -708,11 +729,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<LoaderHeap> cache_entry_heap_holder(
                                new LoaderHeap(cache_entry_heap_reserve_size, cache_entry_heap_commit_size,
                                               initReservedMem, cache_entry_heap_reserve_size,
-#ifdef ENABLE_PERF_COUNTERS
-                                              &(GetPerfCounters().m_Loading.cbLoaderHeapSize),
-#else
                                               NULL,
-#endif
                                               &cache_entry_rangeList, FALSE));
 
     initReservedMem += cache_entry_heap_reserve_size;
@@ -721,11 +738,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<LoaderHeap> lookup_heap_holder(
                                new LoaderHeap(lookup_heap_reserve_size, lookup_heap_commit_size,
                                               initReservedMem, lookup_heap_reserve_size,
-#ifdef ENABLE_PERF_COUNTERS
-                                              &(GetPerfCounters().m_Loading.cbLoaderHeapSize),
-#else
                                               NULL,
-#endif
                                               &lookup_rangeList, TRUE));
 
     initReservedMem += lookup_heap_reserve_size;
@@ -734,11 +747,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<LoaderHeap> dispatch_heap_holder(
                                new LoaderHeap(dispatch_heap_reserve_size, dispatch_heap_commit_size,
                                               initReservedMem, dispatch_heap_reserve_size,
-#ifdef ENABLE_PERF_COUNTERS
-                                              &(GetPerfCounters().m_Loading.cbLoaderHeapSize),
-#else
                                               NULL,
-#endif
                                               &dispatch_rangeList, TRUE));
 
     initReservedMem += dispatch_heap_reserve_size;
@@ -747,14 +756,19 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     NewHolder<LoaderHeap> resolve_heap_holder(
                                new LoaderHeap(resolve_heap_reserve_size, resolve_heap_commit_size,
                                               initReservedMem, resolve_heap_reserve_size,
-#ifdef ENABLE_PERF_COUNTERS
-                                              &(GetPerfCounters().m_Loading.cbLoaderHeapSize),
-#else
                                               NULL,
-#endif                                              
                                               &resolve_rangeList, TRUE));
 
     initReservedMem += resolve_heap_reserve_size;
+
+    // Hot  memory, Writable, Execute, write exactly once
+    NewHolder<LoaderHeap> vtable_heap_holder(
+                               new LoaderHeap(vtable_heap_reserve_size, vtable_heap_commit_size,
+                                              initReservedMem, vtable_heap_reserve_size,
+                                              NULL,
+                                              &vtable_rangeList, TRUE));
+
+    initReservedMem += vtable_heap_reserve_size;
 
     // Allocate the initial counter block
     NewHolder<counter_block> m_counters_holder(new counter_block);
@@ -767,12 +781,13 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     lookup_heap      = lookup_heap_holder;      lookup_heap_holder.SuppressRelease();
     dispatch_heap    = dispatch_heap_holder;    dispatch_heap_holder.SuppressRelease();
     resolve_heap     = resolve_heap_holder;     resolve_heap_holder.SuppressRelease();
+    vtable_heap      = vtable_heap_holder;      vtable_heap_holder.SuppressRelease();
     cache_entry_heap = cache_entry_heap_holder; cache_entry_heap_holder.SuppressRelease();
 
     resolvers        = resolvers_holder;        resolvers_holder.SuppressRelease();
     dispatchers      = dispatchers_holder;      dispatchers_holder.SuppressRelease();
     lookups          = lookups_holder;          lookups_holder.SuppressRelease();
-
+    vtableCallers    = vtableCallers_holder;    vtableCallers_holder.SuppressRelease();
     cache_entries    = cache_entries_holder;    cache_entries_holder.SuppressRelease();
 
     m_counters       = m_counters_holder;       m_counters_holder.SuppressRelease();
@@ -793,7 +808,7 @@ void VirtualCallStubManager::Uninit()
 {
     WRAPPER_NO_CONTRACT;
 
-    if (isCollectible)
+    if (m_loaderAllocator->IsCollectible())
     {
         parentDomain->GetCollectibleVSDRanges()->RemoveRanges(this);
     }
@@ -832,11 +847,13 @@ VirtualCallStubManager::~VirtualCallStubManager()
     if (lookup_heap)      { delete lookup_heap;      lookup_heap      = NULL;}
     if (dispatch_heap)    { delete dispatch_heap;    dispatch_heap    = NULL;}
     if (resolve_heap)     { delete resolve_heap;     resolve_heap     = NULL;}
+    if (vtable_heap)      { delete vtable_heap;      vtable_heap      = NULL;}
     if (cache_entry_heap) { delete cache_entry_heap; cache_entry_heap = NULL;}
 
     if (resolvers)        { delete resolvers;        resolvers        = NULL;}
     if (dispatchers)      { delete dispatchers;      dispatchers      = NULL;}
     if (lookups)          { delete lookups;          lookups          = NULL;}
+    if (vtableCallers)    { delete vtableCallers;    vtableCallers    = NULL;}
     if (cache_entries)    { delete cache_entries;    cache_entries    = NULL;}
 
     // Now get rid of the memory taken by the counter_blocks
@@ -849,7 +866,7 @@ VirtualCallStubManager::~VirtualCallStubManager()
 
     // This was the block reserved by Init for the heaps.
     // For the collectible case, the VSD logic does not allocate the memory.
-    if (m_initialReservedMemForHeaps && !isCollectible)
+    if (m_initialReservedMemForHeaps && !m_loaderAllocator->IsCollectible())
         ClrVirtualFree (m_initialReservedMemForHeaps, 0, MEM_RELEASE);
 
     // Free critical section
@@ -861,7 +878,7 @@ void VirtualCallStubManager::InitStatic()
 {
     STANDARD_VM_CONTRACT;
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
     // Note if you change these values using environment variables then you must use hex values :-(
     STUB_MISS_COUNT_VALUE  = (INT32) CLRConfig::GetConfigValue(CLRConfig::INTERNAL_VirtualCallStubMissCount);
     STUB_COLLIDE_WRITE_PCT = (INT32) CLRConfig::GetConfigValue(CLRConfig::INTERNAL_VirtualCallStubCollideWritePct);
@@ -980,10 +997,9 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     } CONTRACTL_END
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
     VirtualCallStubManager *pCur;
     StubKind kind;
 
@@ -998,19 +1014,6 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
     // LockedRangeList::IsInRangeWorker
     // VirtualCallStubManager::isDispatchingStub
     //
-    CONTRACT_VIOLATION(SOToleranceViolation);
-    kind = pCur->getStubKind(stubAddress, usePredictStubKind);
-    if (kind != SK_UNKNOWN)
-    {
-        if (wbStubKind)
-            *wbStubKind = kind;
-        return pCur;
-    }
-
-    //
-    // See if we are managed by the shared domain
-    //
-    pCur = SharedDomain::GetDomain()->GetLoaderAllocator()->GetVirtualCallStubManager();
     kind = pCur->getStubKind(stubAddress, usePredictStubKind);
     if (kind != SK_UNKNOWN)
     {
@@ -1075,6 +1078,8 @@ BOOL VirtualCallStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinatio
 {
     LIMITED_METHOD_CONTRACT;
 
+    LOG((LF_CORDB, LL_EVERYTHING, "VirtualCallStubManager::DoTraceStub called\n"));
+
     _ASSERTE(CheckIsStub_Internal(stubStartAddress));
 
 #ifdef FEATURE_PREJIT
@@ -1093,9 +1098,9 @@ BOOL VirtualCallStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinatio
 }
 
 //----------------------------------------------------------------------------
-BOOL VirtualCallStubManager::TraceManager(Thread *thread, 
+BOOL VirtualCallStubManager::TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              T_CONTEXT *pContext, 
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr)
 {
     CONTRACTL
@@ -1124,7 +1129,7 @@ BOOL VirtualCallStubManager::TraceManager(Thread *thread,
 
     // Get the token from the stub
     CONSISTENCY_CHECK(isStub(pStub));
-    size_t token = GetTokenFromStub(pStub);
+    DispatchToken token(GetTokenFromStub(pStub));
 
     // Get the this object from ECX
     Object *pObj = StubManagerHelpers::GetThisPtr(pContext);
@@ -1133,7 +1138,7 @@ BOOL VirtualCallStubManager::TraceManager(Thread *thread,
     return (TraceResolver(pObj, token, trace));
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 PCODE VirtualCallStubManager::GetCallStub(TypeHandle ownerType, MethodDesc *pMD)
 {
@@ -1191,10 +1196,72 @@ PCODE VirtualCallStubManager::GetCallStub(TypeHandle ownerType, DWORD slot)
     RETURN (stub);
 }
 
+PCODE VirtualCallStubManager::GetVTableCallStub(DWORD slot)
+{
+    CONTRACT(PCODE) {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+        PRECONDITION(!MethodTable::VTableIndir_t::isRelative /* Not yet supported */);
+        POSTCONDITION(RETVAL != NULL);
+    } CONTRACT_END;
+
+    GCX_COOP(); // This is necessary for BucketTable synchronization
+
+    PCODE stub = CALL_STUB_EMPTY_ENTRY;
+
+    VTableCallEntry entry;
+    Prober probe(&entry);
+    if (vtableCallers->SetUpProber(DispatchToken::CreateDispatchToken(slot).To_SIZE_T(), 0, &probe))
+    {
+        if ((stub = (PCODE)(vtableCallers->Find(&probe))) == CALL_STUB_EMPTY_ENTRY)
+        {
+            VTableCallHolder *pHolder = GenerateVTableCallStub(slot);
+            stub = (PCODE)(vtableCallers->Add((size_t)(pHolder->stub()->entryPoint()), &probe));
+        }
+    }
+
+    _ASSERTE(stub != CALL_STUB_EMPTY_ENTRY);
+    RETURN(stub);
+}
+
+VTableCallHolder* VirtualCallStubManager::GenerateVTableCallStub(DWORD slot)
+{
+    CONTRACT(VTableCallHolder*) {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+        PRECONDITION(!MethodTable::VTableIndir_t::isRelative /* Not yet supported */);
+        POSTCONDITION(RETVAL != NULL);
+    } CONTRACT_END;
+
+    //allocate from the requisite heap and copy the template over it.
+    VTableCallHolder * pHolder = (VTableCallHolder*)(void*)vtable_heap->AllocAlignedMem(VTableCallHolder::GetHolderSize(slot), CODE_SIZE_ALIGN);
+
+    pHolder->Initialize(slot);
+    ClrFlushInstructionCache(pHolder->stub(), pHolder->stub()->size());
+
+    AddToCollectibleVSDRangeList(pHolder);
+
+    //incr our counters
+    stats.stub_vtable_counter++;
+    stats.stub_space += (UINT32)pHolder->stub()->size();
+    LOG((LF_STUBS, LL_INFO10000, "GenerateVTableCallStub for slot " FMT_ADDR "at" FMT_ADDR "\n",
+        DBG_ADDR(slot), DBG_ADDR(pHolder->stub())));
+
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "GenerateVTableCallStub", (PCODE)pHolder->stub(), pHolder->stub()->size());
+#endif
+
+    RETURN(pHolder);
+}
+
 #ifdef FEATURE_PREJIT
-extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBlock, 
+extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBlock,
                                                  TADDR siteAddrForRegisterIndirect,
-                                                 DWORD sectionIndex, 
+                                                 DWORD sectionIndex,
                                                  Module * pModule)
 {
     CONTRACTL {
@@ -1210,7 +1277,7 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
 
 #ifdef _DEBUG
     Thread::ObjectRefFlush(CURRENT_THREAD);
-#endif    
+#endif
 
     FrameWithCookie<StubDispatchFrame> frame(pTransitionBlock);
     StubDispatchFrame * pSDFrame = &frame;
@@ -1313,14 +1380,14 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
 //  Method:     VirtualCallStubManager::GenerateStubIndirection
 //
 //  Synopsis:   This method allocates an indirection cell for use by the virtual stub dispatch (currently
-//              only implemented for interface calls). 
+//              only implemented for interface calls).
 //              For normal methods: the indirection cell allocated will never be freed until app domain unload
 //              For dynamic methods: we recycle the indirection cells when a dynamic method is collected. To
-//              do that we keep all the recycled indirection cells in a linked list: m_RecycledIndCellList. When 
+//              do that we keep all the recycled indirection cells in a linked list: m_RecycledIndCellList. When
 //              the dynamic method needs an indirection cell it allocates one from m_RecycledIndCellList. Each
 //              dynamic method keeps track of all the indirection cells it uses and add them back to
-//              m_RecycledIndCellList when it is finalized. 
-//              
+//              m_RecycledIndCellList when it is finalized.
+//
 //+----------------------------------------------------------------------------
 BYTE *VirtualCallStubManager::GenerateStubIndirection(PCODE target, BOOL fUseRecycledCell /* = FALSE*/ )
 {
@@ -1338,7 +1405,7 @@ BYTE *VirtualCallStubManager::GenerateStubIndirection(PCODE target, BOOL fUseRec
 
     // The indirection cell to hold the pointer to the stub
     BYTE * ret              = NULL;
-    UINT32 cellsPerBlock    = INDCELLS_PER_BLOCK;         
+    UINT32 cellsPerBlock    = INDCELLS_PER_BLOCK;
 
     // First try the recycled indirection cell list for Dynamic methods
     if (fUseRecycledCell)
@@ -1394,7 +1461,14 @@ ResolveCacheElem *VirtualCallStubManager::GetResolveCacheElem(void *pMT,
         elem = (ResolveCacheElem*) (cache_entries->Find(&probeRC));
         if (elem  == CALL_STUB_EMPTY_ENTRY)
         {
-            elem = GenerateResolveCacheElem(target, pMT, token);
+            bool reenteredCooperativeGCMode = false;
+            elem = GenerateResolveCacheElem(target, pMT, token, &reenteredCooperativeGCMode);
+            if (reenteredCooperativeGCMode)
+            {
+                // The prober may have been invalidated by reentering cooperative GC mode, reset it
+                BOOL success = cache_entries->SetUpProber(token, (size_t)pMT, &probeRC);
+                _ASSERTE(success);
+            }
             elem = (ResolveCacheElem*) (cache_entries->Add((size_t) elem, &probeRC));
         }
     }
@@ -1435,7 +1509,7 @@ size_t VirtualCallStubManager::GetTokenFromStubQuick(VirtualCallStubManager * pM
     _ASSERTE(stub != NULL);
     _ASSERTE(kind != SK_UNKNOWN);
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
     if (kind == SK_DISPATCH)
     {
@@ -1457,6 +1531,12 @@ size_t VirtualCallStubManager::GetTokenFromStubQuick(VirtualCallStubManager * pM
         LookupHolder  * lookupHolder  = LookupHolder::FromLookupEntry(stub);
         return lookupHolder->stub()->token();
     }
+    else if (kind == SK_VTABLECALL)
+    {
+        _ASSERTE(pMgr->isVTableCallStub(stub));
+        VTableCallStub * vtableStub = (VTableCallStub *)PCODEToPINSTR(stub);
+        return vtableStub->token();
+    }
 
     _ASSERTE(!"Should not get here.");
 
@@ -1469,21 +1549,18 @@ size_t VirtualCallStubManager::GetTokenFromStubQuick(VirtualCallStubManager * pM
     return 0;
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
 ResolveCacheElem* __fastcall VirtualCallStubManager::PromoteChainEntry(ResolveCacheElem *pElem)
 {
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pElem));
     } CONTRACTL_END;
 
-    // @todo - Remove this when have a probe that generates a hard SO.
-    CONTRACT_VIOLATION(SOToleranceViolation);
     g_resolveCache->PromoteChainEntry(pElem);
     return pElem;
 }
@@ -1506,7 +1583,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
                         size_t token
 #ifndef _TARGET_X86_
                         , UINT_PTR flags
-#endif                            
+#endif
                         )
 {
     CONTRACTL {
@@ -1515,7 +1592,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pTransitionBlock));
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     MAKE_CURRENT_THREAD_AVAILABLE();
@@ -1551,8 +1627,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 #ifndef _TARGET_X86_
     if (flags & SDF_ResolvePromoteChain)
     {
-        BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
-
         ResolveCacheElem * pElem =  (ResolveCacheElem *)token;
         g_resolveCache->PromoteChainEntry(pElem);
         target = (PCODE) pElem->target;
@@ -1565,8 +1639,6 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
             pMgr->BackPatchWorker(&callSite);
         }
 
-        END_SO_INTOLERANT_CODE;
-
         return target;
     }
 #endif
@@ -1574,7 +1646,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     pSDFrame->SetCallSite(NULL, (TADDR)callSite.GetIndirectCell());
 
     DispatchToken representativeToken(token);
-    MethodTable * pRepresentativeMT = pObj->GetTrueMethodTable();
+    MethodTable * pRepresentativeMT = pObj->GetMethodTable();
     if (representativeToken.IsTypedToken())
     {
         pRepresentativeMT = CURRENT_THREAD->GetDomain()->LookupType(representativeToken.GetTypeID());
@@ -1600,7 +1672,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     VirtualCallStubManager *pMgr = VirtualCallStubManager::FindStubManager(callSiteTarget, &stubKind);
     PREFIX_ASSUME(pMgr != NULL);
 
-#ifndef _TARGET_X86_ 
+#ifndef _TARGET_X86_
     // Have we failed the dispatch stub too many times?
     if (flags & SDF_ResolveBackPatch)
     {
@@ -1608,7 +1680,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     }
 #endif
 
-    target = pMgr->ResolveWorker(&callSite, protectedObj, token, stubKind);
+    target = pMgr->ResolveWorker(&callSite, protectedObj, representativeToken, stubKind);
 
     GCPROTECT_END();
 
@@ -1630,7 +1702,7 @@ void VirtualCallStubManager::BackPatchWorkerStatic(PCODE returnAddress, TADDR si
     } CONTRACTL_END
 
     BEGIN_ENTRYPOINT_VOIDRET;
-    
+
     StubCallSite callSite(siteAddrForRegisterIndirect, returnAddress);
 
     PCODE callSiteTarget = callSite.GetSiteTarget();
@@ -1669,7 +1741,7 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
     MethodTable* objectType = (*protectedObj)->GetMethodTable();
     CONSISTENCY_CHECK(CheckPointer(objectType));
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
     if (g_dumpLogCounter != 0)
     {
         UINT32 total_calls = g_mono_call_counter + g_poly_call_counter;
@@ -1799,11 +1871,10 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
     if (target == NULL)
     {
         CONSISTENCY_CHECK(stub == CALL_STUB_EMPTY_ENTRY);
-        patch = Resolver(objectType, token, protectedObj, &target);
+        patch = Resolver(objectType, token, protectedObj, &target, TRUE /* throwOnConflict */);
 
-#if defined(_DEBUG) 
-        if ( !objectType->IsTransparentProxy() &&
-             !objectType->IsComObjectType() &&
+#if defined(_DEBUG)
+        if ( !objectType->IsComObjectType() &&
              !objectType->IsICastable())
         {
             CONSISTENCY_CHECK(!MethodTable::GetMethodDescForSlotAddress(target)->IsGenericMethodDefinition());
@@ -1858,14 +1929,14 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                     PCODE pBackPatchFcn;
                     PCODE pResolverFcn;
 
-#ifdef _TARGET_X86_ 
+#ifdef _TARGET_X86_
                     // Only X86 implementation needs a BackPatch function
                     pBackPatchFcn = (PCODE) GetEEFuncEntryPoint(BackPatchWorkerAsmStub);
 #else // !_TARGET_X86_
                     pBackPatchFcn = NULL;
 #endif // !_TARGET_X86_
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
                     pResolverFcn  = (PCODE) GetEEFuncEntryPoint(ResolveWorkerChainLookupAsmStub);
 #else // CHAIN_LOOKUP
                     // Use the the slow resolver
@@ -1916,8 +1987,15 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                             if (addrOfDispatch == CALL_STUB_EMPTY_ENTRY)
                             {
                                 PCODE addrOfFail = pResolveHolder->stub()->failEntryPoint();
+                                bool reenteredCooperativeGCMode = false;
                                 pDispatchHolder = GenerateDispatchStub(
-                                    target, addrOfFail, objectType, token.To_SIZE_T());
+                                    target, addrOfFail, objectType, token.To_SIZE_T(), &reenteredCooperativeGCMode);
+                                if (reenteredCooperativeGCMode)
+                                {
+                                    // The prober may have been invalidated by reentering cooperative GC mode, reset it
+                                    BOOL success = dispatchers->SetUpProber(token.To_SIZE_T(), (size_t)objectType, &probeD);
+                                    _ASSERTE(success);
+                                }
                                 dispatchers->Add((size_t)(pDispatchHolder->stub()->entryPoint()), &probeD);
                             }
                             else
@@ -2000,12 +2078,12 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                 // Try to insert this entry into the resolver cache table
                 // When we get a collision we may decide not to insert this element
                 // and Insert will return FALSE if we decided not to add the entry
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
                 BOOL didInsert =
 #endif
                     g_resolveCache->Insert(e, insertKind);
 
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
                 if ((STUB_COLLIDE_MONO_PCT > 0) && !didInsert && (stubKind == SK_RESOLVE))
                 {
                     // If we decided not to perform the insert and we came in with a resolve stub
@@ -2033,8 +2111,15 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                                     // so we may have to create it now
                                     ResolveHolder* pResolveHolder = ResolveHolder::FromResolveEntry(pCallSite->GetSiteTarget());
                                     PCODE addrOfFail = pResolveHolder->stub()->failEntryPoint();
+                                    bool reenteredCooperativeGCMode = false;
                                     pDispatchHolder = GenerateDispatchStub(
-                                        target, addrOfFail, objectType, token.To_SIZE_T());
+                                        target, addrOfFail, objectType, token.To_SIZE_T(), &reenteredCooperativeGCMode);
+                                    if (reenteredCooperativeGCMode)
+                                    {
+                                        // The prober may have been invalidated by reentering cooperative GC mode, reset it
+                                        BOOL success = dispatchers->SetUpProber(token.To_SIZE_T(), (size_t)objectType, &probeD);
+                                        _ASSERTE(success);
+                                    }
                                     dispatchers->Add((size_t)(pDispatchHolder->stub()->entryPoint()), &probeD);
                                 }
                                 else
@@ -2080,12 +2165,13 @@ whether or not this is a permenent choice or a temporary choice.  For example, i
 not been jitted yet, return FALSE and set the target to the prestub.  If the target is set to NULL,
 it means that the token is not resolvable.
 */
-BOOL 
+BOOL
 VirtualCallStubManager::Resolver(
-    MethodTable * pMT, 
+    MethodTable * pMT,
     DispatchToken token,
     OBJECTREF   * protectedObj, // this one can actually be NULL, consider using pMT is you don't need the object itself
-    PCODE *       ppTarget)
+    PCODE *       ppTarget,
+    BOOL          throwOnConflict)
 {
     CONTRACTL {
         THROWS;
@@ -2094,13 +2180,13 @@ VirtualCallStubManager::Resolver(
         PRECONDITION(TypeHandle(pMT).CheckFullyLoaded());
     } CONTRACTL_END;
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     MethodTable * dbg_pTokenMT = pMT;
     MethodDesc *  dbg_pTokenMD = NULL;
     if (token.IsTypedToken())
     {
         dbg_pTokenMT = GetThread()->GetDomain()->LookupType(token.GetTypeID());
-        dbg_pTokenMD = dbg_pTokenMT->FindDispatchSlot(token.GetSlotNumber()).GetMethodDesc();
+        dbg_pTokenMD = dbg_pTokenMT->FindDispatchSlot(TYPE_ID_THIS_CLASS, token.GetSlotNumber(), throwOnConflict).GetMethodDesc();
     }
 #endif // _DEBUG
 
@@ -2115,21 +2201,21 @@ VirtualCallStubManager::Resolver(
 
     MethodDesc * pMD = NULL;
     BOOL fShouldPatch = FALSE;
-    DispatchSlot implSlot(pMT->FindDispatchSlot(token));
+    DispatchSlot implSlot(pMT->FindDispatchSlot(token.GetTypeID(), token.GetSlotNumber(), throwOnConflict));
 
     // If we found a target, then just figure out if we're allowed to create a stub around
     // this target and backpatch the callsite.
     if (!implSlot.IsNull())
     {
         g_IBCLogger.LogDispatchTableSlotAccess(&implSlot);
-#if defined(LOGGING) || defined(_DEBUG) 
+#if defined(LOGGING) || defined(_DEBUG)
         {
             pMD = implSlot.GetMethodDesc();
             if (pMD != NULL)
             {
                 // Make sure we aren't crossing app domain boundaries
                 CONSISTENCY_CHECK(GetAppDomain()->CheckValidModule(pMD->GetModule()));
-#ifdef LOGGING 
+#ifdef LOGGING
                 WORD slot = pMD->GetSlot();
                 BOOL fIsOverriddenMethod =
                     (pMT->GetNumParentVirtuals() <= slot && slot < pMT->GetNumVirtuals());
@@ -2199,7 +2285,7 @@ VirtualCallStubManager::Resolver(
     else if (pMT->IsComObjectType() && IsInterfaceToken(token))
     {
         MethodTable * pItfMT = GetTypeFromToken(token);
-        implSlot = pItfMT->FindDispatchSlot(token.GetSlotNumber());
+        implSlot = pItfMT->FindDispatchSlot(TYPE_ID_THIS_CLASS, token.GetSlotNumber(), throwOnConflict);
 
         if (pItfMT->HasInstantiation())
         {
@@ -2210,8 +2296,8 @@ VirtualCallStubManager::Resolver(
                 _ASSERTE(pItfMT->IsProjectedFromWinRT() || pItfMT->IsWinRTRedirectedInterface(TypeHandle::Interop_ManagedToNative));
 
                 MethodDesc *pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                    pTargetMD, 
-                    pItfMT, 
+                    pTargetMD,
+                    pItfMT,
                     FALSE,              // forceBoxedEntryPoint
                     Instantiation(),    // methodInst
                     FALSE,              // allowInstParam
@@ -2234,14 +2320,14 @@ VirtualCallStubManager::Resolver(
 
         // In case of ICastable, instead of trying to find method implementation in the real object type
         // we call pObj.GetValueInternal() and call Resolver() again with whatever type it returns.
-        // It allows objects that implement ICastable to mimic behavior of other types. 
+        // It allows objects that implement ICastable to mimic behavior of other types.
         MethodTable * pTokenMT = GetTypeFromToken(token);
 
         // Make call to ICastableHelpers.GetImplType(this, interfaceTypeObj)
         PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
 
         OBJECTREF tokenManagedType = pTokenMT->GetManagedClassObject(); //GC triggers
-        
+
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*protectedObj);
         args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(tokenManagedType);
@@ -2252,14 +2338,14 @@ VirtualCallStubManager::Resolver(
         INDEBUG(tokenManagedType = NULL); //tokenManagedType wasn't protected during the call
         if (impTypeObj == NULL) // GetImplType returns default(RuntimeTypeHandle)
         {
-            COMPlusThrow(kEntryPointNotFoundException);    
+            COMPlusThrow(kEntryPointNotFoundException);
         }
 
         ReflectClassBaseObject* resultTypeObj = ((ReflectClassBaseObject*)OBJECTREFToObject(impTypeObj));
         TypeHandle resulTypeHnd = resultTypeObj->GetType();
         MethodTable *pResultMT = resulTypeHnd.GetMethodTable();
 
-        return Resolver(pResultMT, token, protectedObj, ppTarget);
+        return Resolver(pResultMT, token, protectedObj, ppTarget, throwOnConflict);
     }
 #endif // FEATURE_ICASTABLE
 
@@ -2270,7 +2356,7 @@ VirtualCallStubManager::Resolver(
         if (token.IsTypedToken())
         {
             pTokenMT = GetThread()->GetDomain()->LookupType(token.GetTypeID());
-            pTokenMD = pTokenMT->FindDispatchSlot(token.GetSlotNumber()).GetMethodDesc();
+            pTokenMD = pTokenMT->FindDispatchSlot(TYPE_ID_THIS_CLASS, token.GetSlotNumber(), throwOnConflict).GetMethodDesc();
         }
 
 #ifdef FEATURE_COMINTEROP
@@ -2279,11 +2365,18 @@ VirtualCallStubManager::Resolver(
             SString methodName;
             DefineFullyQualifiedNameForClassW();
             pTokenMD->GetFullMethodInfo(methodName);
-            
+
             COMPlusThrowHR(COR_E_MISSINGMETHOD, COR_E_MISSINGMETHOD, GetFullyQualifiedNameForClassNestedAwareW(pMT), methodName.GetUnicode());
         }
         else
 #endif // FEATURE_COMINTEROP
+        if (!throwOnConflict)
+        {
+            // Assume we got null because there was a default interface method conflict
+            *ppTarget = NULL;
+            return FALSE;
+        }
+        else
         {
             // Method not found, and this should never happen for anything but equivalent types
             CONSISTENCY_CHECK(!implSlot.IsNull() && "Valid method implementation was not found.");
@@ -2324,12 +2417,12 @@ BOOL VirtualCallStubManager::IsInterfaceToken(DispatchToken token)
     RETURN (ret);
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 //----------------------------------------------------------------------------
-MethodDesc * 
+MethodDesc *
 VirtualCallStubManager::GetRepresentativeMethodDescFromToken(
-    DispatchToken token, 
+    DispatchToken token,
     MethodTable * pMT)
 {
     CONTRACT (MethodDesc *) {
@@ -2338,7 +2431,6 @@ VirtualCallStubManager::GetRepresentativeMethodDescFromToken(
         MODE_COOPERATIVE;
         PRECONDITION(CheckPointer(pMT));
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;
     } CONTRACT_END;
 
     // This is called when trying to create a HelperMethodFrame, which means there are
@@ -2379,7 +2471,7 @@ MethodDesc *VirtualCallStubManager::GetInterfaceMethodDescFromToken(DispatchToke
         PRECONDITION(IsInterfaceToken(token));
     } CONTRACTL_END;
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
     MethodTable * pMT = GetTypeFromToken(token);
     PREFIX_ASSUME(pMT != NULL);
@@ -2394,7 +2486,7 @@ MethodDesc *VirtualCallStubManager::GetInterfaceMethodDescFromToken(DispatchToke
 #endif // DACCESS_COMPILE
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 //----------------------------------------------------------------------------
 // This will check to see if a match is in the cache.
@@ -2404,7 +2496,6 @@ PCODE VirtualCallStubManager::CacheLookup(size_t token, UINT16 tokenHash, Method
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMT));
     } CONTRACTL_END
 
@@ -2420,8 +2511,9 @@ PCODE VirtualCallStubManager::CacheLookup(size_t token, UINT16 tokenHash, Method
 /* static */
 PCODE
 VirtualCallStubManager::GetTarget(
-    DispatchToken token, 
-    MethodTable * pMT)
+    DispatchToken token,
+    MethodTable * pMT,
+    BOOL throwOnConflict)
 {
     CONTRACTL {
         THROWS;
@@ -2429,11 +2521,6 @@ VirtualCallStubManager::GetTarget(
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pMT));
     } CONTRACTL_END
-
-    // ToDo: add this after checking that reflection
-    //       doesn't send us a TransparentProxy
-    //
-    // CONSISTENCY_CHECK(!pMT->IsTransparentProxy());
 
     g_external_call++;
 
@@ -2456,9 +2543,9 @@ VirtualCallStubManager::GetTarget(
     BOOL fPatch;
 
     // TODO: passing NULL as protectedObj here can lead to incorrect behavior for ICastable objects
-    // We need to review if this is the case and refactor this code if we want ICastable to become officially supported    
-    fPatch = Resolver(pMT, token, NULL, &target);
-    _ASSERTE(target != NULL);
+    // We need to review if this is the case and refactor this code if we want ICastable to become officially supported
+    fPatch = Resolver(pMT, token, NULL, &target, throwOnConflict);
+    _ASSERTE(!throwOnConflict || target != NULL);
 
 #ifndef STUB_DISPATCH_PORTABLE
     if (fPatch)
@@ -2493,10 +2580,10 @@ whether or not this is a permenent choice or a temporary choice.  For example, i
 not been jitted yet, return FALSE and set the target to the prestub.  If the target is set to NULL,
 it means that the token is not resolvable.
 */
-BOOL 
+BOOL
 VirtualCallStubManager::TraceResolver(
-    Object *           pObj, 
-    DispatchToken      token, 
+    Object *           pObj,
+    DispatchToken      token,
     TraceDestination * trace)
 {
     CONTRACTL {
@@ -2517,20 +2604,28 @@ VirtualCallStubManager::TraceResolver(
     MethodTable *pMT = pObj->GetMethodTable();
     CONSISTENCY_CHECK(CheckPointer(pMT));
 
-
-    DispatchSlot slot(pMT->FindDispatchSlot(token));
-
+    DispatchSlot slot(pMT->FindDispatchSlot(token.GetTypeID(), token.GetSlotNumber(), FALSE /* throwOnConflict */));
     if (slot.IsNull() && IsInterfaceToken(token) && pMT->IsComObjectType())
     {
         MethodDesc * pItfMD = GetInterfaceMethodDescFromToken(token);
         CONSISTENCY_CHECK(pItfMD->GetMethodTable()->GetSlot(pItfMD->GetSlot()) == pItfMD->GetMethodEntryPoint());
-        slot = pItfMD->GetMethodTable()->FindDispatchSlot(pItfMD->GetSlot());
+
+        // Look up the slot on the interface itself.
+        slot = pItfMD->GetMethodTable()->FindDispatchSlot(TYPE_ID_THIS_CLASS, pItfMD->GetSlot(), FALSE /* throwOnConflict */);
     }
 
-    return (StubManager::TraceStub(slot.GetTarget(), trace));
+    // The dispatch slot's target may change due to code versioning shortly after it was retrieved above for the trace. This
+    // will result in the debugger getting some version of the code or the prestub, but not necessarily the exact code pointer
+    // that winds up getting executed. The debugger has code that handles this ambiguity by placing a breakpoint at the start of
+    // all native code versions, even if they aren't the one that was reported by this trace, see
+    // DebuggerController::PatchTrace() under case TRACE_MANAGED. This alleviates the StubManager from having to prevent the
+    // race that occurs here.
+    //
+    // If the dispatch slot is null, we assume it's because of a diamond case in default interface method dispatch.
+    return slot.IsNull() ? FALSE : (StubManager::TraceStub(slot.GetTarget(), trace));
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 //----------------------------------------------------------------------------
 /* Change the call site.  It is failing the expected MT test in the dispatcher stub
@@ -2626,11 +2721,10 @@ void VirtualCallStubManager::BackPatchSite(StubCallSite* pCallSite, PCODE stub)
 
 //----------------------------------------------------------------------------
 void StubCallSite::SetSiteTarget(PCODE newTarget)
-{ 
+{
     WRAPPER_NO_CONTRACT;
     PTR_PCODE pCell = GetIndirectCell();
-    if (EnsureWritablePagesNoThrow(pCell, sizeof(PCODE)))
-        *pCell = newTarget;
+    *pCell = newTarget;
 }
 
 //----------------------------------------------------------------------------
@@ -2640,7 +2734,8 @@ are the addresses the stub is to transfer to depending on the test with pMTExpec
 DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            addrOfCode,
                                                              PCODE            addrOfFail,
                                                              void *           pMTExpected,
-                                                             size_t           dispatchToken)
+                                                             size_t           dispatchToken,
+                                                             bool *           pMayHaveReenteredCooperativeGCMode)
 {
     CONTRACT (DispatchHolder*) {
         THROWS;
@@ -2649,6 +2744,8 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
         PRECONDITION(addrOfCode != NULL);
         PRECONDITION(addrOfFail != NULL);
         PRECONDITION(CheckPointer(pMTExpected));
+        PRECONDITION(pMayHaveReenteredCooperativeGCMode != nullptr);
+        PRECONDITION(!*pMayHaveReenteredCooperativeGCMode);
         POSTCONDITION(CheckPointer(RETVAL));
     } CONTRACT_END;
 
@@ -2662,7 +2759,8 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
         RETURN GenerateDispatchStubLong(addrOfCode,
                                         addrOfFail,
                                         pMTExpected,
-                                        dispatchToken);
+                                        dispatchToken,
+                                        pMayHaveReenteredCooperativeGCMode);
     }
 
     dispatchHolderSize = DispatchHolder::GetHolderSize(DispatchStub::e_TYPE_SHORT);
@@ -2676,7 +2774,7 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
     if (!DispatchHolder::CanShortJumpDispatchStubReachFailTarget(addrOfFail, (LPCBYTE)holder))
     {
         m_fShouldAllocateLongJumpDispatchStubs = TRUE;
-        RETURN GenerateDispatchStub(addrOfCode, addrOfFail, pMTExpected, dispatchToken);
+        RETURN GenerateDispatchStub(addrOfCode, addrOfFail, pMTExpected, dispatchToken, pMayHaveReenteredCooperativeGCMode);
     }
 #endif
 
@@ -2687,6 +2785,19 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
                        , DispatchStub::e_TYPE_SHORT
 #endif
                        );
+
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        EntryPointSlots::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
+
+        // RecordAndBackpatchEntryPointSlot() takes a lock that would exit and reenter cooperative GC mode
+        *pMayHaveReenteredCooperativeGCMode = true;
+    }
+#endif
 
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
@@ -2713,7 +2824,8 @@ are the addresses the stub is to transfer to depending on the test with pMTExpec
 DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE            addrOfCode,
                                                                  PCODE            addrOfFail,
                                                                  void *           pMTExpected,
-                                                                 size_t           dispatchToken)
+                                                                 size_t           dispatchToken,
+                                                                 bool *           pMayHaveReenteredCooperativeGCMode)
 {
     CONTRACT (DispatchHolder*) {
         THROWS;
@@ -2722,6 +2834,8 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
         PRECONDITION(addrOfCode != NULL);
         PRECONDITION(addrOfFail != NULL);
         PRECONDITION(CheckPointer(pMTExpected));
+        PRECONDITION(pMayHaveReenteredCooperativeGCMode != nullptr);
+        PRECONDITION(!*pMayHaveReenteredCooperativeGCMode);
         POSTCONDITION(CheckPointer(RETVAL));
     } CONTRACT_END;
 
@@ -2733,6 +2847,19 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
                        addrOfFail,
                        (size_t)pMTExpected,
                        DispatchStub::e_TYPE_LONG);
+
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        EntryPointSlots::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(m_loaderAllocator, slot, slotType);
+
+        // RecordAndBackpatchEntryPointSlot() takes a lock that would exit and reenter cooperative GC mode
+        *pMayHaveReenteredCooperativeGCMode = true;
+    }
+#endif
 
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
@@ -2766,7 +2893,7 @@ ResolveHolder *VirtualCallStubManager::GenerateResolveStub(PCODE            addr
         GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(addrOfResolver != NULL);
-#if defined(_TARGET_X86_) 
+#if defined(_TARGET_X86_)
         PRECONDITION(addrOfPatcher != NULL);
 #endif
         POSTCONDITION(CheckPointer(RETVAL));
@@ -2880,13 +3007,16 @@ LookupHolder *VirtualCallStubManager::GenerateLookupStub(PCODE addrOfResolver, s
 */
 ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfCode,
                                                                    void *pMTExpected,
-                                                                   size_t token)
+                                                                   size_t token,
+                                                                   bool *pMayHaveReenteredCooperativeGCMode)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM(););
+        PRECONDITION(pMayHaveReenteredCooperativeGCMode != nullptr);
+        PRECONDITION(!*pMayHaveReenteredCooperativeGCMode);
     }
     CONTRACTL_END
 
@@ -2901,6 +3031,20 @@ ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfC
     e->target = addrOfCode;
 
     e->pNext  = NULL;
+
+#ifdef FEATURE_CODE_VERSIONING
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress((PCODE)addrOfCode);
+    if (pMD->IsVersionableWithVtableSlotBackpatch())
+    {
+        pMD->RecordAndBackpatchEntryPointSlot(
+            m_loaderAllocator,
+            (TADDR)&e->target,
+            EntryPointSlots::SlotType_Normal);
+
+        // RecordAndBackpatchEntryPointSlot() takes a lock that would exit and reenter cooperative GC mode
+        *pMayHaveReenteredCooperativeGCMode = true;
+    }
+#endif
 
     //incr our counters
     stats.cache_entry_counter++;
@@ -3029,12 +3173,14 @@ void VirtualCallStubManager::LogStats()
     resolvers->LogStats();
     dispatchers->LogStats();
     lookups->LogStats();
+    vtableCallers->LogStats();
     cache_entries->LogStats();
 
     g_site_counter += stats.site_counter;
     g_stub_lookup_counter += stats.stub_lookup_counter;
     g_stub_poly_counter += stats.stub_poly_counter;
     g_stub_mono_counter += stats.stub_mono_counter;
+    g_stub_vtable_counter += stats.stub_vtable_counter;
     g_site_write += stats.site_write;
     g_site_write_poly += stats.site_write_poly;
     g_site_write_mono += stats.site_write_mono;
@@ -3049,6 +3195,7 @@ void VirtualCallStubManager::LogStats()
     stats.stub_lookup_counter = 0;
     stats.stub_poly_counter = 0;
     stats.stub_mono_counter = 0;
+    stats.stub_vtable_counter = 0;
     stats.site_write = 0;
     stats.site_write_poly = 0;
     stats.site_write_mono = 0;
@@ -3281,7 +3428,7 @@ BOOL BucketTable::GetMoreSpace(const Prober* p)
         oldBucket->contents[CALL_STUB_DEAD_LINK] = (size_t) list;
     } while (FastInterlockCompareExchangePointer(&dead, oldBucket, list) != list);
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     {
         // Validate correctness of the list
         FastTable *curr = oldBucket;
@@ -3340,7 +3487,7 @@ void BucketTable::Reclaim()
     if (FastInterlockCompareExchangePointer(&dead, NULL, list) != list)
         return;
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     // Validate correctness of the list
     FastTable *curr = list;
     while (curr)
@@ -3375,6 +3522,7 @@ void BucketTable::Reclaim()
 // dispatchers     token     the expected MT
 // resolver        token     the stub calling convention
 // cache_entries   token     the expected method table
+// vtableCallers   token     unused (zero)
 //
 BOOL BucketTable::SetUpProber(size_t keyA, size_t keyB, Prober *prober)
 {
@@ -3467,7 +3615,7 @@ void BucketTable::LogStats()
 }
 
 DispatchCache::DispatchCache()
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
     : m_writeLock(CrstStubDispatchCache, CRST_UNSAFE_ANYMODE)
 #endif
 {
@@ -3489,7 +3637,7 @@ DispatchCache::DispatchCache()
 
     // Initialize statistics
     memset(&stats, 0, sizeof(stats));
-#ifdef STUB_LOGGING 
+#ifdef STUB_LOGGING
     memset(&cacheData, 0, sizeof(cacheData));
 #endif
 }
@@ -3502,7 +3650,7 @@ ResolveCacheElem* DispatchCache::Lookup(size_t token, UINT16 tokenHash, void* mt
     UINT16 idx = HashMT(tokenHash, mt);
     ResolveCacheElem *pCurElem = GetCacheEntry(idx);
 
-#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP) 
+#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP)
     BOOL chainedLookup = FALSE;
 #endif
     // No need to conditionlize on CHAIN_LOOKUP, since this loop
@@ -3512,7 +3660,7 @@ ResolveCacheElem* DispatchCache::Lookup(size_t token, UINT16 tokenHash, void* mt
         if (pCurElem->Equals(token, mt)) {
             return pCurElem;
         }
-#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP) 
+#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP)
         // Only want to inc the counter once per chain search.
         if (pCurElem == GetCacheEntry(idx)) {
             chainedLookup = TRUE;
@@ -3521,7 +3669,7 @@ ResolveCacheElem* DispatchCache::Lookup(size_t token, UINT16 tokenHash, void* mt
 #endif // defined(STUB_LOGGING) && defined(CHAIN_LOOKUP)
         pCurElem = pCurElem->Next();
     }
-#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP) 
+#if defined(STUB_LOGGING) && defined(CHAIN_LOOKUP)
     if (chainedLookup) {
         g_chained_lookup_external_miss_counter++;
     }
@@ -3541,7 +3689,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
         PRECONDITION(insertKind != IK_NONE);
     } CONTRACTL_END;
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
     CrstHolder lh(&m_writeLock);
 #endif
 
@@ -3554,14 +3702,14 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
     BOOL   hit     = FALSE;
     BOOL   collide = FALSE;
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     elem->debug_hash = tokHash;
     elem->debug_index = idx;
 #endif // _DEBUG
 
         ResolveCacheElem* cell = GetCacheEntry(idx);
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
     // There is the possibility of a race where two threads will
     // try to generate a ResolveCacheElem for the same tuple, and
     // the first thread will get the lock and insert the element
@@ -3593,7 +3741,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
     {
         collide = TRUE;
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
         // Always insert the entry into the chain
         write = TRUE;
 #else // !CHAIN_LOOKUP
@@ -3614,7 +3762,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
 
     if (write)
     {
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
         // We create a list with the last pNext pointing at empty
         elem->pNext = cell;
 #else // !CHAIN_LOOKUP
@@ -3648,7 +3796,7 @@ BOOL DispatchCache::Insert(ResolveCacheElem* elem, InsertKind insertKind)
     return write || miss;
 }
 
-#ifdef CHAIN_LOOKUP 
+#ifdef CHAIN_LOOKUP
 void DispatchCache::PromoteChainEntry(ResolveCacheElem* elem)
 {
     CONTRACTL {
@@ -3723,11 +3871,11 @@ void DispatchCache::LogStats()
    2. For every bit we try to have half one bits and half zero bits
    3. Adjacent entries when xor-ed should have 5,6 or 7 bits that are different
 */
-#ifdef _WIN64 
+#ifdef BIT64
 static const UINT16 tokenHashBits[64] =
-#else // !_WIN64
+#else // !BIT64
 static const UINT16 tokenHashBits[32] =
-#endif // !_WIN64
+#endif // !BIT64
 {
     0xcd5, 0x8b9, 0x875, 0x439,
     0xbf0, 0x38d, 0xa5b, 0x6a7,
@@ -3738,7 +3886,7 @@ static const UINT16 tokenHashBits[32] =
     0xf05, 0x994, 0x472, 0x626,
     0x15c, 0x3a8, 0x56e, 0xe2d,
 
-#ifdef _WIN64 
+#ifdef BIT64
     0xe3c, 0xbe2, 0x58e, 0x0f3,
     0x54d, 0x70f, 0xf88, 0xe2b,
     0x353, 0x153, 0x4a5, 0x943,
@@ -3747,7 +3895,7 @@ static const UINT16 tokenHashBits[32] =
     0x0f7, 0x49a, 0xdd0, 0x366,
     0xd84, 0xba5, 0x4c5, 0x6bc,
     0x8ec, 0x0b9, 0x617, 0x85c,
-#endif // _WIN64
+#endif // BIT64
 };
 
 /*static*/ UINT16 DispatchCache::HashToken(size_t token)
@@ -3874,16 +4022,6 @@ VirtualCallStubManager *VirtualCallStubManagerManager::FindVirtualCallStubManage
             // Check the current domain
             {
                 BaseDomain *pDom = pThread->GetDomain();
-                VirtualCallStubManager *pMgr = pDom->GetLoaderAllocator()->GetVirtualCallStubManager();
-                if (pMgr->CheckIsStub_Internal(stubAddress))
-                {
-                    m_pCacheElem = pMgr;
-                    return pMgr;
-                }
-            }
-            // Check the shared domain
-            {
-                BaseDomain *pDom = SharedDomain::GetDomain();
                 VirtualCallStubManager *pMgr = pDom->GetLoaderAllocator()->GetVirtualCallStubManager();
                 if (pMgr->CheckIsStub_Internal(stubAddress))
                 {
@@ -4033,14 +4171,12 @@ MethodDesc *VirtualCallStubManagerManager::Entry2MethodDesc(
         return NULL;
 
     // Do the full resolve
-    size_t token = VirtualCallStubManager::GetTokenFromStubQuick(pMgr, stubStartAddress, sk);
-
-    CONSISTENCY_CHECK(!pMT->IsTransparentProxy());
+    DispatchToken token(VirtualCallStubManager::GetTokenFromStubQuick(pMgr, stubStartAddress, sk));
 
     PCODE target = NULL;
     // TODO: passing NULL as protectedObj here can lead to incorrect behavior for ICastable objects
     // We need to review if this is the case and refactor this code if we want ICastable to become officially supported
-    VirtualCallStubManager::Resolver(pMT, token, NULL, &target);
+    VirtualCallStubManager::Resolver(pMT, token, NULL, &target, TRUE /* throwOnConflict */);
 
     return pMT->GetMethodDescForSlotAddress(target);
 }

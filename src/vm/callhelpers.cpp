@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 /*
  *    CallHelpers.CPP: helpers to call managed code
- * 
+ *
 
  */
 
@@ -25,13 +25,7 @@
 
 void AssertMulticoreJitAllowedModule(PCODE pTarget)
 {
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-
-    MethodDesc* pMethod = Entry2MethodDesc(pTarget, NULL); 
+    MethodDesc* pMethod = Entry2MethodDesc(pTarget, NULL);
 
     Module * pModule = pMethod->GetModule_NoLogging();
 
@@ -52,7 +46,7 @@ void AssertMulticoreJitAllowedModule(PCODE pTarget)
 // and get the platform-appropriate exception handling.  A few places try to optimize by calling direct
 // to managed methods (see ArrayInitializeWorker or FastCallFinalize).  This sort of thing is
 // dangerous.  You have to worry about marking yourself as a legal managed caller and you have to
-// worry about how exceptions will be handled on a WIN64EXCEPTIONS plan.  It is generally only suitable
+// worry about how exceptions will be handled on a FEATURE_EH_FUNCLETS plan.  It is generally only suitable
 // for X86.
 
 //*******************************************************************************
@@ -60,8 +54,6 @@ void CallDescrWorkerWithHandler(
                 CallDescrData *   pCallDescrData,
                 BOOL              fCriticalCall)
 {
-    STATIC_CONTRACT_SO_INTOLERANT;
-
 #if defined(FEATURE_MULTICOREJIT) && defined(_DEBUG)
 
     // For multicore JITting, background thread should not call managed code, except when calling system code (e.g. throwing managed exception)
@@ -81,7 +73,7 @@ void CallDescrWorkerWithHandler(
 }
 
 
-#if !defined(_WIN64) && defined(_DEBUG) 
+#if !defined(BIT64) && defined(_DEBUG)
 
 //*******************************************************************************
 // assembly code, in i386/asmhelpers.asm
@@ -95,7 +87,7 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
     // unwind the C++ handler before branching to the catch clause in managed code. That essentially causes an
     // out-of-order destruction of the contract object, resulting in very odd crashes later.
     //
-#if 0 
+#if 0
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -103,7 +95,6 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
 #endif // 0
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE(!NingenEnabled() && "You cannot invoke managed code inside the ngen compilation process.");
 
@@ -141,11 +132,10 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
 
     ENABLESTRESSHEAP();
 }
-#endif // !defined(_WIN64) && defined(_DEBUG)
+#endif // !defined(BIT64) && defined(_DEBUG)
 
 void DispatchCallDebuggerWrapper(
     CallDescrData *   pCallDescrData,
-    ContextTransitionFrame* pFrame,
     BOOL fCriticalCall
 )
 {
@@ -160,7 +150,7 @@ void DispatchCallDebuggerWrapper(
         BOOL fCriticalCall;
     } param;
 
-    param.pFrame = pFrame;
+    param.pFrame = NULL;
     param.pCallDescrData = pCallDescrData;
     param.fCriticalCall = fCriticalCall;
 
@@ -181,7 +171,7 @@ void DispatchCallDebuggerWrapper(
 // Helper for VM->managed calls with simple signatures.
 void * DispatchCallSimple(
                     SIZE_T *pSrc,
-                    DWORD numStackSlotsToCopy, 
+                    DWORD numStackSlotsToCopy,
                     PCODE pTargetAddress,
                     DWORD dwDispatchCallSimpleFlags)
 {
@@ -193,7 +183,7 @@ void * DispatchCallSimple(
     }
     CONTRACTL_END;
 
-#ifdef DEBUGGING_SUPPORTED 
+#ifdef DEBUGGING_SUPPORTED
     if (CORDebuggerTraceCall())
         g_pDebugInterface->TraceCall((const BYTE *)pTargetAddress);
 #endif // DEBUGGING_SUPPORTED
@@ -227,7 +217,6 @@ void * DispatchCallSimple(
     {
         DispatchCallDebuggerWrapper(
             &callDescrData,
-            NULL,
             dwDispatchCallSimpleFlags & DispatchCallSimple_CriticalCall);
     }
     else
@@ -236,62 +225,6 @@ void * DispatchCallSimple(
     }
 
     return *(void **)(&callDescrData.returnValue);
-}
-
-// This method performs the proper profiler and debugger callbacks before dispatching the
-// call. The caller has the responsibility of furnishing the target address, register and stack arguments.
-// Stack arguments should be in reverse order, and pSrc should point to past the last argument
-// Returns the return value or the exception object if one was thrown.
-void DispatchCall(
-                    CallDescrData * pCallDescrData,
-                    OBJECTREF *pRefException,
-                    ContextTransitionFrame* pFrame /* = NULL */
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-                    , CorruptionSeverity *pSeverity /*= NULL*/
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-                    )
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-#ifdef DEBUGGING_SUPPORTED 
-    if (CORDebuggerTraceCall())
-        g_pDebugInterface->TraceCall((const BYTE *)pCallDescrData->pTarget);
-#endif // DEBUGGING_SUPPORTED
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-    if (pSeverity != NULL)
-    {
-        // By default, assume any exception that comes out is NotCorrupting
-        *pSeverity = NotCorrupting;
-    }
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-    EX_TRY
-    {
-        DispatchCallDebuggerWrapper(pCallDescrData,
-                                    pFrame,
-                                    FALSE);
-    }
-    EX_CATCH
-    {
-        *pRefException = GET_THROWABLE();
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-        if (pSeverity != NULL)
-        {
-            // By default, assume any exception that comes out is NotCorrupting
-            *pSeverity = GetThread()->GetExceptionState()->GetLastActiveExceptionCorruptionSeverity();
-        }
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-    }
-    EX_END_CATCH(RethrowTransientExceptions);
 }
 
 #ifdef CALLDESCR_REGTYPEMAP
@@ -318,17 +251,11 @@ void FillInRegTypeMap(int argOffset, CorElementType typ, BYTE * pMap)
     // right for each arg.
 
     if (regArgNum < NUM_ARGUMENT_REGISTERS)
-    {        
+    {
         pMap[regArgNum] = typ;
     }
 }
 #endif // CALLDESCR_REGTYPEMAP
-
-#if defined(_DEBUG) && defined(FEATURE_COMINTEROP)
-extern int g_fMainThreadApartmentStateSet;
-extern int g_fInitializingInitialAD;
-extern Volatile<LONG> g_fInExecuteMainMethod;
-#endif
 
 //*******************************************************************************
 #ifdef FEATURE_INTERPRETER
@@ -340,8 +267,8 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
     //
     // WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
     //
-    // This method needs to have a GC_TRIGGERS contract because it 
-    // calls managed code.  However, IT MAY NOT TRIGGER A GC ITSELF 
+    // This method needs to have a GC_TRIGGERS contract because it
+    // calls managed code.  However, IT MAY NOT TRIGGER A GC ITSELF
     // because the argument array is not protected and may contain gc
     // refs.
     //
@@ -355,14 +282,6 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
         MODE_COOPERATIVE;
         PRECONDITION(GetAppDomain()->CheckCanExecuteManagedCode(m_pMD));
         PRECONDITION(m_pMD->CheckActivated());          // EnsureActive will trigger, so we must already be activated
-
-#ifdef FEATURE_COMINTEROP
-        // If we're an exe, then we must either be initializing the first AD, or have already setup the main thread's
-        //  COM apartment state.
-        // If you hit this assert, then you likely introduced code during startup that could inadvertently 
-        //  initialize the COM apartment state of the main thread before we set it based on the user attribute.
-        PRECONDITION(g_fInExecuteMainMethod ? (g_fMainThreadApartmentStateSet || g_fInitializingInitialAD) : TRUE);
-#endif // FEATURE_COMINTEROP
     }
     CONTRACTL_END;
 
@@ -373,7 +292,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
     //
     // @todo: In an ideal world, we would require each of those sites to do the override rather than disabling
     // the assert broadly here. However, by limiting the override to mscorlib methods, we should still be able
-    // to effectively enforce the more general rule about loader recursion. 
+    // to effectively enforce the more general rule about loader recursion.
     MAYBE_OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED, m_pMD->GetModule()->IsSystem());
 
     LPBYTE pTransitionBlock;
@@ -389,7 +308,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
 
     {
         //
-        // the incoming argument array is not gc-protected, so we 
+        // the incoming argument array is not gc-protected, so we
         // may not trigger a GC before we actually call managed code
         //
         GCX_FORBID();
@@ -397,9 +316,9 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
         // Record this call if required
         g_IBCLogger.LogMethodDescAccess(m_pMD);
 
-        //  
+        //
         // All types must already be loaded. This macro also sets up a FAULT_FORBID region which is
-        // also required for critical calls since we cannot inject any failure points between the 
+        // also required for critical calls since we cannot inject any failure points between the
         // caller of MethodDesc::CallDescr and the actual transition to managed code.
         //
         ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
@@ -431,7 +350,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 TypeHandle thReturnValueType;
                 if (m_methodSig.GetReturnTypeNormalized(&thReturnValueType) == ELEMENT_TYPE_VALUETYPE)
                 {
-                    _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
+                    _ASSERTE((DWORD)cbReturnValue >= thReturnValueType.GetSize());
                 }
             }
 #endif // UNIX_AMD64_ABI
@@ -486,7 +405,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
         }
 #ifdef FEATURE_HFA
 #ifdef FEATURE_INTERPRETER
-        // Something is necessary for HFA's, but what's below (in the FEATURE_INTERPRETER ifdef) 
+        // Something is necessary for HFA's, but what's below (in the FEATURE_INTERPRETER ifdef)
         // doesn't seem to do the proper test.  It fires,
         // incorrectly, for a one-word struct that *doesn't* have a ret buff.  So we'll try this, instead:
         // We're here because it doesn't have a ret buff.  If it would, except that the struct being returned
@@ -529,7 +448,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
             // have at least one such argument we point the call worker at the floating point area of the
             // frame (we leave it null otherwise since the worker can perform a useful optimization if it
             // knows no floating point registers need to be set up).
-            if (TransitionBlock::HasFloatRegister(ofs, m_argIt.GetArgLocDescForStructInRegs()) && 
+            if (TransitionBlock::HasFloatRegister(ofs, m_argIt.GetArgLocDescForStructInRegs()) &&
                 (pFloatArgumentRegisters == NULL))
             {
                 pFloatArgumentRegisters = (FloatArgumentRegisters*)(pTransitionBlock +
@@ -634,10 +553,10 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
 
     if (pReturnValue != NULL)
     {
-        _ASSERTE(cbReturnValue <= sizeof(callDescrData.returnValue));
+        _ASSERTE((DWORD)cbReturnValue <= sizeof(callDescrData.returnValue));
         memcpyNoGCRefs(pReturnValue, &callDescrData.returnValue, cbReturnValue);
 
-#if !defined(_WIN64) && BIGENDIAN
+#if !defined(BIT64) && BIGENDIAN
         {
             GCX_FORBID();
 
@@ -646,7 +565,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 pReturnValue[0] >>= 32;
             }
         }
-#endif // !defined(_WIN64) && BIGENDIAN
+#endif // !defined(BIT64) && BIGENDIAN
     }
 }
 
@@ -660,7 +579,7 @@ void CallDefaultConstructor(OBJECTREF ref)
     }
     CONTRACTL_END;
 
-    MethodTable *pMT = ref->GetTrueMethodTable();
+    MethodTable *pMT = ref->GetMethodTable();
 
     PREFIX_ASSUME(pMT != NULL);
 

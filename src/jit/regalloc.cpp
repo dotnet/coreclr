@@ -111,7 +111,7 @@ bool Compiler::shouldDoubleAlign(
 // by linear scan. (It is not shared for System V AMD64 platform.)
 regNumber Compiler::raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc)
 {
-    regNumber inArgReg  = argDsc->lvArgReg;
+    regNumber inArgReg  = argDsc->GetArgReg();
     regMaskTP inArgMask = genRegMask(inArgReg);
 
     if (regState->rsIsFloat)
@@ -207,7 +207,7 @@ bool Compiler::rpMustCreateEBPFrame(INDEBUG(const char** wbReason))
 #endif
 
 #if ETW_EBP_FRAMED
-    if (!result && (opts.MinOpts() || opts.compDbgCode))
+    if (!result && opts.OptimizationDisabled())
     {
         INDEBUG(reason = "Debug Code");
         result = true;

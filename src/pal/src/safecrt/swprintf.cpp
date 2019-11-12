@@ -65,11 +65,11 @@
 *       allocated 'fake' iob, we must lock/unlock to prevent collisions.
 *
 *Entry:
-*       wchar_t *string - pointer to place to put output
+*       char16_t *string - pointer to place to put output
 *ifdef _COUNT_
 *       size_t count - max number of wide characters to put in buffer
 *endif
-*       wchar_t *format - format string to control data format/number
+*       char16_t *format - format string to control data format/number
 *       of arguments followed by list of arguments, number and type
 *       controlled by format string
 *
@@ -80,10 +80,10 @@
 *
 *******************************************************************************/
 
-int __cdecl swprintf_s (
-        wchar_t *string,
+DLLEXPORT int __cdecl swprintf_s (
+        char16_t *string,
         size_t sizeInWords,
-        const wchar_t *format,
+        const char16_t *format,
         ...
         )
 {
@@ -99,11 +99,11 @@ int __cdecl swprintf_s (
     return ret;
 }
 
-int __cdecl _snwprintf_s (
-        wchar_t *string,
+DLLEXPORT int __cdecl _snwprintf_s (
+        char16_t *string,
         size_t sizeInWords,
         size_t count,
-        const wchar_t *format,
+        const char16_t *format,
         ...
         )
 {

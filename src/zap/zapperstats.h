@@ -35,9 +35,9 @@ class ZapperStats
     ULONG    m_nativeColdCodeSize;
     ULONG    m_nativeRODataSize;
     ULONG    m_gcInfoSize;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     ULONG    m_unwindInfoSize;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     ULONG    m_NumHotAllocations;
     ULONG    m_NumHotColdAllocations;
@@ -66,7 +66,6 @@ class ZapperStats
     unsigned m_helperTableSize;
     unsigned m_dynamicInfoTableSize;
     unsigned m_dynamicInfoDelayListSize;
-    unsigned m_importTableSize;
     unsigned m_debuggingTableSize;
     unsigned m_headerSectionSize;
     unsigned m_codeSectionSize;

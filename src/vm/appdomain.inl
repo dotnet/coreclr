@@ -4,7 +4,7 @@
 /*============================================================
 **
 ** Header:  AppDomain.i
-** 
+**
 
 **
 ** Purpose: Implements AppDomain (loader domain) architecture
@@ -18,43 +18,6 @@
 #ifndef DACCESS_COMPILE
 
 #include "appdomain.hpp"
-
-inline  void AppDomain::EnterContext(Thread* pThread, Context* pCtx,ContextTransitionFrame *pFrame)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pThread));
-        PRECONDITION(CheckPointer(pCtx));
-        PRECONDITION(CheckPointer(pFrame));
-        PRECONDITION(pCtx->GetDomain()==this);
-    }
-    CONTRACTL_END;
-    pThread->EnterContextRestricted(pCtx,pFrame);
-};
-
-inline DomainAssembly* AppDomain::FindDomainAssembly(Assembly* assembly)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(assembly));
-    }
-    CONTRACTL_END;
-    return assembly->FindDomainAssembly(this);    
-};
-
-inline BOOL AppDomain::IsRunningIn(Thread* pThread)
-{
-    WRAPPER_NO_CONTRACT;
-    if (IsDefaultDomain()) 
-        return TRUE;
-    return pThread->IsRunningIn(this, NULL)!=NULL;
-}
-
-
 
 inline void AppDomain::AddMemoryPressure()
 {
@@ -86,19 +49,6 @@ inline BOOL AppDomain::HasNativeDllSearchDirectories()
     return m_NativeDllSearchDirectories.GetCount() !=0;
 }
 
-
-inline BOOL AppDomain::CanReversePInvokeEnter()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_ReversePInvokeCanEnter;
-}
-
-inline void AppDomain::SetReversePInvokeCannotEnter()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_ReversePInvokeCanEnter=FALSE;
-}
-
 inline bool AppDomain::MustForceTrivialWaitOperations()
 {
     LIMITED_METHOD_CONTRACT;
@@ -113,30 +63,24 @@ inline void AppDomain::SetForceTrivialWaitOperations()
 
 inline PTR_LoaderHeap AppDomain::GetHighFrequencyHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetHighFrequencyHeap();
 }
 
 inline PTR_LoaderHeap AppDomain::GetLowFrequencyHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetLowFrequencyHeap();
 }
 
 inline PTR_LoaderHeap AppDomain::GetStubHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetStubHeap();
 }
 
-inline PTR_LoaderAllocator AppDomain::GetLoaderAllocator()
-{
-    WRAPPER_NO_CONTRACT;
-    return PTR_LoaderAllocator(PTR_HOST_MEMBER_TADDR(AppDomain,this,m_LoaderAllocator));
-}
-
 /* static */
-inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob() 
+inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob()
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(DWORD(offsetof(NormalDynamicEntry, m_pDataBlob)) == offsetof(NormalDynamicEntry, m_pDataBlob));

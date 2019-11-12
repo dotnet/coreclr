@@ -7,14 +7,14 @@ using System.Runtime.Versioning;
 
 namespace System
 {
-    // Because we have special type system support that says a a boxed Nullable<T>
+    // Because we have special type system support that says a boxed Nullable<T>
     // can be used where a boxed<T> is use, Nullable<T> can not implement any intefaces
     // at all (since T may not).   Do NOT add any interfaces to Nullable!
     //
     [Serializable]
     [NonVersionable] // This only applies to field layout
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public struct Nullable<T> where T : struct
+    public partial struct Nullable<T> where T : struct
     {
         private readonly bool hasValue; // Do not rename (binary serialization)
         internal T value; // Do not rename (binary serialization) or make readonly (can be mutated in ToString, etc.)
@@ -29,10 +29,7 @@ namespace System
         public bool HasValue
         {
             [NonVersionable]
-            get
-            {
-                return hasValue;
-            }
+            get => hasValue;
         }
 
         public T Value
@@ -48,45 +45,29 @@ namespace System
         }
 
         [NonVersionable]
-        public T GetValueOrDefault()
-        {
-            return value;
-        }
+        public T GetValueOrDefault() => value;
 
         [NonVersionable]
-        public T GetValueOrDefault(T defaultValue)
-        {
-            return hasValue ? value : defaultValue;
-        }
+        public T GetValueOrDefault(T defaultValue) =>
+            hasValue ? value : defaultValue;
 
-        public override bool Equals(object other)
+        public override bool Equals(object? other)
         {
             if (!hasValue) return other == null;
             if (other == null) return false;
             return value.Equals(other);
         }
 
-        public override int GetHashCode()
-        {
-            return hasValue ? value.GetHashCode() : 0;
-        }
+        public override int GetHashCode() => hasValue ? value.GetHashCode() : 0;
 
-        public override string ToString()
-        {
-            return hasValue ? value.ToString() : "";
-        }
+        public override string? ToString() => hasValue ? value.ToString() : "";
 
         [NonVersionable]
-        public static implicit operator Nullable<T>(T value)
-        {
-            return new Nullable<T>(value);
-        }
+        public static implicit operator Nullable<T>(T value) =>
+            new Nullable<T>(value);
 
         [NonVersionable]
-        public static explicit operator T(Nullable<T> value)
-        {
-            return value.Value;
-        }
+        public static explicit operator T(Nullable<T> value) => value!.Value;
     }
 
     public static class Nullable
@@ -115,7 +96,7 @@ namespace System
 
         // If the type provided is not a Nullable Type, return null.
         // Otherwise, returns the underlying type of the Nullable type
-        public static Type GetUnderlyingType(Type nullableType)
+        public static Type? GetUnderlyingType(Type nullableType)
         {
             if ((object)nullableType == null)
             {
@@ -139,7 +120,7 @@ namespace System
 
             if (nullableType.IsGenericType && !nullableType.IsGenericTypeDefinition)
             {
-                // instantiated generic type only                
+                // instantiated generic type only
                 Type genericType = nullableType.GetGenericTypeDefinition();
                 if (object.ReferenceEquals(genericType, typeof(Nullable<>)))
                 {

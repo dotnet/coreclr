@@ -25,19 +25,19 @@ namespace System
             HResult = HResults.COR_E_MISSINGMETHOD;
         }
 
-        public MissingMethodException(string message)
+        public MissingMethodException(string? message)
             : base(message)
         {
             HResult = HResults.COR_E_MISSINGMETHOD;
         }
 
-        public MissingMethodException(string message, Exception inner)
+        public MissingMethodException(string? message, Exception? inner)
             : base(message, inner)
         {
             HResult = HResults.COR_E_MISSINGMETHOD;
         }
 
-        public MissingMethodException(string className, string methodName)
+        public MissingMethodException(string? className, string? methodName)
         {
             ClassName = className;
             MemberName = methodName;
@@ -48,14 +48,10 @@ namespace System
         {
         }
 
-        public override string Message
-        {
-            get
-            {
-                return ClassName == null ? base.Message : 
-                    SR.Format(SR.MissingMethod_Name, ClassName + "." + MemberName + 
-                        (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
-            }
-        }
+        public override string Message =>
+            ClassName == null ?
+                base.Message :
+                SR.Format(SR.MissingMethod_Name, ClassName + "." + MemberName +
+                    (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
     }
 }

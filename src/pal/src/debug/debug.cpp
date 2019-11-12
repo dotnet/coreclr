@@ -185,15 +185,15 @@ OutputDebugStringW(
     ENTRY("OutputDebugStringW (lpOutputString=%p (%S))\n",
           lpOutputString ? lpOutputString: W16_NULLSTRING,
           lpOutputString ? lpOutputString: W16_NULLSTRING);
-    
-    if (lpOutputString == NULL) 
+
+    if (lpOutputString == NULL)
     {
         OutputDebugStringA("");
         goto EXIT;
     }
 
-    if ((strLen = WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, NULL, 0, 
-                                      NULL, NULL)) 
+    if ((strLen = WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, NULL, 0,
+                                      NULL, NULL))
         == 0)
     {
         ASSERT("failed to get wide chars length\n");
@@ -209,15 +209,15 @@ OutputDebugStringW(
         goto EXIT;
     }
 
-    if(! WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1, 
-                             lpOutputStringA, strLen, NULL, NULL)) 
+    if(! WideCharToMultiByte(CP_ACP, 0, lpOutputString, -1,
+                             lpOutputStringA, strLen, NULL, NULL))
     {
         ASSERT("failed to convert wide chars to multibytes\n");
         SetLastError(ERROR_INTERNAL_ERROR);
         free(lpOutputStringA);
         goto EXIT;
     }
-    
+
     OutputDebugStringA(lpOutputStringA);
     free(lpOutputStringA);
 
@@ -270,7 +270,7 @@ run_debug_command (const char *command)
     }
 
     printf("Spawning command: %s\n", command);
-    
+
     pid = fork();
     if (pid == -1) {
         return -1;
@@ -332,10 +332,10 @@ DebugBreakCommand()
         {
             libNameLength = PAL_wcslen(exe_module.lib_name);
         }
-        
+
         SIZE_T dwexe_buf = strlen(EXE_TEXT) + libNameLength + 1;
         CHAR * exe_buf = exe_bufString.OpenStringBuffer(dwexe_buf);
-        
+
         if (NULL == exe_buf)
         {
             goto FAILED;
@@ -346,7 +346,7 @@ DebugBreakCommand()
             goto FAILED;
         }
 
-        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t *)exe_module.lib_name) <= 0)
+        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t*)exe_module.lib_name) <= 0)
         {
             goto FAILED;
         }
@@ -375,10 +375,10 @@ DebugBreakCommand()
 FAILED:
     if (command_string)
     {
+        fprintf (stderr, "Failed to execute command: '%s'\n", command_string);
         free(command_string);
     }
 
-    fprintf (stderr, "Failed to execute command: '%s'\n", command_string);
     return -1;
 #else // ENABLE_RUN_ON_DEBUG_BREAK
     return 0;
@@ -404,7 +404,7 @@ DebugBreak(
         TRACE("Calling DBG_DebugBreak\n");
         DBG_DebugBreak();
     }
-    
+
     LOGEXIT("DebugBreak returns\n");
     PERF_EXIT(DebugBreak);
 }
@@ -439,7 +439,7 @@ GetThreadContext(
     CPalThread *pTargetThread;
     IPalObject *pobjThread = NULL;
     BOOL ret = FALSE;
-    
+
     PERF_ENTRY(GetThreadContext);
     ENTRY("GetThreadContext (hThread=%p, lpContext=%p)\n",hThread,lpContext);
 
@@ -448,7 +448,6 @@ GetThreadContext(
     palError = InternalGetThreadDataFromHandle(
         pThread,
         hThread,
-        0, // THREAD_GET_CONTEXT
         &pTargetThread,
         &pobjThread
         );
@@ -478,7 +477,7 @@ GetThreadContext(
     {
         pobjThread->ReleaseReference(pThread);
     }
-    
+
     LOGEXIT("GetThreadContext returns ret:%d\n", ret);
     PERF_EXIT(GetThreadContext);
     return ret;
@@ -501,7 +500,7 @@ SetThreadContext(
     CPalThread *pTargetThread;
     IPalObject *pobjThread = NULL;
     BOOL ret = FALSE;
-    
+
     PERF_ENTRY(SetThreadContext);
     ENTRY("SetThreadContext (hThread=%p, lpContext=%p)\n",hThread,lpContext);
 
@@ -510,7 +509,6 @@ SetThreadContext(
     palError = InternalGetThreadDataFromHandle(
         pThread,
         hThread,
-        0, // THREAD_SET_CONTEXT
         &pTargetThread,
         &pobjThread
         );
@@ -540,7 +538,7 @@ SetThreadContext(
     {
         pobjThread->ReleaseReference(pThread);
     }
-        
+
     return ret;
 }
 

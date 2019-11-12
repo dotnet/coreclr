@@ -168,7 +168,7 @@ public:
     bool Contains(class ICorJitInfo* info, CORINFO_METHOD_HANDLE method);
 
     // Ensure the range string has been parsed.
-    void EnsureInit(const wchar_t* rangeStr, unsigned capacity = DEFAULT_CAPACITY)
+    void EnsureInit(const WCHAR* rangeStr, unsigned capacity = DEFAULT_CAPACITY)
     {
         // Make sure that the memory was zero initialized
         assert(m_inited == 0 || m_inited == 1);
@@ -197,7 +197,7 @@ private:
         unsigned m_high;
     };
 
-    void InitRanges(const wchar_t* rangeStr, unsigned capacity);
+    void InitRanges(const WCHAR* rangeStr, unsigned capacity);
 
     unsigned m_entries;   // number of entries in the range array
     unsigned m_lastRange; // count of low-high pairs
@@ -458,7 +458,6 @@ private:
     bool m_isAllocator[CORINFO_HELP_COUNT];
     bool m_mutatesHeap[CORINFO_HELP_COUNT];
     bool m_mayRunCctor[CORINFO_HELP_COUNT];
-    bool m_mayFinalize[CORINFO_HELP_COUNT];
 
     void init();
 
@@ -509,13 +508,6 @@ public:
         assert(helperId < CORINFO_HELP_COUNT);
         return m_mayRunCctor[helperId];
     }
-
-    bool MayFinalize(CorInfoHelpFunc helperId)
-    {
-        assert(helperId > CORINFO_HELP_UNDEF);
-        assert(helperId < CORINFO_HELP_COUNT);
-        return m_mayFinalize[helperId];
-    }
 };
 
 //*****************************************************************************
@@ -544,7 +536,7 @@ class AssemblyNamesList2
 
 public:
     // Take a Unicode string list of assembly names, parse it, and store it.
-    AssemblyNamesList2(const wchar_t* list, HostAllocator alloc);
+    AssemblyNamesList2(const WCHAR* list, HostAllocator alloc);
 
     ~AssemblyNamesList2();
 
@@ -555,6 +547,60 @@ public:
     bool IsEmpty()
     {
         return m_pNames == nullptr;
+    }
+};
+
+// MethodSet: Manage a list of methods that is read from a file.
+//
+// Methods are approximately in the format output by JitFunctionTrace, e.g.:
+//
+//     System.CLRConfig:GetBoolValue(ref,byref):bool (MethodHash=3c54d35e)
+//       -- use the MethodHash, not the method name
+//
+//     System.CLRConfig:GetBoolValue(ref,byref):bool
+//       -- use just the name
+//
+// Method names should not have any leading whitespace.
+//
+// TODO: Should this be more related to JitConfigValues::MethodSet?
+//
+class MethodSet
+{
+    // TODO: use a hash table? or two: one on hash value, one on function name
+    struct MethodInfo
+    {
+        char*       m_MethodName;
+        int         m_MethodHash;
+        MethodInfo* m_next;
+
+        MethodInfo(char* methodName, int methodHash)
+            : m_MethodName(methodName), m_MethodHash(methodHash), m_next(nullptr)
+        {
+        }
+    };
+
+    MethodInfo*   m_pInfos; // List of function info
+    HostAllocator m_alloc;  // HostAllocator to use in this class
+
+public:
+    // Take a Unicode string with the filename containing a list of function names, parse it, and store it.
+    MethodSet(const WCHAR* filename, HostAllocator alloc);
+
+    ~MethodSet();
+
+    // Return 'true' if 'functionName' (in UTF-8 format) is in the stored set of assembly names.
+    bool IsInSet(const char* functionName);
+
+    // Return 'true' if 'functionHash' (in UTF-8 format) is in the stored set of assembly names.
+    bool IsInSet(int functionHash);
+
+    // Return 'true' if this method is active. Prefer non-zero methodHash for check over (non-null) methodName.
+    bool IsActiveMethod(const char* methodName, int methodHash);
+
+    // Return 'true' if the assembly name set is empty.
+    bool IsEmpty()
+    {
+        return m_pInfos == nullptr;
     }
 };
 
@@ -623,6 +669,14 @@ public:
     static double round(double x);
 
     static float round(float x);
+
+    static bool isNormal(double x);
+
+    static bool isNormal(float x);
+
+    static bool hasPreciseReciprocal(double x);
+
+    static bool hasPreciseReciprocal(float x);
 };
 
 // The CLR requires that critical section locks be initialized via its ClrCreateCriticalSection API...but

@@ -155,10 +155,10 @@ inline void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
     g_theGCToCLR->DiagWalkFReachableObjects(gcContext);
 }
 
-inline void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+inline void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->DiagWalkSurvivors(gcContext);
+    g_theGCToCLR->DiagWalkSurvivors(gcContext, fCompacting);
 }
 
 inline void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
@@ -189,18 +189,6 @@ inline void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     assert(g_theGCToCLR != nullptr);
     g_theGCToCLR->HandleFatalError(exitCode);
-}
-
-inline bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->ShouldFinalizeObjectForUnload(pDomain, obj);
-}
-
-inline bool GCToEEInterface::ForceFullGCToBeBlocking()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->ForceFullGCToBeBlocking();
 }
 
 inline bool GCToEEInterface::EagerFinalized(Object* obj)
@@ -275,40 +263,10 @@ inline IGCToCLREventSink* GCToEEInterface::EventSink()
     return g_theGCToCLR->EventSink();
 }
 
-inline uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetDefaultDomainIndex();   
-}
-
-inline void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetAppDomainAtIndex(appDomainIndex);
-}
-
-inline bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->AppDomainCanAccessHandleTable(appDomainID);
-}
-
-inline uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetIndexOfAppDomainBeingUnloaded();
-}
-
 inline uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->GetTotalNumSizedRefHandles();
-}
-
-inline bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->AppDomainIsRudeUnload(appDomain);
 }
 
 inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
@@ -321,6 +279,20 @@ inline void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
 {
     assert(g_theGCToCLR != nullptr);
     g_theGCToCLR->AnalyzeSurvivorsFinished(condemnedGeneration);
+}
+
+inline void GCToEEInterface::VerifySyncTableEntry()
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->VerifySyncTableEntry();
+}
+
+inline void GCToEEInterface::UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords)
+{
+    assert(g_theGCToCLR != nullptr);
+#if defined(__linux__)
+    g_theGCToCLR->UpdateGCEventStatus(publicLevel, publicKeywords, privateLevel, privateKeywords);
+#endif // __linux__
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

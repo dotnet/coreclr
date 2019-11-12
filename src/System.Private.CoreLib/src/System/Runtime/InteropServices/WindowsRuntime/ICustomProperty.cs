@@ -2,10 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [ComImport]
@@ -23,11 +19,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             get;
         }
 
-        object GetValue(object target);
+        object? GetValue(object target);
 
         void SetValue(object target, object value);
 
-        object GetValue(object target, object indexValue);
+        object? GetValue(object target, object indexValue);
 
         void SetValue(object target, object value, object indexValue);
 
@@ -42,4 +38,3 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
     }
 }
-

@@ -32,35 +32,35 @@ ULONG __stdcall     Unknown_ReleaseSpecial_IErrorInfo_Internal(IUnknown* pUnk);
 
 // %%Function: SupportsErroInfo_IntfSupportsErrorInfo,
 // ---------------------------------------------------------------------------
-HRESULT __stdcall 
+HRESULT __stdcall
 SupportsErroInfo_IntfSupportsErrorInfo(IUnknown* pUnk, REFIID riid);
 
 // ---------------------------------------------------------------------------
 //  Interface IErrorInfo
 
-// %%Function: ErrorInfo_GetDescription,   
-HRESULT __stdcall 
+// %%Function: ErrorInfo_GetDescription,
+HRESULT __stdcall
 ErrorInfo_GetDescription(IUnknown* pUnk, BSTR* pbstrDescription);
 
-// %%Function: ErrorInfo_GetGUID,    
+// %%Function: ErrorInfo_GetGUID,
 HRESULT __stdcall ErrorInfo_GetGUID(IUnknown* pUnk, GUID* pguid);
 
-// %%Function: ErrorInfo_GetHelpContext, 
+// %%Function: ErrorInfo_GetHelpContext,
 HRESULT _stdcall ErrorInfo_GetHelpContext(IUnknown* pUnk, DWORD* pdwHelpCtxt);
 
-// %%Function: ErrorInfo_GetHelpFile,    
+// %%Function: ErrorInfo_GetHelpFile,
 HRESULT __stdcall ErrorInfo_GetHelpFile(IUnknown* pUnk, BSTR* pbstrHelpFile);
 
-// %%Function: ErrorInfo_GetSource,    
+// %%Function: ErrorInfo_GetSource,
 HRESULT __stdcall ErrorInfo_GetSource(IUnknown* pUnk, BSTR* pbstrSource);
 
 
 //------------------------------------------------------------------------------------------
-//      IDispatch methods for COM+ objects. These methods dispatch to the appropriate 
+//      IDispatch methods for COM+ objects. These methods dispatch to the appropriate
 //      implementation based on the flags of the class that implements them.
 
 
-// IDispatch::GetTypeInfoCount 
+// IDispatch::GetTypeInfoCount
 HRESULT __stdcall   Dispatch_GetTypeInfoCount (
                                     IDispatch* pDisp,
                                     unsigned int *pctinfo);
@@ -152,7 +152,7 @@ HRESULT __stdcall   InternalDispatchImpl_Invoke (
 //      IDispatchEx methods for COM+ objects
 
 
-// IDispatchEx::GetTypeInfoCount 
+// IDispatchEx::GetTypeInfoCount
 HRESULT __stdcall   DispatchEx_GetTypeInfoCount (
                                     IDispatch* pDisp,
                                     unsigned int *pctinfo);
@@ -236,8 +236,8 @@ HRESULT __stdcall   DispatchEx_InvokeEx (
                                     LCID lcid,
                                     WORD wFlags,
                                     DISPPARAMS *pdp,
-                                    VARIANT *pVarRes, 
-                                    EXCEPINFO *pei, 
+                                    VARIANT *pVarRes,
+                                    EXCEPINFO *pei,
                                     IServiceProvider *pspCaller);
 
 //------------------------------------------------------------------------------------------
@@ -263,18 +263,18 @@ HRESULT __stdcall WeakReferenceSource_GetWeakReference (
 
 //------------------------------------------------------------------------------------------
 //      ICustomPropertyProvider methods for Jupiter data binding
-HRESULT __stdcall ICustomPropertyProvider_GetProperty(IUnknown *pPropertyProvider, 
-                                                      HSTRING hstrName, 
+HRESULT __stdcall ICustomPropertyProvider_GetProperty(IUnknown *pPropertyProvider,
+                                                      HSTRING hstrName,
                                                       /* [out, retval] */ IUnknown **ppProperty);
 
-HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty(IUnknown *pPropertyProvider, 
-                                                             HSTRING hstrName, 
+HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty(IUnknown *pPropertyProvider,
+                                                             HSTRING hstrName,
                                                              TypeNameNative indexedParamType,
                                                              /* [out, retval] */ IUnknown **ppProperty);
 
-HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation(IUnknown *pPropertyProvider,
                                                                   /* [out, retval] */ HSTRING *phstrStringRepresentation);
-HRESULT __stdcall ICustomPropertyProvider_GetType(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetType(IUnknown *pPropertyProvider,
                                                   /* [out, retval] */ TypeNameNative *pTypeIdentifier);
 
 HRESULT __stdcall IStringable_ToString(IUnknown* pStringable,
@@ -285,14 +285,14 @@ HRESULT __stdcall IStringable_ToString(IUnknown* pStringable,
 
 HRESULT __stdcall Marshal_GetUnmarshalClass (
                                     IMarshal* pMarsh,
-                                    REFIID riid, void * pv, ULONG dwDestContext, 
-                                    void * pvDestContext, ULONG mshlflags, 
+                                    REFIID riid, void * pv, ULONG dwDestContext,
+                                    void * pvDestContext, ULONG mshlflags,
                                     LPCLSID pclsid);
 
 HRESULT __stdcall Marshal_GetMarshalSizeMax (
                                     IMarshal* pMarsh,
-                                    REFIID riid, void * pv, ULONG dwDestContext, 
-                                    void * pvDestContext, ULONG mshlflags, 
+                                    REFIID riid, void * pv, ULONG dwDestContext,
+                                    void * pvDestContext, ULONG mshlflags,
                                     ULONG * pSize);
 
 HRESULT __stdcall Marshal_MarshalInterface (
@@ -303,7 +303,7 @@ HRESULT __stdcall Marshal_MarshalInterface (
 
 HRESULT __stdcall Marshal_UnmarshalInterface (
                                     IMarshal* pMarsh,
-                                    LPSTREAM pStm, REFIID riid, 
+                                    LPSTREAM pStm, REFIID riid,
                                     void ** ppvObj);
 
 HRESULT __stdcall Marshal_ReleaseMarshalData (IMarshal* pMarsh, LPSTREAM pStm);
@@ -312,34 +312,14 @@ HRESULT __stdcall Marshal_DisconnectObject (IMarshal* pMarsh, ULONG dwReserved);
 
 
 //------------------------------------------------------------------------------------------
-//      IManagedObject methods for COM+ objects
-
-interface IManagedObject;
-
-
-HRESULT __stdcall ManagedObject_RemoteDispatchAutoDone(IManagedObject *pManaged, BSTR bstr,
-                                                   BSTR* pBStrRet);
-                                                   
-HRESULT __stdcall ManagedObject_RemoteDispatchNotAutoDone(IManagedObject *pManaged, BSTR bstr,
-                                                   BSTR* pBStrRet);
-                                                   
-HRESULT __stdcall ManagedObject_GetObjectIdentity(IManagedObject *pManaged, 
-                                    BSTR* pBSTRGUID, DWORD* pAppDomainID,
-                                    void** pCCW); 
-
-
-HRESULT __stdcall ManagedObject_GetSerializedBuffer(IManagedObject *pManaged,
-                                    BSTR* pBStr);
-
-//------------------------------------------------------------------------------------------
 //      IConnectionPointContainer methods for COM+ objects
 
 interface IEnumConnectionPoints;
 
-HRESULT __stdcall ConnectionPointContainer_EnumConnectionPoints(IUnknown* pUnk, 
+HRESULT __stdcall ConnectionPointContainer_EnumConnectionPoints(IUnknown* pUnk,
                                     IEnumConnectionPoints **ppEnum);
 
-HRESULT __stdcall ConnectionPointContainer_FindConnectionPoint(IUnknown* pUnk, 
+HRESULT __stdcall ConnectionPointContainer_FindConnectionPoint(IUnknown* pUnk,
                                     REFIID riid,
                                     IConnectionPoint **ppCP);
 
@@ -359,7 +339,7 @@ HRESULT __stdcall ObjectSafety_SetInterfaceSafetyOptions(IUnknown* pUnk,
                                                          DWORD dwEnabledOptions);
 //-------------------------------------------------------------------------
 // IProvideClassInfo methods
-HRESULT __stdcall ClassInfo_GetClassInfo(IUnknown* pUnk, 
+HRESULT __stdcall ClassInfo_GetClassInfo(IUnknown* pUnk,
                          ITypeInfo** ppTI  //Address of output variable that receives the type info.
                         );
 //-------------------------------------------------------------------------

@@ -72,7 +72,7 @@ namespace CorUnix
         // InitializePostCreate is called from within the context of the
         // new thread.
         //
-        
+
         virtual
         PAL_ERROR
         InitializePostCreate(
@@ -84,6 +84,18 @@ namespace CorUnix
             return NO_ERROR;
         };
     };
+
+    //
+    // InternalGetCurrentThread obtains the CPalThread instance for the
+    // calling thread. That instance should only be used by the calling
+    // thread. If another thread will at some point need access to this
+    // thread information it should be given a referenced pointer to
+    // the IPalObject stored within the CPalThread.
+    //
+
+    extern pthread_key_t thObjKey;
+
+    CPalThread *InternalGetCurrentThread();
 }
 
 #endif // _PAL_THREADINFO_H_

@@ -19,7 +19,7 @@ namespace Internal.IO
         // given by the specified path exists; otherwise, the result is
         // false.  Note that if path describes a directory,
         // Exists will return true.
-        public static bool Exists(string path)
+        public static bool Exists(string? path)
         {
             try
             {
@@ -34,7 +34,7 @@ namespace Internal.IO
                 // Otherwise, FillAttributeInfo removes it and we may return a false positive.
                 // GetFullPath should never return null
                 Debug.Assert(path != null, "File.Exists: GetFullPath returned null");
-                if (path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]))
+                if (path.Length > 0 && PathInternal.IsDirectorySeparator(path[^1]))
                 {
                     return false;
                 }

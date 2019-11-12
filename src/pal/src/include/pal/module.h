@@ -25,19 +25,19 @@ extern "C"
 {
 #endif // __cplusplus
 
-typedef BOOL (PALAPI *PDLLMAIN)(HINSTANCE, DWORD, LPVOID);   /* entry point of module */
-typedef HINSTANCE (PALAPI *PREGISTER_MODULE)(LPCSTR);           /* used to create the HINSTANCE for above DLLMain entry point */
-typedef VOID (PALAPI *PUNREGISTER_MODULE)(HINSTANCE);           /* used to cleanup the HINSTANCE for above DLLMain entry point */
+typedef BOOL (PALAPI_NOEXPORT *PDLLMAIN)(HINSTANCE, DWORD, LPVOID);   /* entry point of module */
+typedef HINSTANCE (PALAPI_NOEXPORT *PREGISTER_MODULE)(LPCSTR);           /* used to create the HINSTANCE for above DLLMain entry point */
+typedef VOID (PALAPI_NOEXPORT *PUNREGISTER_MODULE)(HINSTANCE);           /* used to cleanup the HINSTANCE for above DLLMain entry point */
 
 typedef struct _MODSTRUCT
 {
-    HMODULE self;           /* circular reference to this module */
-    void *dl_handle;        /* handle returned by dlopen() */
-    HINSTANCE hinstance;    /* handle returned by PAL_RegisterLibrary */
-    LPWSTR lib_name;        /* full path of module */
-    INT refcount;           /* reference count */
-                            /* -1 means infinite reference count - module is never released */
-    BOOL threadLibCalls;    /* TRUE for DLL_THREAD_ATTACH/DETACH notifications enabled, FALSE if they are disabled */
+    HMODULE self;                     /* circular reference to this module */
+    NATIVE_LIBRARY_HANDLE dl_handle;  /* handle returned by dlopen() */
+    HINSTANCE hinstance;              /* handle returned by PAL_RegisterLibrary */
+    LPWSTR lib_name;                  /* full path of module */
+    INT refcount;                     /* reference count */
+                                      /* -1 means infinite reference count - module is never released */
+    BOOL threadLibCalls;              /* TRUE for DLL_THREAD_ATTACH/DETACH notifications enabled, FALSE if they are disabled */
 
 #if RETURNS_NEW_HANDLES_ON_REPEAT_DLOPEN
     ino_t inode;
@@ -90,13 +90,13 @@ Function :
     Call DllMain for all modules (that have one) with the given "fwReason"
 
 Parameters :
-    DWORD dwReason : parameter to pass down to DllMain, one of DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH, 
+    DWORD dwReason : parameter to pass down to DllMain, one of DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH,
         DLL_THREAD_ATTACH, DLL_THREAD_DETACH
 
     LPVOID lpReserved : parameter to pass down to DllMain
         If dwReason is DLL_PROCESS_ATTACH, lpvReserved is NULL for dynamic loads and non-NULL for static loads.
-        If dwReason is DLL_PROCESS_DETACH, lpvReserved is NULL if DllMain has been called by using FreeLibrary 
-            and non-NULL if DllMain has been called during process termination. 
+        If dwReason is DLL_PROCESS_DETACH, lpvReserved is NULL if DllMain has been called by using FreeLibrary
+            and non-NULL if DllMain has been called during process termination.
 
 (no return value)
 

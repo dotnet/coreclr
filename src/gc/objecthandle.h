@@ -50,10 +50,10 @@ struct HandleTableBucket
 #define VHT_STRONG                  (0x00000400)  // avoid using low byte so we don't overlap normal types
 #define VHT_PINNED                  (0x00000800)  // avoid using low byte so we don't overlap normal types
 
-#define IS_VALID_VHT_VALUE(flag)   ((flag == VHT_WEAK_SHORT) || \
-                                    (flag == VHT_WEAK_LONG)  || \
-                                    (flag == VHT_STRONG)     || \
-                                    (flag == VHT_PINNED))
+#define IS_VALID_VHT_VALUE(flag)   (((flag) == VHT_WEAK_SHORT) || \
+                                    ((flag) == VHT_WEAK_LONG)  || \
+                                    ((flag) == VHT_STRONG)     || \
+                                    ((flag) == VHT_PINNED))
 
 GC_DAC_VISIBLE
 OBJECTREF GetDependentHandleSecondary(OBJECTHANDLE handle);
@@ -78,9 +78,7 @@ int GetCurrentThreadHomeHeapNumber();
  */
 bool Ref_Initialize();
 void Ref_Shutdown();
-bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context);
-BOOL Ref_HandleAsyncPinHandles(async_pin_enum_fn callback, void* context);
-void Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket *pTarget, void (*clearIfComplete)(Object*), void (*setHandle)(Object*, OBJECTHANDLE));
+bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket);
 void Ref_RemoveHandleTableBucket(HandleTableBucket *pBucket);
 void Ref_DestroyHandleTableBucket(HandleTableBucket *pBucket);
 

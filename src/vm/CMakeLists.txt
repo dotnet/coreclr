@@ -7,6 +7,9 @@ include_directories(${ARCH_SOURCES_DIR})
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+if(FEATURE_AUTO_TRACE)
+  add_definitions(-DFEATURE_AUTO_TRACE)
+endif(FEATURE_AUTO_TRACE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)
@@ -14,13 +17,9 @@ if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    add_definitions(-DWRITE_BARRIER_CHECK)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(FEATURE_GDBJIT)
     set(VM_SOURCES_GDBJIT
@@ -41,6 +40,8 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     assembly.cpp
     baseassemblyspec.cpp
     binder.cpp
+    castcache.cpp
+    callcounter.cpp
     ceeload.cpp
     class.cpp
     classhash.cpp
@@ -60,6 +61,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     disassembler.cpp
     dllimport.cpp
     domainfile.cpp
+    dumpdiagnosticprotocolhelper.cpp
     dynamicmethod.cpp
     ecall.cpp
     eedbginterfaceimpl.cpp
@@ -89,6 +91,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     loaderallocator.cpp
     memberload.cpp
     method.cpp
+    methoddescbackpatchinfo.cpp
     methodimpl.cpp
     methoditer.cpp
     methodtable.cpp
@@ -100,6 +103,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     perfinfo.cpp
     precode.cpp
     prestub.cpp
+    profilerdiagnosticprotocolhelper.cpp
     rejit.cpp
     sigformat.cpp
     siginfo.cpp
@@ -114,6 +118,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     tieredcompilation.cpp
     typectxt.cpp
     typedesc.cpp
+    typeequivalencehash.cpp
     typehandle.cpp
     typehash.cpp
     typestring.cpp
@@ -137,6 +142,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     baseassemblyspec.h
     baseassemblyspec.inl
     binder.h
+    castcache.h
     ceeload.h
     ceeload.inl
     class.h
@@ -169,6 +175,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     field.h
     fptrstubs.h
     frames.h
+    gccover.h
     gctoclreventsink.h
     gcheaputilities.h
     generics.h
@@ -187,6 +194,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     memberload.h
     method.hpp
     method.inl
+    methoddescbackpatchinfo.h
     methodimpl.h
     methoditer.h
     methodtable.h
@@ -220,6 +228,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     typectxt.h
     typedesc.h
     typedesc.inl
+    typeequivalencehash.hpp
     typehandle.h
     typehandle.inl
     typehash.h
@@ -230,7 +239,6 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     versionresilienthashcode.h
     virtualcallstub.h
     win32threadpool.h
-    yieldprocessornormalized.h
     zapsig.h
 )
 
@@ -263,7 +271,6 @@ endif(FEATURE_JIT_PITCHING)
 
 set(VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_COMMON}
-    contexts.cpp
     threaddebugblockinginfo.cpp
 )
 
@@ -285,8 +292,8 @@ set(VM_SOURCES_WKS
     assemblynative.cpp
     assemblyspec.cpp
     cachelinealloc.cpp
-    callcounter.cpp
     callhelpers.cpp
+    callsiteinspect.cpp
     ceemain.cpp
     clrconfignative.cpp
     clrex.cpp
@@ -295,7 +302,6 @@ set(VM_SOURCES_WKS
     comdatetime.cpp
     comdependenthandle.cpp
     comdynamic.cpp
-    commemoryfailpoint.cpp
     commodule.cpp
     compatibilityswitch.cpp
     comsynchronizable.cpp
@@ -304,6 +310,8 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    autotrace.cpp
+    diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
     eecontract.cpp
@@ -314,15 +322,21 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeeventpayload.cpp
     eventpipeeventsource.cpp
     eventpipeblock.cpp
+    eventpipecommontypes.cpp
     eventpipefile.cpp
+    eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
+    eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
+    eventpipethread.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
+    eventpipesessionprovider.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -345,7 +359,6 @@ set(VM_SOURCES_WKS
     jithelpers.cpp
     managedmdimport.cpp
     marshalnative.cpp
-    mdaassistants.cpp
     methodtablebuilder.cpp
     mlinfo.cpp
     mscorlib.cpp # <DisablePrecompiledHeaders>true</DisablePrecompiledHeaders>
@@ -353,12 +366,10 @@ set(VM_SOURCES_WKS
     multicorejitplayer.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     nativeeventsource.cpp
     nativeoverlapped.cpp
+    nativelibrarynative.cpp
     objectlist.cpp
     olevariant.cpp
     pendingload.cpp
-    profattach.cpp
-    profattachclient.cpp
-    profattachserver.cpp
     profdetach.cpp
     profilermetadataemitvalidator.cpp
     profilingenumerators.cpp
@@ -370,7 +381,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
     stackingallocator.cpp
@@ -381,7 +391,6 @@ set(VM_SOURCES_WKS
     syncclean.cpp
     synch.cpp
     synchronizationcontextnative.cpp
-    testhookmgr.cpp
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
@@ -402,15 +411,14 @@ set(VM_HEADERS_WKS
     cachelinealloc.h
     callcounter.h
     callhelpers.h
+    callsiteinspect.h
     ceemain.h
     clrconfignative.h
     clrex.h
-    clrprivbinderloadfile.h
     clrvarargs.h
     comdatetime.h
     comdependenthandle.h
     comdynamic.h
-    commemoryfailpoint.h
     commodule.h
     compatibilityswitch.h
     comsynchronizable.h
@@ -419,6 +427,9 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    autotrace.h
+    diagnosticserver.h
+    diagnosticsprotocol.h
     dllimportcallback.h
     eeconfig.h
     eecontract.h
@@ -432,22 +443,26 @@ set(VM_HEADERS_WKS
     eventpipeblock.h
     eventpipebuffer.h
     eventpipebuffermanager.h
+    eventpipecommontypes.h
     eventpipeconfiguration.h
     eventpipeevent.h
     eventpipeeventinstance.h
+    eventpipeeventpayload.h
     eventpipeeventsource.h
     eventpipefile.h
+    eventpipeinternal.h
     eventpipejsonfile.h
     eventpipemetadatagenerator.h
+    eventpipeprotocolhelper.h
     eventpipeprovider.h
     eventpipesession.h
+    eventpipesessionprovider.h
     eventstore.hpp
     fastserializer.h
     fcall.h
     fieldmarshaler.h
     finalizerthread.h
     frameworkexceptionloader.h
-    gccover.h
     gcenv.h
     gcenv.ee.h
     gcenv.os.h
@@ -463,7 +478,6 @@ set(VM_HEADERS_WKS
     invokeutil.h
     managedmdimport.hpp
     marshalnative.h
-    mdaassistants.h
     methodtablebuilder.h
     mlinfo.h
     mscorlib.h
@@ -471,16 +485,13 @@ set(VM_HEADERS_WKS
     multicorejitimpl.h
     nativeeventsource.h
     nativeoverlapped.h
+    nativelibrarynative.h
     objectlist.h
     olevariant.h
     pendingload.h
-    profattach.h
-    profattachclient.h
-    profattachserver.h
     profdetach.h
     profilermetadataemitvalidator.h
     profilingenumerators.h
-    profilinghelper.h
     profilinghelper.h
     proftoeeinterfaceimpl.h
     proftoeeinterfaceimpl.inl
@@ -489,9 +500,9 @@ set(VM_HEADERS_WKS
     reflectioninvocation.h
     runtimehandles.h
     sampleprofiler.h
-    sha1.h
     simplerwlock.hpp
     sourceline.h
+    stackcontents.h
     stackingallocator.h
     stringliteralmap.h
     stubcache.h
@@ -500,7 +511,6 @@ set(VM_HEADERS_WKS
     syncclean.hpp
     synch.h
     synchronizationcontextnative.h
-    testhookmgr.h
     tieredcompilation.h
     threaddebugblockinginfo.h
     threadsuspend.h
@@ -550,12 +560,14 @@ endif(FEATURE_STANDALONE_GC)
 if(WIN32)
 
 set(VM_SOURCES_DAC_AND_WKS_WIN32
+    amsi.cpp
     clrtocomcall.cpp
     rcwwalker.cpp
     winrttypenameconverter.cpp
 )
 
 set(VM_HEADERS_DAC_AND_WKS_WIN32
+    amsi.h
     clrtocomcall.h
     rcwwalker.h
     winrttypenameconverter.h
@@ -565,7 +577,6 @@ list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
     classcompat.cpp
-    classfactory.cpp
     clrprivbinderwinrt.cpp
     clrprivtypecachewinrt.cpp
     comcache.cpp
@@ -666,6 +677,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/gmsasm.asm
         ${ARCH_SOURCES_DIR}/jithelp.asm
+        ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
 
     set(VM_HEADERS_WKS_ARCH_ASM
@@ -676,7 +688,6 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/CrtHelpers.asm
         ${ARCH_SOURCES_DIR}/ehhelpers.asm
-        ${ARCH_SOURCES_DIR}/memcpy.asm
         ${ARCH_SOURCES_DIR}/patchedcode.asm
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
@@ -722,6 +733,7 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/jithelp.S
             ${ARCH_SOURCES_DIR}/gmsasm.S
+            ${ARCH_SOURCES_DIR}/pinvokestubs.S
             ${ARCH_SOURCES_DIR}/umthunkstub.S
         )
     elseif(CLR_CMAKE_TARGET_ARCH_ARM)
@@ -729,7 +741,6 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/crthelpers.S
             ${ARCH_SOURCES_DIR}/ehhelpers.S
-            ${ARCH_SOURCES_DIR}/memcpy.S
             ${ARCH_SOURCES_DIR}/patchedcode.S
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
         )
@@ -835,6 +846,16 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
         exceptionhandling.h
     )
+
+    set(VM_SOURCES_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/profiler.cpp
+    )
+
+    if(CLR_CMAKE_PLATFORM_UNIX)
+        list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
+            ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
+        )
+    endif(CLR_CMAKE_PLATFORM_UNIX)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -844,7 +865,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(VM_SOURCES_DAC_ARCH
-    gcinfodecoder.cpp
     exceptionhandling.cpp
 )
 
@@ -900,9 +920,13 @@ convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})
 convert_to_absolute_path(VM_SOURCES_WKS_ARCH_ASM ${VM_SOURCES_WKS_ARCH_ASM})
 convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 
-add_subdirectory(dac)
+add_library_clr(cee_dac ${VM_SOURCES_DAC})
+add_dependencies(cee_dac eventing_headers)
+set_target_properties(cee_dac PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(TARGET cee_dac HEADER common.h)
+
 add_subdirectory(wks)
 
 if(FEATURE_PERFTRACING)
-    add_subdirectory(${GENERATED_EVENTING_DIR}/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
+    add_subdirectory(eventing)
 endif(FEATURE_PERFTRACING)

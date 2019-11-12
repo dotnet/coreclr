@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <xplatform.h>
-#include "platformdefines.h"
+#include <platformdefines.h>
 const int ARRAY_SIZE = 100;
 template<typename T> bool IsObjectEquals(T o1, T o2);
 
@@ -33,6 +33,12 @@ macro definition
     expected->arr[i] = (__array_type)i
 
 #define EQUALS(__actual, __cActual, __expected) Equals((__actual), (__cActual), (__expected), (int)sizeof(__expected) / sizeof(__expected[0]))
+
+#if defined(_MSC_VER)
+#define FUNCTIONNAME __FUNCSIG__
+#else
+#define FUNCTIONNAME __PRETTY_FUNCTION__
+#endif //_MSC_VER
 
 /*----------------------------------------------------------------------------
 struct definition
@@ -99,7 +105,7 @@ BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
         return TRUE;
     else if ( cActual != cExpected )
     {
-        printf("WARNING: Test error - %s\n", __FUNCSIG__);        
+        printf("WARNING: Test error - %s\n", FUNCTIONNAME);
         return FALSE;
     }
 
@@ -107,7 +113,7 @@ BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
     {
         if ( !IsObjectEquals(pActual[i], pExpected[i]) )
         {
-            printf("WARNING: Test error - %s\n", __FUNCSIG__);            
+            printf("WARNING: Test error - %s\n", FUNCTIONNAME);
             return FALSE;
         }
     }
@@ -168,7 +174,7 @@ bool TestStructEquals(TestStruct Actual[], TestStruct Expected[])
             IsObjectEquals(Actual[i].l, Expected[i].l) &&
             IsObjectEquals(Actual[i].str, Expected[i].str) ))
         {
-            printf("WARNING: Test error - %s\n", __FUNCSIG__);
+            printf("WARNING: Test error - %s\n", FUNCTIONNAME);
             return false;
         }
     }

@@ -17,25 +17,19 @@
 #define _itox_s    _itow_s
 #define _ltox_s    _ltow_s
 #define _ultox_s   _ultow_s
-#define x64tox_s   x64tow_s
 #define _i64tox_s  _i64tow_s
-#define _ui64tox_s _ui64tow_s
 #define xtox       xtow
 #define _ltox      _ltow
 #define _ultox     _ultow
-#define x64tox     x64tow
 #else  /* _UNICODE */
 #define xtox_s     xtoa_s
 #define _itox_s    _itoa_s
 #define _ltox_s    _ltoa_s
 #define _ultox_s   _ultoa_s
-#define x64tox_s   x64toa_s
 #define _i64tox_s  _i64toa_s
-#define _ui64tox_s _ui64toa_s
 #define xtox       xtoa
 #define _ltox      _ltoa
 #define _ultox     _ultoa
-#define x64tox     x64toa
 #endif  /* _UNICODE */
 
 /***
@@ -154,7 +148,7 @@ static void __stdcall xtox
    and return pointer to buffer. */
 
 #ifdef _SECURE_ITOA
-errno_t __cdecl _itox_s (
+DLLEXPORT errno_t __cdecl _itox_s (
         int val,
         TCHAR *buf,
         size_t sizeInTChars,
@@ -359,7 +353,7 @@ static void __fastcall x64tox
 /* Actual functions just call conversion helper with neg flag set correctly,
    and return pointer to buffer. */
 
-errno_t __cdecl _i64tox_s (
+DLLEXPORT errno_t __cdecl _i64tox_s (
         long long val,
         TCHAR *buf,
         size_t sizeInTChars,

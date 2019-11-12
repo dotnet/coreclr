@@ -11,7 +11,7 @@
 //
 // ============================================================================
 
-#ifndef _METHODIMPL_H 
+#ifndef _METHODIMPL_H
 #define _METHODIMPL_H
 
 class MethodDesc;
@@ -24,12 +24,12 @@ class MethodImpl
     friend class NativeImageDumper;
 #endif
 
-    RelativePointer<PTR_DWORD>            pdwSlots;       // Maintains the slots in sorted order, the first entry is the size
+    RelativePointer<PTR_DWORD>            pdwSlots;       // Maintains the slots and tokens in sorted order, the first entry is the size
     RelativePointer<DPTR( RelativePointer<PTR_MethodDesc> )> pImplementedMD;
 
 public:
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
     ///////////////////////////////////////////////////////////////////////////////////////
     class Iterator
     {
@@ -46,6 +46,8 @@ public:
             { WRAPPER_NO_CONTRACT; if (IsValid()) m_iCur++; }
         inline WORD GetSlot()
             { WRAPPER_NO_CONTRACT; CONSISTENCY_CHECK(IsValid()); _ASSERTE(FitsIn<WORD>(m_pImpl->GetSlots()[m_iCur])); return static_cast<WORD>(m_pImpl->GetSlots()[m_iCur]); }
+        inline mdToken GetToken()
+            { WRAPPER_NO_CONTRACT; CONSISTENCY_CHECK(IsValid()); return m_pImpl->GetTokens()[m_iCur]; }
         inline MethodDesc *GetMethodDesc()
             { WRAPPER_NO_CONTRACT; return m_pImpl->GetMethodDesc(m_iCur, (PTR_MethodDesc) m_pMD); }
     };
@@ -106,21 +108,37 @@ public:
         return RelativePointer<PTR_DWORD>::GetValueAtPtr(PTR_HOST_MEMBER_TADDR(MethodImpl, this, pdwSlots));
     }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    inline mdToken* GetTokens()
+    {
+        CONTRACTL{
+            NOTHROW;
+            GC_NOTRIGGER;
+            PRECONDITION(CheckPointer(this));
+            SUPPORTS_DAC;
+        } CONTRACTL_END;
+
+        if (pdwSlots.IsNull())
+            return NULL;
+        else
+            return (mdToken*)(GetSlotsRawNonNull() + 1 + *GetSlotsRawNonNull());
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////
     void SetSize(LoaderHeap *pHeap, AllocMemTracker *pamTracker, DWORD size);
 
     ///////////////////////////////////////////////////////////////////////////////////////
-    void SetData(DWORD* slots, RelativePointer<MethodDesc*> * md);
+    void SetData(DWORD* slots, mdToken* tokens, RelativePointer<MethodDesc*> * md);
 
 #endif // !DACCESS_COMPILE
 
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
 
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
     void Save(DataImage *image);
     void Fixup(DataImage *image, PVOID p, SSIZE_T offset);
 #endif // FEATURE_PREJIT
@@ -135,7 +153,7 @@ public:
 private:
     static const DWORD INVALID_INDEX = (DWORD)(-1);
     DWORD FindSlotIndex(DWORD slot);
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
     MethodDesc* RestoreSlot(DWORD slotIndex, MethodTable *pMT);
 #endif
 

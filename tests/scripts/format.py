@@ -12,21 +12,26 @@
 ################################################################################
 
 
-import urllib
 import argparse
 import os
 import sys
 import tarfile
 import zipfile
 import subprocess
-import urllib2
 import shutil
+
+# Version specific imports
+
+if sys.version_info.major < 3:
+    from urllib import urlretrieve
+else:
+    from urllib.request import urlretrieve
 
 def expandPath(path):
     return os.path.abspath(os.path.expanduser(path))
 
 def del_rw(action, name, exc):
-    os.chmod(name, 0651)
+    os.chmod(name, 0o651)
     os.remove(name)
 
 def main(argv):
@@ -42,13 +47,13 @@ def main(argv):
     args, unknown = parser.parse_known_args(argv)
 
     if unknown:
-        print('Ignorning argument(s): ', ','.join(unknown))
+        print('Ignoring argument(s): ', ','.join(unknown))
 
     if args.coreclr is None:
         print('Specify --coreclr')
         return -1
     if args.os is None:
-        print('Specifiy --os')
+        print('Specify --os')
         return -1
     if args.arch is None:
         print('Specify --arch')
@@ -63,69 +68,6 @@ def main(argv):
     arch = args.arch
 
     my_env = os.environ
-
-    # Download .Net CLI
-
-    dotnetcliUrl = ""
-    dotnetcliFilename = ""
-
-    # build.cmd removes the Tools directory, so we need to put our version of jitutils
-    # outside of the Tools directory
-    # must use short path here to avoid trouble on windows
-
-    dotnetcliPath = os.path.join(coreclr, 'dj')
-
-    # Try to make the dotnetcli-jitutils directory if it doesn't exist
-
-    try:
-        os.makedirs(dotnetcliPath)
-    except OSError:
-        if not os.path.isdir(dotnetcliPath):
-            raise
-
-    print("Downloading .Net CLI")
-    if platform == 'Linux':
-        dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-linux-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
-    elif platform == 'OSX':
-        dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-osx-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
-    elif platform == 'Windows_NT':
-        dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-win-x64.zip"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.zip')
-    else:
-        print('Unknown os ', os)
-        return -1
-
-    response = urllib2.urlopen(dotnetcliUrl)
-    request_url = response.geturl()
-    testfile = urllib.URLopener()
-    testfile.retrieve(request_url, dotnetcliFilename)
-
-    if not os.path.isfile(dotnetcliFilename):
-        print("Did not download .Net CLI!")
-        return -1
-
-    # Install .Net CLI
-
-    if platform == 'Linux' or platform == 'OSX':
-        tar = tarfile.open(dotnetcliFilename)
-        tar.extractall(dotnetcliPath)
-        tar.close()
-    elif platform == 'Windows_NT':
-        with zipfile.ZipFile(dotnetcliFilename, "r") as z:
-            z.extractall(dotnetcliPath)
-
-    dotnet = ""
-    if platform == 'Linux' or platform == 'OSX':
-        dotnet = "dotnet"
-    elif platform == 'Windows_NT':
-        dotnet = "dotnet.exe"
-
-
-    if not os.path.isfile(os.path.join(dotnetcliPath, dotnet)):
-        print("Did not extract .Net CLI from download")
-        return -1
 
     # Download bootstrap
 
@@ -145,7 +87,7 @@ def main(argv):
     bootstrapUrl = "https://raw.githubusercontent.com/dotnet/jitutils/master/" + bootstrapFilename
 
     bootstrapPath = os.path.join(coreclr, bootstrapFilename)
-    testfile.retrieve(bootstrapUrl, bootstrapPath)
+    urlretrieve(bootstrapUrl, bootstrapPath)
 
     if not os.path.isfile(bootstrapPath):
         print("Did not download bootstrap!")
@@ -155,13 +97,11 @@ def main(argv):
 
     if platform == 'Linux' or platform == 'OSX':
         print("Making bootstrap executable")
-        os.chmod(bootstrapPath, 0751)
+        os.chmod(bootstrapPath, 0o751)
 
     print(bootstrapPath)
 
     # Run bootstrap
-
-    my_env["PATH"] = dotnetcliPath + os.pathsep + my_env["PATH"]
     if platform == 'Linux' or platform == 'OSX':
         print("Running bootstrap")
         proc = subprocess.Popen(['bash', bootstrapPath], env=my_env)
@@ -223,36 +163,30 @@ def main(argv):
         proc = subprocess.Popen(["git", "diff", "--patch", "-U20"], env=my_env, stdout=patchFile)
         output,error = proc.communicate()
 
-    # shutdown the dotnet build servers before cleaning things up
-    proc = subprocess.Popen(["dotnet", "build-server", "shutdown"], env=my_env)
-    output,error = proc.communicate()
-
-    # shutdown all spurious dotnet processes using os shell
-    if platform == 'Linux' or platform == 'OSX':
-        subprocess.call(['killall', '-SIGTERM', '-qw', dotnet])
-    elif platform == 'Windows_NT':
-        utilpath = os.path.join(coreclr, 'tests\\scripts\\kill-all.cmd')
-        subprocess.call([utilpath, dotnet])
-
     if os.path.isdir(jitUtilsPath):
         print("Deleting " + jitUtilsPath)
         shutil.rmtree(jitUtilsPath, onerror=del_rw)
-
-    if os.path.isdir(dotnetcliPath):
-        print("Deleting " + dotnetcliPath)
-        shutil.rmtree(dotnetcliPath, onerror=del_rw)
 
     if os.path.isfile(bootstrapPath):
         print("Deleting " + bootstrapPath)
         os.remove(bootstrapPath)
 
     if returncode != 0:
-        buildUrl = my_env["BUILD_URL"]
         print("There were errors in formatting. Please run jit-format locally with: \n")
         print(errorMessage)
         print("\nOr download and apply generated patch:")
-        print("wget " + buildUrl + "artifact/format.patch")
-        print("git apply format.patch")
+        print("1. From the GitHub 'Checks' page on the Pull Request, with the failing Formatting")
+        print("   job selected (e.g., 'Formatting Linux x64'), click the 'View more details on")
+        print("   Azure Pipelines' link.")
+        print("3. Select the 'Summary' tab.")
+        print("4. Open the 'Build artifacts published' entry.")
+        print("5. Find the link to the OS/architecture appropriate format patch file.")
+        print("6. Click on the link to download it.")
+        print("7. Unzip the patch file.")
+        print("8. git apply format.patch")
+
+    if (returncode != 0) and (os.environ.get("TF_BUILD") == "True"):
+        print("##vso[task.logissue type=error](NETCORE_ENGINEERING_TELEMETRY=Build) Format job found errors, please apply the format patch.")
 
     return returncode
 

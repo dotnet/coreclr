@@ -14,8 +14,6 @@ function print_usage {
     echo '  --coreOverlayDir=<path>          : Directory containing core binaries and test dependencies.'
     echo '  --coreClrBinDir=<path>           : Directory of the CoreCLR build (e.g. coreclr/bin/Product/Linux.x64.Debug).'
     echo '  --build-overlay-only             : Build coreoverlay only, and skip running tests.'
-    echo '  --generateLayoutOnly             : Build Core_Root only and skip running tests'
-    echo '  --generateLayout                 : Force generating layout, even if core_root is passed.'
     echo '  --disableEventLogging            : Disable the events logged by both VM and Managed Code'
     echo '  --sequential                     : Run tests sequentially (default is to run in parallel).'
     echo '  -v, --verbose                    : Show output from each test.'
@@ -24,24 +22,26 @@ function print_usage {
     echo '  --test-env                       : Script to set environment variables for tests'
     echo '  --crossgen                       : Precompiles the framework managed assemblies'
     echo '  --runcrossgentests               : Runs the ready to run tests' 
+    echo '  --runcrossgen2tests              : Runs the ready to run tests compiled with Crossgen2' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
     echo '  --jitstressregs=<n>              : Runs the tests with COMPlus_JitStressRegs=n'
     echo '  --jitminopts                     : Runs the tests with COMPlus_JITMinOpts=1'
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
     echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
-    echo '  --gcname=<n>                     : Runs the tests with COMPlus_GCName=n'
-    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
+    echo '  --gcname=<n>                     : Runs the tests with COMPlus_GCName=n'
     echo '  --long-gc                        : Runs the long GC tests'
+    echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
     echo '  --tieredcompilation              : Runs the tests with COMPlus_TieredCompilation=1'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
     echo '  --buildXUnitWrappers             : Force creating the xunit wrappers, this is useful if there have been changes to issues.targets'
     echo '  --printLastResultsOnly           : Print the results of the last run'
+    echo '  --runincontext                   : Run each tests in an unloadable AssemblyLoadContext'
     echo ''
     echo 'CoreFX Test Options '
     echo '  --corefxtests                    : Runs CoreFX tests'
@@ -49,6 +49,7 @@ function print_usage {
     echo '  --corefxtestlist=<path>          : Runs the CoreFX tests specified in the passed list'   
     echo '  --testHostDir=<path>             : Directory containing a built test host including core binaries, test dependencies' 
     echo '                                     and a dotnet executable'
+    echo '  --coreclr-src=<path>             : Specify the CoreCLR root directory. Required to build the TestFileSetup tool for CoreFX testing.'
 }
 
 function create_testhost
@@ -58,8 +59,7 @@ function create_testhost
     fi
 
     # Initialize test variables
-    local buildToolsDir=$coreClrSrc/Tools
-    local dotnetExe=$buildToolsDir/dotnetcli/dotnet
+    local dotnetExe=$coreClrSrc/dotnet.sh
     local coreClrSrcTestDir=$coreClrSrc/tests
     
     if [ -z $coreClrBinDir ]; then
@@ -206,7 +206,6 @@ testEnv=
 playlistFile=
 showTime=
 noLFConversion=
-buildOverlayOnly=
 gcsimulator=
 longgc=
 limitedCoreDumps=
@@ -221,9 +220,8 @@ jitdisasm=0
 ilasmroundtrip=
 buildXUnitWrappers=
 printLastResultsOnly=
-generateLayoutOnly=
-generateLayout=
 runSequential=0
+runincontext=0
 
 for i in "$@"
 do
@@ -326,6 +324,9 @@ do
         --runcrossgentests)
             export RunCrossGen=1
             ;;
+        --runcrossgen2tests)
+            export RunCrossGen2=1
+            ;;
         --corefxtests)
             export RunCoreFXTests=1
             ;;
@@ -382,20 +383,14 @@ do
         --no-lf-conversion)
             noLFConversion=ON
             ;;
-        --build-overlay-only)
-            buildOverlayOnly=ON
-            ;;
-        --generateLayoutOnly)
-            generateLayoutOnly=1
-            ;;
-        --generateLayout)
-            generateLayout=1
-            ;;
         --limitedDumpGeneration)
             limitedCoreDumps=ON
             ;;
         --xunitOutputPath=*)
             xunitOutputPath=${i#*=}
+            ;;
+        --runincontext)
+            runincontext=1
             ;;
         *)
             echo "Unknown switch: $i"
@@ -477,13 +472,6 @@ if [ ! -z "$coreClrBinDir" ]; then
     echo "Product Location              : ${coreClrBinDir}"
 fi
 
-if [ -z "$coreOverlayDir" ]; then
-    runtestPyArguments+=("--generate_layout")
-else
-    runtestPyArguments+=("-core_root" "$coreOverlayDir")
-    echo "Core Root Location            : ${coreOverlayDir}"
-fi
-
 if [ ! -z "$testNativeBinDir" ]; then
     runtestPyArguments+=("-test_native_bin_location" "$testNativeBinDir")
     echo "Test Native Bin Location      : ${testNativeBinDir}"
@@ -527,15 +515,6 @@ if (($verbose!=0)); then
     runtestPyArguments+=("--verbose")
 fi
 
-if [ ! -z "$buildOverlayOnly" ] || [ ! -z "$generateLayoutOnly" ]; then
-    echo "Will only Generate Core_Root"
-    runtestPyArguments+=("--generate_layout_only")
-fi
-
-if [ ! -z "$generateLayout" ]; then
-    runtestPyArguments+=("--generate_layout")
-fi
-
 if [ ! "$runSequential" -eq 0 ]; then
     echo "Run tests sequentially."
     runtestPyArguments+=("--sequential")
@@ -549,10 +528,22 @@ if [ ! -z "$RunCrossGen" ]; then
     runtestPyArguments+=("--run_crossgen_tests")
 fi
 
+if [ ! -z "$RunCrossGen2" ]; then
+    runtestPyArguments+=("--run_crossgen2_tests")
+fi
+
 if (($doCrossgen!=0)); then
     runtestPyArguments+=("--precompile_core_root")
 fi
 
+if [ "$limitedCoreDumps" == "ON" ]; then
+    runtestPyArguments+=("--limited_core_dumps")
+fi
+
+if [[ ! "$runincontext" -eq 0 ]]; then
+    echo "Running in an unloadable AssemblyLoadContext"
+    runtestPyArguments+=("--run_in_context")
+fi
 
 # Default to python3 if it is installed
 __Python=python

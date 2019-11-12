@@ -33,10 +33,13 @@
 #include "ilstubcache.h"
 #include "classhash.h"
 
-#ifdef FEATURE_PREJIT
 #include "corcompile.h"
-#include "dataimage.h"
 #include <gcinfodecoder.h>
+
+#include "wellknownattributes.h"
+
+#ifdef FEATURE_PREJIT
+#include "dataimage.h"
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_COMINTEROP
@@ -74,16 +77,17 @@ class MethodTable;
 class AppDomain;
 class DynamicMethodTable;
 class CodeVersionManager;
-class CallCounter;
 class TieredCompilationManager;
-#ifdef FEATURE_PREJIT
-class CerNgenRootTable;
-struct MethodContextElement;
-class TypeHandleList;
 class ProfileEmitter;
+class JITInlineTrackingMap;
+#ifdef FEATURE_PREJIT
+class TypeHandleList;
 class TrackingMap;
 struct MethodInModule;
 class PersistentInlineTrackingMapNGen;
+
+extern VerboseLevel g_CorCompileVerboseLevel;
+#endif
 
 // Hash table parameter of available classes (name -> module/class) hash
 #define AVAILABLE_CLASSES_HASH_BUCKETS 1024
@@ -92,7 +96,7 @@ class PersistentInlineTrackingMapNGen;
 #define PARAMMETHODS_HASH_BUCKETS 11
 #define METHOD_STUBS_HASH_BUCKETS 11
 #define GUID_TO_TYPE_HASH_BUCKETS 16
-            
+
 // The native symbol reader dll name
 #if defined(_AMD64_)
 #define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.amd64.dll")
@@ -107,16 +111,14 @@ class PersistentInlineTrackingMapNGen;
 #endif
 
 typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
-
-extern VerboseLevel g_CorCompileVerboseLevel;
-#endif  // FEATURE_PREJIT
+typedef DPTR(JITInlineTrackingMap) PTR_JITInlineTrackingMap;
 
 //
 // LookupMaps are used to implement RID maps
 // It is a linked list of nodes, each handling a successive (and consecutive)
 // range of RIDs.
 //
-// LookupMapBase is non-type safe implementation of the worker methods. LookupMap is type 
+// LookupMapBase is non-type safe implementation of the worker methods. LookupMap is type
 // safe wrapper around it.
 //
 
@@ -188,11 +190,11 @@ typedef DPTR(struct LookupMapBase) PTR_LookupMapBase;
 // importantly we cannot mutate compressed entries (for obvious reasons). Many of the lookup maps are only
 // partially populated at ngen time or otherwise might be updated at runtime and thus are not candidates.
 //
-// In the threshhold timeframe (predicted to be .Net 4.5.3 at the time of writing), we added profiler support
+// In the threshhold timeframe (predicted to be .NET Framework 4.5.3 at the time of writing), we added profiler support
 // for adding new types to NGEN images. Historically we could always do this for jitted images, but one of the
 // blockers for NGEN were the compressed RID maps. We worked around that by supporting multi-node maps in which
 // the first node is compressed, but all future nodes are uncompressed. The NGENed portion will all land in the
-// compressed node, while the new profiler added data will land in the uncompressed portion. Note this could 
+// compressed node, while the new profiler added data will land in the uncompressed portion. Note this could
 // probably be leveraged for other dynamic scenarios such as a limited form of EnC, but nothing further has
 // been implemented at this time.
 //
@@ -204,12 +206,12 @@ enum {
     kLookupMapIndexStride   = 0x10,                         // The range of table entries covered by one index entry (power of two for faster hash lookup)
     kBitsPerRVA             = sizeof(DWORD) * 8,            // Bits in an (uncompressed) table value RVA (RVAs
                                                             // currently still 32-bit even on 64-bit platforms)
-#ifdef _WIN64
+#ifdef BIT64
     kFlagBits               = 3,                            // Number of bits at the bottom of a value
                                                             // pointer that may be used for flags
-#else // _WIN64
+#else // BIT64
     kFlagBits               = 2,
-#endif // _WIN64
+#endif // BIT64
 
 };
 
@@ -378,8 +380,10 @@ public:
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE((flag & supportedFlags) == flag);
+#ifdef FEATURE_PREJIT
         _ASSERTE(!MapIsCompressed());
         _ASSERTE(dwNumHotItems == 0);
+#endif // FEATURE_PREJIT
 
         PTR_TADDR pElement = GetElementPtr(rid);
         _ASSERTE(pElement);
@@ -415,7 +419,7 @@ public:
 
         return TrySetElement(rid, value, flags);
     }
-    
+
     //
     // Stores an association in a map. Grows the map as necessary.
     //
@@ -472,7 +476,7 @@ public:
 
             return GetElement(NULL);
         }
-        
+
         TYPE GetElementAndFlags(TADDR* pFlags)
         {
             WRAPPER_NO_CONTRACT;
@@ -483,7 +487,7 @@ public:
 
     private:
         TYPE GetElement(TADDR* pFlags);
-        
+
         LookupMap* m_map;
         DWORD m_index;
 #ifdef FEATURE_PREJIT
@@ -628,8 +632,8 @@ struct ModuleCtorInfo
     PTR_ClassCtorInfoEntry  cctorInfoHot;   // size is numElementsHot
     PTR_ClassCtorInfoEntry  cctorInfoCold;  // size is numElements-numElementsHot
 
-    PTR_DWORD               hotHashOffsets;  // Indices to the start of each "hash region" in the hot part of the ppMT array. 
-    PTR_DWORD               coldHashOffsets; // Indices to the start of each "hash region" in the cold part of the ppMT array. 
+    PTR_DWORD               hotHashOffsets;  // Indices to the start of each "hash region" in the hot part of the ppMT array.
+    PTR_DWORD               coldHashOffsets; // Indices to the start of each "hash region" in the cold part of the ppMT array.
     DWORD                   numHotHashes;
     DWORD                   numColdHashes;
 
@@ -657,7 +661,7 @@ struct ModuleCtorInfo
         tmp3        = (tmp3 << 4) + (tmp3 << 3); // 00011000
 
         tmp1       ^= (tmp1 >> 4);               // 10001001 0001
-        tmp2       ^= (tmp2 >> 4);               // 01000110 0010   
+        tmp2       ^= (tmp2 >> 4);               // 01000110 0010
         tmp3       ^= (tmp3 >> 4);               // 00011001 1000
 
         DWORD hashVal = tmp1 + tmp2 + tmp3;
@@ -698,12 +702,12 @@ struct ModuleCtorInfo
 
             m_pBase1 = base1;
         }
-        
+
         //Returns -1,0,or 1 if first's nativeStartOffset is less than, equal to, or greater than second's
         FORCEINLINE int Compare(DWORD *first, DWORD *second)
         {
             LIMITED_METHOD_CONTRACT;
-        
+
             if (*first < *second)
                 return -1;
             else if (*first == *second)
@@ -711,7 +715,7 @@ struct ModuleCtorInfo
             else
                 return 1;
         }
-        
+
 #ifndef DACCESS_COMPILE
         // Swap is overwriten so that we can sort both the MethodTable pointer
         // array and the ClassCtorInfoEntry array in parrallel.
@@ -738,21 +742,18 @@ struct ModuleCtorInfo
 };
 
 
-
-#ifdef FEATURE_PREJIT
-
 // For IBC Profiling we collect signature blobs for instantiated types.
 // For such instantiated types and methods we create our own ibc token
-// 
-// For instantiated types, there also may be no corresponding type token 
+//
+// For instantiated types, there also may be no corresponding type token
 // or method token for the instantiated types or method in our module.
 // For these cases we create our own ibc token definition that is used
-// to refer to these external types and methods.  We have to handle 
+// to refer to these external types and methods.  We have to handle
 // external nested types and namespaces and method signatures.
 //
 //    ParamTypeSpec               = 4,    // Instantiated Type Signature
 //    ParamMethodSpec             = 5,    // Instantiated Method Signature
-//    ExternalNamespaceDef        = 6,    // External Namespace Token Definition 
+//    ExternalNamespaceDef        = 6,    // External Namespace Token Definition
 //    ExternalTypeDef             = 7,    // External Type Token Definition
 //    ExternalSignatureDef        = 8,    // External Signature Definition
 //    ExternalMethodDef           = 9,    // External Method Token Definition
@@ -777,7 +778,7 @@ class TypeSpecBlobEntry : public ProfilingBlobEntry
 {
 public:
     TypeSpecBlobEntry(DWORD _cbSig, PCCOR_SIGNATURE _pSig);
-    
+
     virtual ~TypeSpecBlobEntry()                  { LIMITED_METHOD_CONTRACT;  delete [] m_pSig; }
     virtual BlobType          kind()        const { LIMITED_METHOD_CONTRACT;  return ParamTypeSpec; }
     virtual size_t            varSize()     const { LIMITED_METHOD_CONTRACT;  return sizeof(COR_SIGNATURE) * m_cbSig; }
@@ -786,28 +787,28 @@ public:
     DWORD                     cbSig()       const { LIMITED_METHOD_CONTRACT;  return m_cbSig; }
     PCCOR_SIGNATURE           pSig()        const { LIMITED_METHOD_CONTRACT;  return m_pSig;  }
     void                      orFlag(DWORD flag)  { LIMITED_METHOD_CONTRACT;  m_flags |= flag; }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 156437; }    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 156437; }
 
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
 
-    static const TypeSpecBlobEntry *  FindOrAdd(PTR_Module      pModule, 
-                                                DWORD           _cbSig, 
+    static const TypeSpecBlobEntry *  FindOrAdd(PTR_Module      pModule,
+                                                DWORD           _cbSig,
                                                 PCCOR_SIGNATURE _pSig);
 
 private:
     DWORD                     m_flags;
     DWORD                     m_cbSig;
     PCCOR_SIGNATURE           m_pSig;
-    
-    static idTypeSpec         s_lastTypeSpecToken;   
+
+    static idTypeSpec         s_lastTypeSpecToken;
 };
 
 class MethodSpecBlobEntry : public ProfilingBlobEntry
 {
 public:
     MethodSpecBlobEntry(DWORD _cbSig, PCCOR_SIGNATURE _pSig);
-    
+
     virtual ~MethodSpecBlobEntry()                { LIMITED_METHOD_CONTRACT;  delete [] m_pSig; }
     virtual BlobType          kind()        const { LIMITED_METHOD_CONTRACT;  return ParamMethodSpec; }
     virtual size_t            varSize()     const { LIMITED_METHOD_CONTRACT;  return sizeof(COR_SIGNATURE) * m_cbSig; }
@@ -816,36 +817,36 @@ public:
     DWORD                     cbSig()       const { LIMITED_METHOD_CONTRACT;  return m_cbSig; }
     PCCOR_SIGNATURE           pSig()        const { LIMITED_METHOD_CONTRACT;  return m_pSig;  }
     void                      orFlag(DWORD flag)  { LIMITED_METHOD_CONTRACT;  m_flags |= flag; }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 187751; }    
-    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 187751; }
+
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
-    
-    static const MethodSpecBlobEntry *  FindOrAdd(PTR_Module      pModule, 
-                                                  DWORD           _cbSig, 
+
+    static const MethodSpecBlobEntry *  FindOrAdd(PTR_Module      pModule,
+                                                  DWORD           _cbSig,
                                                   PCCOR_SIGNATURE _pSig);
 
 private:
     DWORD                     m_flags;
     DWORD                     m_cbSig;
     PCCOR_SIGNATURE           m_pSig;
-    
-    static idTypeSpec  s_lastMethodSpecToken;   
+
+    static idTypeSpec  s_lastMethodSpecToken;
 };
 
 class ExternalNamespaceBlobEntry : public ProfilingBlobEntry
 {
 public:
     ExternalNamespaceBlobEntry(LPCSTR _pName);
-    
+
     virtual ~ExternalNamespaceBlobEntry()         { LIMITED_METHOD_CONTRACT;  delete [] m_pName; }
     virtual BlobType          kind()        const { LIMITED_METHOD_CONTRACT;  return ExternalNamespaceDef; }
     virtual size_t            varSize()     const { LIMITED_METHOD_CONTRACT;  return sizeof(CHAR) * m_cbName; }
     virtual void              newToken()          { LIMITED_METHOD_CONTRACT;  m_token = ++s_lastExternalNamespaceToken; }
     DWORD                     cbName()      const { LIMITED_METHOD_CONTRACT;  return m_cbName; }
     LPCSTR                    pName()       const { LIMITED_METHOD_CONTRACT;  return m_pName;  }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 225307; }    
-    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 225307; }
+
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
 
@@ -854,8 +855,8 @@ public:
 private:
     DWORD                     m_cbName;
     LPCSTR                    m_pName;
-    
-    static idExternalNamespace s_lastExternalNamespaceToken;   
+
+    static idExternalNamespace s_lastExternalNamespaceToken;
 };
 
 class ExternalTypeBlobEntry : public ProfilingBlobEntry
@@ -873,15 +874,15 @@ public:
     mdToken                   nameSpace()   const { LIMITED_METHOD_CONTRACT;  return m_nameSpace; }
     DWORD                     cbName()      const { LIMITED_METHOD_CONTRACT;  return m_cbName; }
     LPCSTR                    pName()       const { LIMITED_METHOD_CONTRACT;  return m_pName;  }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 270371; }    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 270371; }
 
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
 
-    static const ExternalTypeBlobEntry *  FindOrAdd(PTR_Module pModule, 
-                                                    mdToken    _assemblyRef, 
+    static const ExternalTypeBlobEntry *  FindOrAdd(PTR_Module pModule,
+                                                    mdToken    _assemblyRef,
                                                     mdToken    _nestedClass,
-                                                    mdToken    _nameSpace, 
+                                                    mdToken    _nameSpace,
                                                     LPCSTR     _pName);
 
 private:
@@ -890,7 +891,7 @@ private:
     mdToken                   m_nameSpace;
     DWORD                     m_cbName;
     LPCSTR                    m_pName;
-    
+
     static idExternalType     s_lastExternalTypeToken;
 };
 
@@ -905,27 +906,27 @@ public:
     virtual void              newToken()          { LIMITED_METHOD_CONTRACT;  m_token = ++s_lastExternalSignatureToken; }
     DWORD                     cbSig()       const { LIMITED_METHOD_CONTRACT;  return m_cbSig; }
     PCCOR_SIGNATURE           pSig()        const { LIMITED_METHOD_CONTRACT;  return m_pSig;  }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 324449; }    
-    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 324449; }
+
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
 
-    static const ExternalSignatureBlobEntry *  FindOrAdd(PTR_Module      pModule, 
-                                                         DWORD           _cbSig, 
+    static const ExternalSignatureBlobEntry *  FindOrAdd(PTR_Module      pModule,
+                                                         DWORD           _cbSig,
                                                          PCCOR_SIGNATURE _pSig);
 
 private:
     DWORD                     m_cbSig;
     PCCOR_SIGNATURE           m_pSig;
-    
-    static idExternalSignature s_lastExternalSignatureToken;   
+
+    static idExternalSignature s_lastExternalSignatureToken;
 };
 
 class ExternalMethodBlobEntry : public ProfilingBlobEntry
 {
 public:
     ExternalMethodBlobEntry(mdToken _nestedClass, mdToken _signature, LPCSTR _pName);
-    
+
     virtual ~ExternalMethodBlobEntry()            { LIMITED_METHOD_CONTRACT;  delete [] m_pName; }
     virtual BlobType          kind()        const { LIMITED_METHOD_CONTRACT;  return ExternalMethodDef; }
     virtual size_t            varSize()     const { LIMITED_METHOD_CONTRACT;  return sizeof(CHAR) * m_cbName; }
@@ -934,14 +935,14 @@ public:
     mdToken                   signature()   const { LIMITED_METHOD_CONTRACT;  return m_signature; }
     DWORD                     cbName()      const { LIMITED_METHOD_CONTRACT;  return m_cbName; }
     LPCSTR                    pName()       const { LIMITED_METHOD_CONTRACT;  return m_pName;  }
-    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 389357; }    
-    
+    static size_t             HashInit()          { LIMITED_METHOD_CONTRACT;  return 389357; }
+
     virtual bool              IsEqual(const ProfilingBlobEntry *  other) const;
     virtual size_t            Hash()        const;
 
-    static const ExternalMethodBlobEntry *  FindOrAdd(PTR_Module pModule, 
+    static const ExternalMethodBlobEntry *  FindOrAdd(PTR_Module pModule,
                                                       mdToken    _nestedClass,
-                                                      mdToken    _signature, 
+                                                      mdToken    _signature,
                                                       LPCSTR     _pName);
 
 private:
@@ -949,16 +950,16 @@ private:
     mdToken                   m_signature;
     DWORD                     m_cbName;
     LPCSTR                    m_pName;
-    
-    static idExternalMethod   s_lastExternalMethodToken;   
+
+    static idExternalMethod   s_lastExternalMethodToken;
 };
 
 struct IbcNameHandle
 {
-    mdToken  tkIbcNameSpace; 
+    mdToken  tkIbcNameSpace;
     mdToken  tkIbcNestedClass;
 
-    LPCSTR   szName; 
+    LPCSTR   szName;
     LPCSTR   szNamespace;
     mdToken  tkEnclosingClass;
 };
@@ -986,15 +987,15 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (count_t) k->Hash();
     }
-    static const element_t Null() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
-        return NULL; 
+    static element_t Null()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return NULL;
     }
 
-    static bool IsNull(const element_t &e) 
-    { 
-        LIMITED_METHOD_CONTRACT; 
+    static bool IsNull(const element_t &e)
+    {
+        LIMITED_METHOD_CONTRACT;
         return (e == NULL);
     }
 };
@@ -1002,7 +1003,7 @@ public:
 typedef SHash<ProfilingBlobTraits> ProfilingBlobTable;
 typedef DPTR(ProfilingBlobTable) PTR_ProfilingBlobTable;
 
-
+#ifdef FEATURE_PREJIT
 #define METHODTABLE_RESTORE_REASON() \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToParentMethodTable) \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToCanonicalMethodTable) \
@@ -1078,18 +1079,18 @@ public:
         SUPPORTS_DAC;
         return (count_t)(size_t)k;
     }
-    static const element_t Null() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
+    static const element_t Null()
+    {
+        LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
-        DynamicILBlobEntry e; 
+        DynamicILBlobEntry e;
         e.m_il = TADDR(0);
-        e.m_methodToken = 0; 
-        return e; 
+        e.m_methodToken = 0;
+        return e;
     }
-    static bool IsNull(const element_t &e) 
-    { 
-        LIMITED_METHOD_CONTRACT; 
+    static bool IsNull(const element_t &e)
+    {
+        LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
         return e.m_methodToken == 0;
     }
@@ -1100,7 +1101,7 @@ typedef DPTR(DynamicILBlobTable) PTR_DynamicILBlobTable;
 
 
 // ESymbolFormat specified the format used by a symbol stream
-typedef enum 
+typedef enum
 {
     eSymbolFormatNone,      /* symbol format to use not yet determined */
     eSymbolFormatPDB,       /* PDB format from diasymreader.dll - only safe for trusted scenarios */
@@ -1200,12 +1201,12 @@ private:
     bool IsHotEntry(GuidToMethodTableEntry *pEntry, CorProfileData *pProfileData)
     { LIMITED_METHOD_CONTRACT; return false; }
 
-    bool SaveEntry(DataImage *pImage, CorProfileData *pProfileData, 
-                        GuidToMethodTableEntry *pOldEntry, GuidToMethodTableEntry *pNewEntry, 
+    bool SaveEntry(DataImage *pImage, CorProfileData *pProfileData,
+                        GuidToMethodTableEntry *pOldEntry, GuidToMethodTableEntry *pNewEntry,
                         EntryMappingTable *pMap);
 
     void FixupEntry(DataImage *pImage, GuidToMethodTableEntry *pEntry, void *pFixupBase, DWORD cbFixupOffset);
-    
+
 #endif // FEATURE_PREJIT && !DACCESS_COMPILE
 
 };
@@ -1232,7 +1233,7 @@ class MemberRefToDescHashTable: public NgenHashTable<MemberRefToDescHashTable, M
 
 private:
     MemberRefToDescHashTable(Module *pModule, LoaderHeap *pHeap, DWORD cInitialBuckets):
-       NgenHashTable<MemberRefToDescHashTable, MemberRefToDescHashEntry, 2>(pModule, pHeap, cInitialBuckets) 
+       NgenHashTable<MemberRefToDescHashTable, MemberRefToDescHashEntry, 2>(pModule, pHeap, cInitialBuckets)
     { LIMITED_METHOD_CONTRACT; }
 
 public:
@@ -1289,8 +1290,8 @@ private:
     }
 
 
-    bool SaveEntry(DataImage *pImage, CorProfileData *pProfileData, 
-                        MemberRefToDescHashEntry *pOldEntry, MemberRefToDescHashEntry *pNewEntry, 
+    bool SaveEntry(DataImage *pImage, CorProfileData *pProfileData,
+                        MemberRefToDescHashEntry *pOldEntry, MemberRefToDescHashEntry *pNewEntry,
                         EntryMappingTable *pMap)
     {
         //The entries are mutable
@@ -1310,15 +1311,15 @@ struct ThreadLocalModule;
 
 // A code:Module represents a DLL or EXE file loaded from the disk. It could either be a IL module or a
 // Native code (NGEN module). A module live in a code:Assembly
-// 
+//
 // Some important fields are
 //    * code:Module.m_file - this points at a code:PEFile that understands the layout of a PE file. The most
 //        important part is getting at the code:Module (see file:..\inc\corhdr.h#ManagedHeader) from there
 //        you can get at the Meta-data and IL)
 //    * code:Module.m_pAvailableClasses - this is a table that lets you look up the types (the code:EEClass)
 //        for all the types in the module
-//        
-// See file:..\inc\corhdr.h#ManagedHeader for more on the layout of managed exectuable files. 
+//
+// See file:..\inc\corhdr.h#ManagedHeader for more on the layout of managed exectuable files.
 
 class Module
 {
@@ -1343,7 +1344,7 @@ private:
         // Note that none of these flags survive a prejit save/restore.
 
         MODULE_IS_TENURED           = 0x00000001,   // Set once we know for sure the Module will not be freed until the appdomain itself exits
-        M_CER_ROOT_TABLE_ON_HEAP    = 0x00000002,   // Set when m_pCerNgenRootTable is allocated from heap (at ngen time)
+        // unused                   = 0x00000002,
         CLASSES_FREED               = 0x00000004,
         IS_EDIT_AND_CONTINUE        = 0x00000008,   // is EnC Enabled for this module
 
@@ -1408,9 +1409,6 @@ private:
         //If module has default dll import search paths attribute
         DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS      = 0x00000800,
 
-        //If attribute value has been cached before
-        NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED = 0x00001000,
-
         //If m_MethodDefToPropertyInfoMap has been generated
         COMPUTED_METHODDEF_TO_PROPERTYINFO_MAP = 0x00002000,
 
@@ -1447,12 +1445,6 @@ private:
 
     // Format the above stream is in (if any)
     ESymbolFormat           m_symbolFormat;
-
-    // Active dependencies
-    ArrayList               m_activeDependencies;
-
-    SynchronizedBitMask     m_unconditionalDependencies;
-    ULONG                   m_dwNumberOfActivations;
 
     // For protecting additions to the heap
     CrstExplicitInit        m_LookupTableCrst;
@@ -1525,11 +1517,7 @@ private:
 
     ULONG m_DefaultDllImportSearchPathsAttributeValue;
 
-     LPCUTF8 m_pszCultureName;
-     ULONG m_CultureNameLength;
-     INT16 m_FallbackLocation;
-
-#ifdef PROFILING_SUPPORTED_DATA 
+#ifdef PROFILING_SUPPORTED_DATA
      // a wrapper for the underlying PEFile metadata emitter which validates that the metadata edits being
      // made are supported modifications to the type system
      VolatilePtr<IMetaDataEmit> m_pValidatedEmitter;
@@ -1592,11 +1580,11 @@ public:
 #ifdef _DEBUG
     //
     // We call these methods to seal/unseal the
-    // lists: m_pAvailableClasses and m_pAvailableParamTypes 
-    // 
-    // When they are sealed ClassLoader::PublishType cannot 
+    // lists: m_pAvailableClasses and m_pAvailableParamTypes
+    //
+    // When they are sealed ClassLoader::PublishType cannot
     // add new generic types or methods
-    //   
+    //
     void SealGenericTypesAndMethods();
     void UnsealGenericTypesAndMethods();
 #endif
@@ -1629,17 +1617,22 @@ private:
     PTR_ReadyToRunInfo      m_pReadyToRunInfo;
 #endif
 
-#ifdef FEATURE_PREJIT
-
 private:
-    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
-
     PTR_ProfilingBlobTable  m_pProfilingBlobTable;   // While performing IBC instrumenting this hashtable is populated with the External defs
     CorProfileData *        m_pProfileData;          // While ngen-ing with IBC optimizations this contains a link to the IBC data for the assembly
 
     // Profile information
     BOOL                            m_nativeImageProfiling;
     CORCOMPILE_METHOD_PROFILE_LIST *m_methodProfileList;
+
+#if PROFILING_SUPPORTED_DATA
+    DWORD                   m_dwTypeCount;
+    DWORD                   m_dwExportedTypeCount;
+    DWORD                   m_dwCustomAttributeCount;
+#endif // PROFILING_SUPPORTED_DATA
+
+#ifdef FEATURE_PREJIT
+    PTR_NGenLayoutInfo      m_pNGenLayoutInfo;
 
 #if defined(FEATURE_COMINTEROP)
         public:
@@ -1657,12 +1650,11 @@ private:
 
 #endif // defined(FEATURE_COMINTEROP)
 
-#endif // FEATURE_PREJIT
-
     // Module wide static fields information
     ModuleCtorInfo          m_ModuleCtorInfo;
 
-#ifdef FEATURE_PREJIT
+#endif // FEATURE_PREJIT
+
     struct TokenProfileData
     {
         static TokenProfileData *CreateNoThrow(void);
@@ -1690,6 +1682,7 @@ private:
 
     } *m_tokenProfileData;
 
+#ifdef FEATURE_PREJIT
     // Stats for prejit log
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
@@ -1706,7 +1699,7 @@ protected:
 #ifndef DACCESS_COMPILE
     virtual void Initialize(AllocMemTracker *pamTracker, LPCWSTR szName = NULL);
     void InitializeForProfiling();
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
     void InitializeNativeImage(AllocMemTracker* pamTracker);
 #endif
 #endif
@@ -1774,24 +1767,11 @@ protected:
     MethodTable *GetGlobalMethodTable();
     bool         NeedsGlobalMethodTable();
 
-    // Only for non-manifest modules
-    DomainModule *GetDomainModule(AppDomain *pDomain);
-    DomainModule *FindDomainModule(AppDomain *pDomain);
-
     // This works for manifest modules too
-    DomainFile *GetDomainFile(AppDomain *pDomain);
-    DomainFile *FindDomainFile(AppDomain *pDomain);
+    DomainFile *GetDomainFile();
 
     // Operates on assembly of module
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
-
-    // Versions which rely on the current AppDomain (N/A for DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainModule * GetDomainModule()         { WRAPPER_NO_CONTRACT; return GetDomainModule(GetAppDomain()); }
-    DomainFile * GetDomainFile()             { WRAPPER_NO_CONTRACT; return GetDomainFile(GetAppDomain()); }
-    DomainAssembly * GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
+    DomainAssembly *GetDomainAssembly();
 
     void SetDomainFile(DomainFile *pDomainFile);
 
@@ -1801,9 +1781,6 @@ protected:
     PTR_BaseDomain GetDomain();
 #ifdef FEATURE_CODE_VERSIONING
     CodeVersionManager * GetCodeVersionManager();
-#endif
-#ifdef FEATURE_TIERED_COMPILATION
-    CallCounter * GetCallCounter();
 #endif
 
     mdFile GetModuleRef()
@@ -1822,19 +1799,19 @@ protected:
     BOOL IsVisibleToDebugger();
 
 
-    BOOL IsEditAndContinueEnabled() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
+    BOOL IsEditAndContinueEnabled()
+    {
+        LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
         // We are seeing cases where this flag is set for a module that is not an EditAndContinueModule.  This should
         // never happen unless the module is EditAndContinueCapable, in which case we would have created an EditAndContinueModule
-        // not a Module.  
+        // not a Module.
         //_ASSERTE((m_dwTransientFlags & IS_EDIT_AND_CONTINUE) == 0 || IsEditAndContinueCapable());
-        return (IsEditAndContinueCapable()) && ((m_dwTransientFlags & IS_EDIT_AND_CONTINUE) != 0); 
+        return (IsEditAndContinueCapable()) && ((m_dwTransientFlags & IS_EDIT_AND_CONTINUE) != 0);
     }
 
     BOOL IsEditAndContinueCapable();
-    
+
     BOOL IsIStream() { LIMITED_METHOD_CONTRACT; return GetFile()->IsIStream(); }
 
     BOOL IsSystem() { WRAPPER_NO_CONTRACT; SUPPORTS_DAC; return m_file->IsSystem(); }
@@ -1908,13 +1885,25 @@ protected:
 
 #ifndef DACCESS_COMPILE
     VOID EnsureActive();
-    VOID EnsureAllocated();    
+    VOID EnsureAllocated();
     VOID EnsureLibraryLoaded();
 #endif
 
     CHECK CheckActivated();
-    ULONG GetNumberOfActivations();
-    ULONG IncrementNumberOfActivations();
+
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        if (IsReadyToRun())
+        {
+            if (!GetReadyToRunInfo()->MayHaveCustomAttribute(attribute, parentToken))
+                return S_FALSE;
+        }
+
+        return GetMDImport()->GetCustomAttributeByName(parentToken, GetWellKnownAttributeName(attribute), ppData, pcbData);
+    }
 
     IMDInternalImport *GetMDImport() const
     {
@@ -1938,7 +1927,7 @@ protected:
         return m_file->GetEmitter();
     }
 
-#if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE) 
+#if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)
     IMetaDataEmit *GetValidatedEmitter();
 #endif
 
@@ -1962,6 +1951,11 @@ protected:
     BOOL IsWindowsRuntimeModule();
 
     BOOL IsInCurrentVersionBubble();
+
+#if defined(FEATURE_READYTORUN) && !defined(FEATURE_READYTORUN_COMPILER)
+    BOOL IsInSameVersionBubble(Module *target);
+#endif // FEATURE_READYTORUN && !FEATURE_READYTORUN_COMPILER
+
 
     LPCWSTR GetPathForErrorMessages();
 
@@ -1996,14 +1990,14 @@ protected:
         SUPPORTS_DAC;
 
         // Symbol format should be "none" if-and-only-if our stream is null
-        // If this fails, it may mean somebody is trying to examine this module after 
+        // If this fails, it may mean somebody is trying to examine this module after
         // code:Module::Destruct has been called.
         _ASSERTE( (m_symbolFormat == eSymbolFormatNone) == (m_pIStreamSym == NULL) );
 
         return m_pIStreamSym;
     }
 
-    // Get the format of the in-memory symbol stream for this module, or 
+    // Get the format of the in-memory symbol stream for this module, or
     // eSymbolFormatNone if no in-memory symbols.
     ESymbolFormat GetInMemorySymbolStreamFormat()
     {
@@ -2011,7 +2005,7 @@ protected:
         SUPPORTS_DAC;
 
         // Symbol format should be "none" if-and-only-if our stream is null
-        // If this fails, it may mean somebody is trying to examine this module after 
+        // If this fails, it may mean somebody is trying to examine this module after
         // code:Module::Destruct has been called.
         _ASSERTE( (m_symbolFormat == eSymbolFormatNone) == (m_pIStreamSym == NULL) );
 
@@ -2032,7 +2026,7 @@ protected:
 
         // we expect set to only be called once
         CONSISTENCY_CHECK(m_pIStreamSym == NULL);
-        CONSISTENCY_CHECK(m_symbolFormat == eSymbolFormatNone);    
+        CONSISTENCY_CHECK(m_symbolFormat == eSymbolFormatNone);
 
         m_symbolFormat = symbolFormat;
         m_pIStreamSym = pStream;
@@ -2041,7 +2035,7 @@ protected:
 
     // Release and clear the in-memory symbol stream if any
     void ClearInMemorySymbolStream()
-    {      
+    {
         LIMITED_METHOD_CONTRACT;
         if( m_pIStreamSym != NULL )
         {
@@ -2073,7 +2067,7 @@ protected:
     PTR_EEClassHashTable GetAvailableClassHash()
     {
         LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC; 
+        SUPPORTS_DAC;
         {
             // IsResource() may lock when accessing metadata, but this is only in debug,
             // for the assert below
@@ -2154,19 +2148,16 @@ protected:
         return m_pInstMethodHashTable;
     }
 
-#ifdef FEATURE_PREJIT    
+#ifdef FEATURE_PREJIT
     // Gets or creates the token -> IL stub MethodDesc hash.
     StubMethodHashTable *GetStubMethodHashTable();
-#endif // FEATURE_PREJIT    
+#endif // FEATURE_PREJIT
 
     // Creates a new Method table for an array.  Used to make type handles
     // Note that if kind == SZARRAY or ARRAY, we get passed the GENERIC_ARRAY
     // needed to create the array.  That way we dont need to load classes during
     // the class load, which avoids the need for a 'being loaded' list
     MethodTable* CreateArrayMethodTable(TypeHandle elemType, CorElementType kind, unsigned rank, class AllocMemTracker *pamTracker);
-
-    // This is called from CreateArrayMethodTable
-    MethodTable* CreateGenericArrayMethodTable(TypeHandle elemType);
 
     // string helper
     void InitializeStringData(DWORD token, EEStringData *pstrData, CQuickBytes *pqb);
@@ -2176,14 +2167,14 @@ protected:
 #ifdef FEATURE_PREJIT
     OBJECTHANDLE ResolveStringRefHelper(DWORD token, BaseDomain *pDomain, PTR_CORCOMPILE_IMPORT_SECTION pSection, EEStringData *strData);
 #endif
-    
+
     CHECK CheckStringRef(RVA rva);
 
     // Module/Assembly traversal
     Assembly * GetAssemblyIfLoaded(
-            mdAssemblyRef       kAssemblyRef, 
-            LPCSTR              szWinRtNamespace = NULL, 
-            LPCSTR              szWinRtClassName = NULL, 
+            mdAssemblyRef       kAssemblyRef,
+            LPCSTR              szWinRtNamespace = NULL,
+            LPCSTR              szWinRtClassName = NULL,
             IMDInternalImport * pMDImportOverride = NULL,
             BOOL                fDoNotUtilizeExtraChecks = FALSE,
             ICLRPrivBinder      *pBindingContextForLoadedAssembly = NULL
@@ -2195,8 +2186,7 @@ private:
 public:
 
     DomainAssembly * LoadAssembly(
-            AppDomain *   pDomain, 
-            mdAssemblyRef kAssemblyRef, 
+            mdAssemblyRef kAssemblyRef,
             LPCUTF8       szWinRtTypeNamespace = NULL,
             LPCUTF8       szWinRtTypeClassName = NULL);
     Module *GetModuleIfLoaded(mdFile kFile, BOOL onlyLoadedInAppDomain, BOOL loadAllowed);
@@ -2205,9 +2195,9 @@ public:
     DWORD GetAssemblyRefFlags(mdAssemblyRef tkAssemblyRef);
 
     bool HasBindableIdentity(mdAssemblyRef tkAssemblyRef)
-    { 
-        WRAPPER_NO_CONTRACT; 
-        return !IsAfContentType_WindowsRuntime(GetAssemblyRefFlags(tkAssemblyRef)); 
+    {
+        WRAPPER_NO_CONTRACT;
+        return !IsAfContentType_WindowsRuntime(GetAssemblyRefFlags(tkAssemblyRef));
     }
 
     // RID maps
@@ -2321,7 +2311,7 @@ public:
 
         // The TypeRef cache is strictly a lookaside cache. If we get an OOM trying to grow the table,
         // we cannot abort the load. (This will cause fatal errors during gc promotion.)
-        m_TypeRefToMethodTableMap.TrySetElement(RidFromToken(token), 
+        m_TypeRefToMethodTableMap.TrySetElement(RidFromToken(token),
             dac_cast<PTR_TypeRef>(value.AsTAddr()));
     }
 #endif // !DACCESS_COMPILE
@@ -2545,23 +2535,23 @@ public:
                                               DEBUGGER_INFO_SHIFT_PRIV);
     }
 
+    void UpdateNewlyAddedTypes();
+
 #ifdef PROFILING_SUPPORTED
     BOOL IsProfilerNotified() {LIMITED_METHOD_CONTRACT;  return (m_dwTransientFlags & IS_PROFILER_NOTIFIED) != 0; }
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    BOOL HasInlineTrackingMap();
-    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+    BOOL HasNativeOrReadyToRunInlineTrackingMap();
+    COUNT_T GetNativeOrReadyToRunInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    BOOL HasJitInlineTrackingMap();
+    PTR_JITInlineTrackingMap GetJitInlineTrackingMap() { LIMITED_METHOD_CONTRACT; return m_pJitInlinerTrackingMap; }
+    void AddInlining(MethodDesc *inliner, MethodDesc *inlinee);
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
-
-    // Get any cached ITypeLib* for the module.
-    ITypeLib *GetTypeLib();
-    // Cache the ITypeLib*, if one is not already cached.
-    void SetTypeLib(ITypeLib *pITLB);
-    ITypeLib *GetTypeLibTCE();
-    void SetTypeLibTCE(ITypeLib *pITLB);
 
     // Enregisters a VASig.
     VASigCookie *GetVASigCookie(Signature vaSignature);
@@ -2578,16 +2568,15 @@ public:
         m_pDllMain = pMD;
     }
 
-    BOOL CanExecuteCode();
-
-
+#ifdef FEATURE_PREJIT
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        
+
         return &m_ModuleCtorInfo;
     }
+#endif
 
  private:
 
@@ -2599,7 +2588,7 @@ public:
 #endif // !DACCESS_COMPILE
 
     LPCUTF8 GetSimpleName()
-    { 
+    {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(m_pSimpleName != NULL);
         return m_pSimpleName;
@@ -2612,16 +2601,14 @@ public:
     LPCWSTR GetDebugName() { WRAPPER_NO_CONTRACT; return m_file->GetDebugName(); }
 #endif
 
-    BOOL IsILOnly() { WRAPPER_NO_CONTRACT; return m_file->IsILOnly(); }
-
 #ifdef FEATURE_PREJIT
-    BOOL HasNativeImage() 
-    { 
+    BOOL HasNativeImage()
+    {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
-        return m_file->HasNativeImage(); 
+        return m_file->HasNativeImage();
     }
-    
+
     PEImageLayout *GetNativeImage()
     {
         CONTRACT(PEImageLayout *)
@@ -2632,10 +2619,10 @@ public:
             GC_NOTRIGGER;
             SUPPORTS_DAC;
             CANNOT_TAKE_LOCK;
-            SO_TOLERANT;
         }
         CONTRACT_END;
 
+        _ASSERTE(!IsCollectible());
         RETURN m_file->GetLoadedNative();
     }
 #else
@@ -2683,7 +2670,7 @@ public:
 
 
     // Active transition path management
-    // 
+    //
     // This list keeps track of module which we have active transition
     // paths to.  An active transition path is where we move from
     // active execution in one module to another module without
@@ -2707,72 +2694,6 @@ public:
     // execute.
 
     void AddActiveDependency(Module *pModule, BOOL unconditional);
-
-    // Active dependency iterator
-    class DependencyIterator
-    {
-      protected:
-        ArrayList::Iterator m_i;
-        COUNT_T             m_index;
-        SynchronizedBitMask* m_unconditionalFlags;
-
-        friend class Module;
-
-        DependencyIterator(ArrayList *list, SynchronizedBitMask *unconditionalFlags)
-          : m_index((COUNT_T)-1),
-            m_unconditionalFlags(unconditionalFlags)
-        {
-            WRAPPER_NO_CONTRACT;
-            m_i = list->Iterate();
-        }
-
-      public:
-        Module *GetDependency()
-        {
-            return ((FixupPointer<PTR_Module> *)m_i.GetElementPtr())->GetValue();
-        }
-
-        BOOL Next()
-        {
-            LIMITED_METHOD_CONTRACT;
-            while (m_i.Next())
-            {
-                ++m_index;
-
-#ifdef FEATURE_PREJIT
-                // When iterating all dependencies, we do not restore any tokens
-                // as we want to be lazy.
-                PTR_Module pModule = ((FixupPointer<PTR_Module> *)m_i.GetElementPtr())->GetValue();
-                if (!CORCOMPILE_IS_POINTER_TAGGED(dac_cast<TADDR>(pModule)))
-                    return TRUE;
-
-#else
-                return TRUE;
-#endif
-
-            }
-            return FALSE;
-        }
-        BOOL IsUnconditional()
-        {
-            if (m_unconditionalFlags == NULL)
-                return TRUE;
-            else
-                return m_unconditionalFlags->TestBit(m_index);
-        }
-    };
-
-    DependencyIterator IterateActiveDependencies()
-    {
-        WRAPPER_NO_CONTRACT;
-        return DependencyIterator(&m_activeDependencies, &m_unconditionalDependencies);
-    }
-
-    BOOL HasActiveDependency(Module *pModule);
-    BOOL HasUnconditionalActiveDependency(Module *pModule);
-
-    // Turn triggers from this module into runtime checks
-    void EnableModuleFailureTriggers(Module *pModule, AppDomain *pDomain);
 
 #ifdef FEATURE_PREJIT
     BOOL IsZappedCode(PCODE code);
@@ -2821,10 +2742,12 @@ public:
 
     PCCOR_SIGNATURE GetEncodedSig(RVA fixupRva, Module **ppDefiningModule);
     PCCOR_SIGNATURE GetEncodedSigIfLoaded(RVA fixupRva, Module **ppDefiningModule);
+#endif
 
-    BYTE *GetNativeFixupBlobData(RVA fixup);
+    BYTE* GetNativeFixupBlobData(RVA fixup);
 
     IMDInternalImport *GetNativeAssemblyImport(BOOL loadAllowed = TRUE);
+    IMDInternalImport *GetNativeAssemblyImportIfLoaded();
 
     BOOL FixupNativeEntry(CORCOMPILE_IMPORT_SECTION * pSection, SIZE_T fixupIndex, SIZE_T *fixup);
 
@@ -2839,10 +2762,10 @@ public:
                            PEDecoder * pNativeImage);
     void RunEagerFixups();
 
-    IMDInternalImport *GetNativeFixupImport();
     Module *GetModuleFromIndex(DWORD ix);
     Module *GetModuleFromIndexIfLoaded(DWORD ix);
 
+#ifdef FEATURE_PREJIT
     // This is to rebuild stub dispatch maps to module-local values.
     void UpdateStubDispatchTypeTable(DataImage *image);
 
@@ -2854,7 +2777,7 @@ public:
 
     TypeHandle    LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
     MethodDesc *  LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG_ENTRY *pBlobSigEntry);
- 
+
 
     void ExpandAll(DataImage *image);
     // profileData may be different than the profileData passed in to
@@ -2919,8 +2842,8 @@ public:
     }
 
     PCODE GetPrestubJumpStub()
-    { 
-        LIMITED_METHOD_DAC_CONTRACT; 
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
 
         if (!m_pNGenLayoutInfo)
             return NULL;
@@ -2930,8 +2853,8 @@ public:
 
 #ifdef HAS_FIXUP_PRECODE
     PCODE GetPrecodeFixupJumpStub()
-    { 
-        LIMITED_METHOD_DAC_CONTRACT; 
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
 
         if (!m_pNGenLayoutInfo)
             return NULL;
@@ -2949,8 +2872,9 @@ public:
 
         return m_pNGenLayoutInfo->m_VirtualMethodThunks.IsInRange(code);
     }
+#endif // FEATURE_PREJIT
 
-    ICorJitInfo::ProfileBuffer * AllocateProfileBuffer(mdToken _token, DWORD _size, DWORD _ILSize);
+    ICorJitInfo::BlockCounts * AllocateMethodBlockCounts(mdToken _token, DWORD _size, DWORD _ILSize);
     HANDLE OpenMethodProfileDataLogFile(GUID mvid);
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
@@ -2968,6 +2892,7 @@ public:
     void LogTokenAccess(mdToken token, SectionFormat format, ULONG flagNum);
     void LogTokenAccess(mdToken token, ULONG flagNum);
 
+#ifdef FEATURE_PREJIT
     BOOL AreTypeSpecsTriaged()
     {
         return m_dwTransientFlags & TYPESPECS_TRIAGED;
@@ -3021,7 +2946,7 @@ public:
     BOOL IsBeingUnloaded() { return m_dwTransientFlags & IS_BEING_UNLOADED; }
     void   SetBeingUnloaded();
     void   StartUnload();
-    
+
 
 public:
     idTypeSpec   LogInstantiatedType(TypeHandle typeHnd, ULONG flagNum);
@@ -3093,33 +3018,6 @@ public:
     // We need this for the jitted shared case,
     inline MethodTable* GetDynamicClassMT(DWORD dynamicClassID);
 
-    static BOOL IsEncodedModuleIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        
-        // We should never see encoded module index in CoreCLR
-        _ASSERTE((ModuleID&1)==0);
-        return FALSE;
-    }
-
-    static SIZE_T IndexToID(ModuleIndex index)
-    {
-        LIMITED_METHOD_CONTRACT
-            
-        return (index.m_dwIndex << 1) | 1;
-    }
-
-    static ModuleIndex IDToIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_CONTRACT
-        SUPPORTS_DAC;
-            
-        _ASSERTE(IsEncodedModuleIndex(ModuleID));
-        ModuleIndex index(ModuleID >> 1);
-
-        return index;
-    }
-
     static ModuleIndex AllocateModuleIndex();
     static void FreeModuleIndex(ModuleIndex index);
 
@@ -3147,11 +3045,7 @@ public:
         return offsetof(Module, m_ModuleID);
     }
 
-    PTR_DomainLocalModule   GetDomainLocalModule(AppDomain *pDomain);
-
-#ifndef DACCESS_COMPILE
-    PTR_DomainLocalModule   GetDomainLocalModule()  { WRAPPER_NO_CONTRACT; return GetDomainLocalModule(NULL); };
-#endif
+    PTR_DomainLocalModule   GetDomainLocalModule();
 
 #ifdef FEATURE_PREJIT
     NgenStats *GetNgenStats()
@@ -3169,9 +3063,9 @@ public:
     // Self-initializing accessor for domain-independent IJW thunk heap
     LoaderHeap              *GetDllThunkHeap();
 
-    void            EnumRegularStaticGCRefs        (AppDomain* pAppDomain, promote_func* fn, ScanContext* sc);
+    void            EnumRegularStaticGCRefs        (promote_func* fn, ScanContext* sc);
 
-protected:    
+protected:
 
     void            BuildStaticsOffsets     (AllocMemTracker *pamTracker);
     void            AllocateStatics         (AllocMemTracker *pamTracker);
@@ -3262,12 +3156,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
 
-
-    //-----------------------------------------------------------------------------------------
-    // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
-    //-----------------------------------------------------------------------------------------
-    BOOL                    GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureNameLength, INT16 * fallbackLocation, BOOL cacheAttribute);
-
 protected:
 
 
@@ -3284,14 +3172,14 @@ public:
 
 private:
 
-    // This struct stores the data used by the managed debugging infrastructure.  If it turns out that 
+    // This struct stores the data used by the managed debugging infrastructure.  If it turns out that
     // the debugger is increasing the size of the Module class by too much, we can consider allocating
     // this struct lazily on demand.
     struct DebuggerSpecificData
     {
         // Mutex protecting update access to the DynamicILBlobTable and TemporaryILBlobTable
         PTR_Crst                 m_pDynamicILCrst;
-    
+
                                                 // maps tokens for EnC/dynamics/reflection emit to their corresponding IL blobs
                                                 // this map *always* overrides the Metadata RVA
         PTR_DynamicILBlobTable   m_pDynamicILBlobTable;
@@ -3316,24 +3204,26 @@ private:
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
     PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
 
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
+    PTR_JITInlineTrackingMap m_pJitInlinerTrackingMap;
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
+
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
     DWORD                 m_AssemblyRefByNameCount;  // array size
 
-#if defined(FEATURE_PREJIT)
     // a.dll calls a method in b.dll and that method call a method in c.dll. When ngening
     // a.dll it is possible then method in b.dll can be inlined. When that happens a.ni.dll stores
     // an added native metadata which has information about assemblyRef to c.dll
-    // Now due to facades, this scenario is very common. This led to lots of calls to 
-    // binder to get the module corresponding to assemblyRef in native metadata. 
+    // Now due to facades, this scenario is very common. This led to lots of calls to
+    // binder to get the module corresponding to assemblyRef in native metadata.
     // Adding a lookup map to cache assembly ptr so that AssemblySpec::LoadAssembly()
     // is not called for each fixup
 
-    PTR_Assembly           *m_NativeMetadataAssemblyRefMap; 
-#endif // defined(FEATURE_PREJIT)
+    PTR_Assembly           *m_NativeMetadataAssemblyRefMap;
 
 public:
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#if !defined(DACCESS_COMPILE)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {
         PTR_Assembly * NativeMetadataAssemblyRefMap = VolatileLoadWithoutBarrier(&m_NativeMetadataAssemblyRefMap);
@@ -3346,7 +3236,7 @@ public:
     }
 
     void SetNativeMetadataAssemblyRefInCache(DWORD rid, PTR_Assembly pAssembly);
-#endif // !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#endif // !defined(DACCESS_COMPILE)
 };
 
 //
@@ -3375,9 +3265,9 @@ private:
     // the debugger to get metadata of dynamic modules from out of process.
     // A dynamic module will eagerly serialize its metadata to this buffer.
     PTR_SBuffer m_pDynamicMetadata;
-    
+
     // If true, does not eagerly serialize metadata in code:ReflectionModule.CaptureModuleMetaDataToMemory.
-    // This is used to allow bulk emitting types without re-emitting the metadata between each type. 
+    // This is used to allow bulk emitting types without re-emitting the metadata between each type.
     bool m_fSuppressMetadataCapture;
 
     // If true, then only other transient modules can depend on this module.
@@ -3486,8 +3376,8 @@ public:
 #ifndef CROSSGEN_COMPILE
 
     typedef Wrapper<
-        ReflectionModule*, 
-        ReflectionModule::SuppressCaptureWrapper, 
+        ReflectionModule*,
+        ReflectionModule::SuppressCaptureWrapper,
         ReflectionModule::ResumeCaptureWrapper> SuppressMetadataCaptureHolder;
 #endif // !CROSSGEN_COMPILE
 
@@ -3514,7 +3404,7 @@ public:
 
             m_pISymUnmanagedWriter->Release();
         }
-        
+
         m_pISymUnmanagedWriter = pWriter;
         return S_OK;
     }
@@ -3558,10 +3448,9 @@ struct VASigCookieEx : public VASigCookie
     const BYTE *m_pArgs;        // pointer to first unfixed unmanaged arg
 };
 
-inline bool IsSingleAppDomain()
-{
-    // CoreCLR always runs as single AppDomain
-    return true;
-}
+// Rerieve the full command line for the current process.
+LPCWSTR GetManagedCommandLine();
+// Save the command line for the current process.
+void SaveManagedCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
 #endif // !CEELOAD_H_

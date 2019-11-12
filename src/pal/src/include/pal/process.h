@@ -24,15 +24,16 @@ Revision History:
 #define _PAL_PROCESS_H_
 
 #include "pal/palinternal.h"
+#include "pal/stackstring.hpp"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif // __cplusplus
 
-/* thread ID of thread that has initiated an ExitProcess (or TerminateProcess). 
-   this is to make sure only one thread cleans up the PAL, and also to prevent 
-   calls to CreateThread from succeeding once shutdown has started 
+/* thread ID of thread that has initiated an ExitProcess (or TerminateProcess).
+   this is to make sure only one thread cleans up the PAL, and also to prevent
+   calls to CreateThread from succeeding once shutdown has started
    [defined in process.c]
 */
 extern Volatile<LONG> terminator;
@@ -42,6 +43,13 @@ extern DWORD gPID;
 extern DWORD gSID;
 
 extern LPWSTR pAppDir;
+
+// The Mac sandbox application group ID (if exists) and container (shared) path
+#ifdef __APPLE__
+extern LPCSTR gApplicationGroupId;
+extern int gApplicationGroupIdLength;
+#endif // __APPLE__
+extern PathCharString *gSharedFilesPath;
 
 /*++
 Function:
@@ -123,15 +131,15 @@ VOID PROCProcessUnlock(VOID);
 /*++
 Function
   PROCAbortInitialize()
-  
+
 Abstract
   Initialize the process abort crash dump program file path and
   name. Doing all of this ahead of time so nothing is allocated
   or copied in PROCAbort/signal handler.
-  
+
 Return
   TRUE - succeeds, FALSE - fails
-  
+
 --*/
 BOOL PROCAbortInitialize();
 
@@ -141,16 +149,16 @@ Function:
 
   Aborts the process after calling the shutdown cleanup handler. This function
   should be called instead of calling abort() directly.
-  
+
   Does not return
 --*/
-PAL_NORETURN 
+PAL_NORETURN
 VOID PROCAbort();
 
 /*++
 Function:
   PROCNotifyProcessShutdown
-  
+
   Calls the abort handler to do any shutdown cleanup. Call be
   called from the unhandled native exception handler.
 

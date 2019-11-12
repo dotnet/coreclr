@@ -21,9 +21,9 @@
 
 // called from code:MethodTableBuilder::InitializeFieldDescs#InitCall
 VOID FieldDesc::Init(mdFieldDef mb, CorElementType FieldType, DWORD dwMemberAttrs, BOOL fIsStatic, BOOL fIsRVA, BOOL fIsThreadLocal, LPCSTR pszFieldName)
-{ 
+{
     LIMITED_METHOD_CONTRACT;
-    
+
     // We allow only a subset of field types here - all objects must be set to TYPE_CLASS
     // By-value classes are ELEMENT_TYPE_VALUETYPE
     _ASSERTE(
@@ -143,7 +143,6 @@ TypeHandle FieldDesc::LookupFieldTypeHandle(ClassLoadLevel level, BOOL dropGener
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -169,15 +168,7 @@ TypeHandle FieldDesc::LookupFieldTypeHandle(ClassLoadLevel level, BOOL dropGener
              );
 
     // == FailIfNotLoaded, can also assert that the thing is restored
-    TypeHandle th = NULL;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), return NULL);
-    {
-        th = sig.GetLastTypeHandleThrowing(ClassLoader::DontLoadTypes, level, dropGenericArgumentLevel);
-    }
-    END_SO_INTOLERANT_CODE;
-
-    return th;
+    return sig.GetLastTypeHandleThrowing(ClassLoader::DontLoadTypes, level, dropGenericArgumentLevel);
 }
 #else //simplified version
 TypeHandle FieldDesc::LookupFieldTypeHandle(ClassLoadLevel level, BOOL dropGenericArgumentLevel)
@@ -188,16 +179,16 @@ TypeHandle FieldDesc::LookupFieldTypeHandle(ClassLoadLevel level, BOOL dropGener
     type = sig.NextArg();
     return sig.GetLastTypeHandleThrowing(ClassLoader::DontLoadTypes, level, dropGenericArgumentLevel);
 }
-#endif //DACCESS_COMPILE 
+#endif //DACCESS_COMPILE
 
-TypeHandle FieldDesc::GetFieldTypeHandleThrowing(ClassLoadLevel level/*=CLASS_LOADED*/, 
+TypeHandle FieldDesc::GetFieldTypeHandleThrowing(ClassLoadLevel level/*=CLASS_LOADED*/,
                                                  BOOL dropGenericArgumentLevel /*=FALSE*/)
 {
     WRAPPER_NO_CONTRACT;
 
     MetaSig sig(this);
     sig.NextArg();
-    
+
     return sig.GetLastTypeHandleThrowing(ClassLoader::LoadTypes, level, dropGenericArgumentLevel);
 }
 
@@ -209,7 +200,6 @@ void* FieldDesc::GetStaticAddress(void *base)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;      // Needed by profiler and server GC
     }
     CONTRACTL_END;
@@ -217,7 +207,7 @@ void* FieldDesc::GetStaticAddress(void *base)
     void* ret = GetStaticAddressHandle(base);       // Get the handle
 
         // For value classes, the handle points at an OBJECTREF
-        // which holds the boxed value class, so derefernce and unbox.  
+        // which holds the boxed value class, so derefernce and unbox.
     if (GetFieldType() == ELEMENT_TYPE_VALUETYPE && !IsRVA())
     {
         OBJECTREF obj = ObjectToOBJECTREF(*(Object**) ret);
@@ -228,11 +218,10 @@ void* FieldDesc::GetStaticAddress(void *base)
 
 MethodTable * FieldDesc::GetExactDeclaringType(MethodTable * ownerOrSubType)
 {
-    CONTRACTL 
+    CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -248,8 +237,8 @@ MethodTable * FieldDesc::GetExactDeclaringType(MethodTable * ownerOrSubType)
 
 #endif // #ifndef DACCESS_COMPILE
 
-    // static value classes are actually stored in their boxed form.  
-    // this means that their address moves.  
+    // static value classes are actually stored in their boxed form.
+    // this means that their address moves.
 PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
 {
 
@@ -260,7 +249,6 @@ PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
         GC_NOTRIGGER;
         MODE_ANY;
         FORBID_FAULT;
-        SO_TOLERANT;
         PRECONDITION(IsStatic());
         PRECONDITION(GetEnclosingMethodTable()->IsRestored_NoLogging());
     }
@@ -281,15 +269,9 @@ PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
 
         PTR_VOID retVal = NULL;
 
-        // BEGIN_SO_INTOLERANT_CODE will throw if we don't have enough stack
-        // and GetStaticAddressHandle has no failure semantics, so we need
-        // to just do the SO policy (e.g. rip the appdomain or process).
-        CONTRACT_VIOLATION(ThrowsViolation)
-
 #ifdef DACCESS_COMPILE
         DacNotImpl();
 #else
-        BEGIN_SO_INTOLERANT_CODE(GetThread());
         {
             GCX_COOP();
             // This routine doesn't have a failure semantic - but Resolve*Field(...) does.
@@ -297,15 +279,14 @@ PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
             CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|GCViolation);   //B#25680 (Fix Enc violations)
             retVal = (void *)(pModule->ResolveOrAllocateField(NULL, pFD));
         }
-        END_SO_INTOLERANT_CODE;
 #endif // !DACCESS_COMPILE
         return retVal;
     }
 #endif // EnC_SUPPORTED
 
 
-    if (IsRVA()) 
-    {        
+    if (IsRVA())
+    {
         Module* pModule = GetModule();
         PTR_VOID ret = pModule->GetRvaField(GetOffset(), IsZapped());
 
@@ -341,7 +322,7 @@ void    FieldDesc::GetInstanceField(OBJECTREF o, VOID * pOutVal)
 
       // We know that it isn't going to be null here.  Tell PREFIX that we know it.
     PREFIX_ASSUME(o != NULL);
-  
+
     // Check whether we are getting a field value on a proxy. If so, then ask
     // remoting services to extract the value from the instance.
 
@@ -354,19 +335,19 @@ void    FieldDesc::GetInstanceField(OBJECTREF o, VOID * pOutVal)
     case 1:
         *(INT8*)pOutVal = VolatileLoad<INT8>(PTR_INT8(pFieldAddress));
         break;
-        
+
     case 2:
         *(INT16*)pOutVal = VolatileLoad<INT16>(PTR_INT16(pFieldAddress));
         break;
-        
+
     case 4:
         *(INT32*)pOutVal = VolatileLoad<INT32>(PTR_INT32(pFieldAddress));
         break;
-        
+
     case 8:
         *(INT64*)pOutVal = VolatileLoad<INT64>(PTR_INT64(pFieldAddress));
         break;
-        
+
     default:
         UNREACHABLE();
         break;
@@ -385,12 +366,6 @@ void    FieldDesc::SetInstanceField(OBJECTREF o, const VOID * pInVal)
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END
-
-
-    // Check whether we are setting a field value on a proxy or a marshalbyref
-    // class. If so, then ask remoting services to set the value on the 
-    // instance
-
 
 #ifdef _DEBUG
     //
@@ -418,8 +393,7 @@ void    FieldDesc::SetInstanceField(OBJECTREF o, const VOID * pInVal)
     {
         OBJECTREF ref = ObjectToOBJECTREF(*(Object**)pInVal);
 
-        SetObjectReference((OBJECTREF*)pFieldAddress, ref, 
-                            o->GetAppDomain());
+        SetObjectReference((OBJECTREF*)pFieldAddress, ref);
     }
     else if (fieldType == ELEMENT_TYPE_VALUETYPE)
     {
@@ -427,31 +401,30 @@ void    FieldDesc::SetInstanceField(OBJECTREF o, const VOID * pInVal)
         // The Approximate MT is enough to do the copy
         CopyValueClass(pFieldAddress,
                         (void*)pInVal,
-                        LookupFieldTypeHandle().GetMethodTable(),
-                        o->GetAppDomain());
+                        LookupFieldTypeHandle().GetMethodTable());
     }
     else
     {
         UINT cbSize = LoadSize();
-    
+
         switch (cbSize)
         {
             case 1:
                 VolatileStore<INT8>((INT8*)pFieldAddress, *(INT8*)pInVal);
                 break;
-    
+
             case 2:
                 VolatileStore<INT16>((INT16*)pFieldAddress, *(INT16*)pInVal);
                 break;
-    
+
             case 4:
                 VolatileStore<INT32>((INT32*)pFieldAddress, *(INT32*)pInVal);
                 break;
-    
+
             case 8:
                 VolatileStore<INT64>((INT64*)pFieldAddress, *(INT64*)pInVal);
                 break;
-    
+
             default:
                 UNREACHABLE();
                 break;
@@ -471,9 +444,7 @@ PTR_VOID FieldDesc::GetAddressNoThrowNoGC(PTR_VOID o)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(!IsEnCNew());
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -485,7 +456,7 @@ PTR_VOID FieldDesc::GetAddressNoThrowNoGC(PTR_VOID o)
     }
     return dac_cast<PTR_BYTE>(o) + dwOffset;
 }
- 
+
 PTR_VOID FieldDesc::GetAddress(PTR_VOID o)
 {
     CONTRACTL
@@ -497,7 +468,7 @@ PTR_VOID FieldDesc::GetAddress(PTR_VOID o)
     CONTRACTL_END;
 
 #ifdef DACCESS_COMPILE
-    _ASSERTE(!IsEnCNew()); // when we call this while finding an EnC field via the DAC, 
+    _ASSERTE(!IsEnCNew()); // when we call this while finding an EnC field via the DAC,
                            // the field desc is for the EnCHelper, not the new EnC field
 #endif
     g_IBCLogger.LogFieldDescsAccess(this);
@@ -548,7 +519,6 @@ void *FieldDesc::GetAddressGuaranteedInHeap(void *o)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -732,24 +702,24 @@ void FieldDesc::SaveContents(DataImage *image)
     // If we are compiling an IL only image, and our RVA fits
     // in the designated range, copy the RVA data over to the prejit
     // image.
-    // 
+    //
 
     if (IsRVA())
     {
         //
         // Move the RVA data into the prejit image.
         //
-            
+
         UINT size = LoadSize();
 
-        // 
+        //
         // Compute an alignment for the data based on the alignment
         // of the RVA.  We'll align up to 8 bytes.
         //
 
         UINT align = 1;
         DWORD rva = GetOffset();
-        DWORD rvaTemp = rva;   
+        DWORD rvaTemp = rva;
 
         while ((rvaTemp&1) == 0 && align < 8 && align < size)
         {
@@ -758,7 +728,7 @@ void FieldDesc::SaveContents(DataImage *image)
         }
 
         image->StoreRvaInfo(this,
-                            rva,   
+                            rva,
                             size,
                             align);
     }
@@ -839,7 +809,7 @@ UINT FieldDesc::GetSize()
 Instantiation FieldDesc::GetExactClassInstantiation(TypeHandle possibleObjType)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     // We know that it isn't going to be null here.  Tell PREFIX that we know it.
     PREFIX_ASSUME(GetApproxEnclosingMethodTable()!=NULL);
     if (possibleObjType.IsNull())

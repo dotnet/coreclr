@@ -471,7 +471,6 @@ FORCEINLINE void AwareLock::SpinWait(const YieldProcessorNormalizationInfo &norm
 FORCEINLINE bool AwareLock::TryEnterHelper(Thread* pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -496,7 +495,6 @@ FORCEINLINE bool AwareLock::TryEnterHelper(Thread* pCurThread)
 FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterBeforeSpinLoopHelper(Thread *pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -540,7 +538,6 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterBeforeSpinLoopHelper
 FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterInsideSpinLoopHelper(Thread *pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -568,7 +565,6 @@ FORCEINLINE AwareLock::EnterHelperResult AwareLock::TryEnterInsideSpinLoopHelper
 FORCEINLINE bool AwareLock::TryEnterAfterSpinLoopHelper(Thread *pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -592,7 +588,6 @@ FORCEINLINE bool AwareLock::TryEnterAfterSpinLoopHelper(Thread *pCurThread)
 FORCEINLINE AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelper(Thread* pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -671,12 +666,11 @@ FORCEINLINE AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelper(Thread
     return AwareLock::EnterHelperResult_UseSlowPath;
 }
 
-// Helper encapsulating the core logic for releasing monitor. Returns what kind of 
+// Helper encapsulating the core logic for releasing monitor. Returns what kind of
 // follow up action is necessary. This is FORCEINLINE to make it provide a very efficient implementation.
 FORCEINLINE AwareLock::LeaveHelperAction AwareLock::LeaveHelper(Thread* pCurThread)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -712,12 +706,11 @@ FORCEINLINE AwareLock::LeaveHelperAction AwareLock::LeaveHelper(Thread* pCurThre
     return AwareLock::LeaveHelperAction_None;
 }
 
-// Helper encapsulating the core logic for releasing monitor. Returns what kind of 
+// Helper encapsulating the core logic for releasing monitor. Returns what kind of
 // follow up action is necessary. This is FORCEINLINE to make it provide a very efficient implementation.
 FORCEINLINE AwareLock::LeaveHelperAction ObjHeader::LeaveObjMonitorHelper(Thread* pCurThread)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -730,7 +723,7 @@ FORCEINLINE AwareLock::LeaveHelperAction ObjHeader::LeaveObjMonitorHelper(Thread
         if ((syncBlockValue & SBLK_MASK_LOCK_THREADID) != pCurThread->GetThreadId())
         {
             // This thread does not own the lock.
-            return AwareLock::LeaveHelperAction_Error;                
+            return AwareLock::LeaveHelperAction_Error;
         }
 
         if (!(syncBlockValue & SBLK_MASK_LOCK_RECLEVEL))
@@ -766,7 +759,7 @@ FORCEINLINE AwareLock::LeaveHelperAction ObjHeader::LeaveObjMonitorHelper(Thread
 
     if (syncBlockValue & BIT_SBLK_SPIN_LOCK)
     {
-        return AwareLock::LeaveHelperAction_Contention;        
+        return AwareLock::LeaveHelperAction_Contention;
     }
 
     // This thread does not own the lock.

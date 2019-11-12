@@ -308,7 +308,7 @@ class InlineResult
 public:
     // Construct a new InlineResult to help evaluate a
     // particular call for inlining.
-    InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* stmt, const char* description);
+    InlineResult(Compiler* compiler, GenTreeCall* call, Statement* stmt, const char* description);
 
     // Construct a new InlineResult to evaluate a particular
     // method to see if it is inlineable.
@@ -470,10 +470,20 @@ public:
         m_Reported = true;
     }
 
-    // Get the InlineContext for this inline
+    // Get the InlineContext for this inline.
     InlineContext* GetInlineContext() const
     {
         return m_InlineContext;
+    }
+
+    unsigned GetImportedILSize() const
+    {
+        return m_ImportedILSize;
+    }
+
+    void SetImportedILSize(unsigned x)
+    {
+        m_ImportedILSize = x;
     }
 
 private:
@@ -490,25 +500,41 @@ private:
     InlineContext*        m_InlineContext;
     CORINFO_METHOD_HANDLE m_Caller; // immediate caller's handle
     CORINFO_METHOD_HANDLE m_Callee;
+    unsigned              m_ImportedILSize; // estimated size of imported IL
     const char*           m_Description;
     bool                  m_Reported;
 };
 
+// GuardedDevirtualizationCandidateInfo provides information about
+// a potential target of a virtual call.
+
+struct GuardedDevirtualizationCandidateInfo
+{
+    CORINFO_CLASS_HANDLE  guardedClassHandle;
+    CORINFO_METHOD_HANDLE guardedMethodHandle;
+    void*                 stubAddr;
+};
+
 // InlineCandidateInfo provides basic information about a particular
 // inline candidate.
+//
+// It is a superset of GuardedDevirtualizationCandidateInfo: calls
+// can start out as GDv candidates and turn into inline candidates
 
-struct InlineCandidateInfo
+struct InlineCandidateInfo : public GuardedDevirtualizationCandidateInfo
 {
-    DWORD                  dwRestrictions;
     CORINFO_METHOD_INFO    methInfo;
-    unsigned               methAttr;
-    CORINFO_CLASS_HANDLE   clsHandle;
-    unsigned               clsAttr;
-    var_types              fncRetType;
     CORINFO_METHOD_HANDLE  ilCallerHandle; // the logical IL caller of this inlinee.
+    CORINFO_CLASS_HANDLE   clsHandle;
     CORINFO_CONTEXT_HANDLE exactContextHnd;
-    bool                   exactContextNeedsRuntimeLookup;
+    GenTree*               retExpr;
+    DWORD                  dwRestrictions;
+    unsigned               preexistingSpillTemp;
+    unsigned               clsAttr;
+    unsigned               methAttr;
     CorInfoInitClassResult initClassResult;
+    var_types              fncRetType;
+    bool                   exactContextNeedsRuntimeLookup;
 };
 
 // InlArgInfo describes inline candidate argument properties.
@@ -584,7 +610,7 @@ struct InlineInfo
 #endif // FEATURE_SIMD
 
     GenTreeCall* iciCall;  // The GT_CALL node to be inlined.
-    GenTreeStmt* iciStmt;  // The statement iciCall is in.
+    Statement*   iciStmt;  // The statement iciCall is in.
     BasicBlock*  iciBlock; // The basic block iciStmt is in.
 };
 
@@ -682,9 +708,19 @@ public:
         return m_Devirtualized;
     }
 
+    bool IsGuarded() const
+    {
+        return m_Guarded;
+    }
+
     bool IsUnboxed() const
     {
         return m_Unboxed;
+    }
+
+    unsigned GetImportedILSize() const
+    {
+        return m_ImportedILSize;
     }
 
 private:
@@ -697,11 +733,13 @@ private:
     InlineContext*    m_Sibling;           // next child of the parent
     BYTE*             m_Code;              // address of IL buffer for the method
     unsigned          m_ILSize;            // size of IL buffer for the method
+    unsigned          m_ImportedILSize;    // estimated size of imported IL
     IL_OFFSETX        m_Offset;            // call site location within parent
     InlineObservation m_Observation;       // what lead to this inline
     int               m_CodeSizeEstimate;  // in bytes * 10
     bool              m_Success : 1;       // true if this was a successful inline
     bool              m_Devirtualized : 1; // true if this was a devirtualized call
+    bool              m_Guarded : 1;       // true if this was a guarded call
     bool              m_Unboxed : 1;       // true if this call now invokes the unboxed entry
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -729,7 +767,7 @@ public:
     InlineContext* NewSuccess(InlineInfo* inlineInfo);
 
     // Create context for a failing inline.
-    InlineContext* NewFailure(GenTreeStmt* stmt, InlineResult* inlineResult);
+    InlineContext* NewFailure(Statement* stmt, InlineResult* inlineResult);
 
     // Compiler associated with this strategy
     Compiler* GetCompiler() const

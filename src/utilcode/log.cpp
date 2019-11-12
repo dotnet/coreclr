@@ -44,11 +44,11 @@ static DWORD    LogVMLevel                  = LL_INFO100;
 VOID InitLogging()
 {
     STATIC_CONTRACT_NOTHROW;
-    
+
         // <TODO>FIX bit of a workaround for now, check for the log file in the
         // registry and if there, turn on file logging VPM</TODO>
-    
-    LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogEnable, LOG_ENABLE);    
+
+    LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogEnable, LOG_ENABLE);
     LogFacilityMask = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_LogFacility, LogFacilityMask) | LF_ALWAYS;
     LogVMLevel = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LogLevel, LogVMLevel);
     LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogFileAppend, LOG_ENABLE_APPEND_FILE);
@@ -56,7 +56,7 @@ VOID InitLogging()
     LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogToDebugger, LOG_ENABLE_DEBUGGER_LOGGING);
     LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogToFile,     LOG_ENABLE_FILE_LOGGING);
     LogFlags |= REGUTIL::GetConfigFlag_DontUse_(CLRConfig::INTERNAL_LogToConsole,  LOG_ENABLE_CONSOLE_LOGGING);
-    
+
     LogFacilityMask2 = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_LogFacility2, LogFacilityMask2) | LF_ALWAYS;
 
     if (SUCCEEDED(szLogFileName.ReSizeNoThrow(MAX_LONGPATH)))
@@ -206,9 +206,9 @@ VOID FlushLogging() {
     {
         // We must take the lock, as an OS deadlock can occur between
         // FlushFileBuffers and WriteFile.
-        EnterLogLock();        
+        EnterLogLock();
         FlushFileBuffers( LogFileHandle );
-        LeaveLogLock();        
+        LeaveLogLock();
     }
 }
 
@@ -261,7 +261,7 @@ VOID LogSpewValist(DWORD facility, DWORD level, const char *fmt, va_list args)
     SCAN_IGNORE_FAULT;  // calls to new (nothrow) in logging code are OK
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    
+
     if (!LoggingOn(facility, level))
         return;
 
@@ -276,7 +276,7 @@ VOID LogSpew2Valist(DWORD facility2, DWORD level, const char *fmt, va_list args)
     SCAN_IGNORE_FAULT;  // calls to new (nothrow) in logging code are OK
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    
+
     if (!Logging2On(facility2, level))
         return;
 
@@ -291,7 +291,7 @@ VOID LogSpewAlwaysValist(const char *fmt, va_list args)
     SCAN_IGNORE_FAULT;  // calls to new (nothrow) in logging code are OK
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    
+
     DEBUG_ONLY_FUNCTION;
 
     // We can't do heap allocations at all.  The current thread may have
@@ -387,9 +387,7 @@ VOID LogSpewAlwaysValist(const char *fmt, va_list args)
 VOID LogSpew(DWORD facility, DWORD level, const char *fmt, ... )
 {
     STATIC_CONTRACT_WRAPPER;
-    
-    ENTER_SO_NOT_MAINLINE_CODE;
-    
+
 #ifdef SELF_NO_HOST
     if (TRUE)
 #else //!SELF_NO_HOST
@@ -406,16 +404,12 @@ VOID LogSpew(DWORD facility, DWORD level, const char *fmt, ... )
         // Cannot acquire the required lock, as this would call back
         // into the host.  Eat the log message.
     }
-    
-    LEAVE_SO_NOT_MAINLINE_CODE;
 }
 
 VOID LogSpew2(DWORD facility2, DWORD level, const char *fmt, ... )
 {
     STATIC_CONTRACT_WRAPPER;
-    
-    ENTER_SO_NOT_MAINLINE_CODE;
-    
+
 #ifdef SELF_NO_HOST
     if (TRUE)
 #else //!SELF_NO_HOST
@@ -432,16 +426,12 @@ VOID LogSpew2(DWORD facility2, DWORD level, const char *fmt, ... )
         // Cannot acquire the required lock, as this would call back
         // into the host.  Eat the log message.
     }
-    
-    LEAVE_SO_NOT_MAINLINE_CODE;
 }
 
 VOID LogSpewAlways (const char *fmt, ... )
 {
     STATIC_CONTRACT_WRAPPER;
-    
-    ENTER_SO_NOT_MAINLINE_CODE;
-    
+
 #ifdef SELF_NO_HOST
     if (TRUE)
 #else //!SELF_NO_HOST
@@ -458,8 +448,6 @@ VOID LogSpewAlways (const char *fmt, ... )
         // Cannot acquire the required lock, as this would call back
         // into the host.  Eat the log message.
     }
-    
-    LEAVE_SO_NOT_MAINLINE_CODE;
 }
 
 #endif // LOGGING

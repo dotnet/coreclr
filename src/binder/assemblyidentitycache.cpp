@@ -12,8 +12,6 @@
 //
 // ============================================================
 
-#define DISABLE_BINDER_DEBUG_LOGGING
-
 #include "assemblyidentitycache.hpp"
 
 namespace BINDER_SPACE
@@ -38,35 +36,30 @@ namespace BINDER_SPACE
                                        AssemblyIdentityUTF8 *pAssemblyIdentity)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(L"AssemblyIdentityCache::Add");
 
         NewHolder<AssemblyIdentityCacheEntry> pAssemblyIdentityCacheEntry;
         SAFE_NEW(pAssemblyIdentityCacheEntry, AssemblyIdentityCacheEntry);
 
         pAssemblyIdentityCacheEntry->SetTextualIdentity(szTextualIdentity);
         pAssemblyIdentityCacheEntry->SetAssemblyIdentity(pAssemblyIdentity);
-        
+
         Hash::Add(pAssemblyIdentityCacheEntry);
         pAssemblyIdentityCacheEntry.SuppressRelease();
 
     Exit:
-        BINDER_LOG_LEAVE_HR(L"AssemblyIdentityCache::Add", hr);
         return hr;
     }
 
     AssemblyIdentityUTF8 *AssemblyIdentityCache::Lookup(LPCSTR szTextualIdentity)
     {
-        BINDER_LOG_ENTER(L"AssemblyIdentityCache::Lookup");
         AssemblyIdentityUTF8 *pAssemblyIdentity = NULL;
         AssemblyIdentityCacheEntry *pAssemblyIdentityCacheEntry = Hash::Lookup(szTextualIdentity);
 
         if (pAssemblyIdentityCacheEntry != NULL)
         {
-            BINDER_LOG(L"Found cached identity");
             pAssemblyIdentity = pAssemblyIdentityCacheEntry->GetAssemblyIdentity();
         }
 
-        BINDER_LOG_LEAVE(L"AssemblyIdentityCache::Lookup");
         return pAssemblyIdentity;
     }
 };

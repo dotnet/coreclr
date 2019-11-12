@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers.Text
@@ -38,7 +39,7 @@ namespace System.Buffers.Text
             }
             else if (part < 100)
             {
-                digits += 1;
+                digits++;
             }
             else if (part < 1000)
             {
@@ -71,7 +72,7 @@ namespace System.Buffers.Text
             int digits = 1;
             if (value >= 100000)
             {
-                value = value / 100000;
+                value /= 100000;
                 digits += 5;
             }
 
@@ -81,7 +82,7 @@ namespace System.Buffers.Text
             }
             else if (value < 100)
             {
-                digits += 1;
+                digits++;
             }
             else if (value < 1000)
             {
@@ -103,33 +104,9 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-            // TODO: When x86 intrinsic support comes online, experiment with implementing this using lzcnt.
-            // return 16 - (int)((uint)Lzcnt.LeadingZeroCount(value | 1) >> 3);
-
-            int digits = 1;
-
-            if (value > 0xFFFFFFFF)
-            {
-                digits += 8;
-                value >>= 0x20;
-            }
-            if (value > 0xFFFF)
-            {
-                digits += 4;
-                value >>= 0x10;
-            }
-            if (value > 0xFF)
-            {
-                digits += 2;
-                value >>= 0x8;
-            }
-            if (value > 0xF)
-                digits++;
-
-            return digits;
+            return (64 - BitOperations.LeadingZeroCount(value | 1) + 3) >> 2;
         }
 
-        
         // Counts the number of trailing '0' digits in a decimal number.
         // e.g., value =      0 => retVal = 0, valueWithoutTrailingZeros = 0
         //       value =   1234 => retVal = 0, valueWithoutTrailingZeros = 1234

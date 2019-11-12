@@ -2,19 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
+//
 
-inline Module* DomainFile::GetCurrentModule() 
-{ 
+inline Module* DomainFile::GetCurrentModule()
+{
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
-    return m_pModule; 
+    return m_pModule;
 }
 
-inline Module* DomainFile::GetLoadedModule() 
-{ 
+inline Module* DomainFile::GetLoadedModule()
+{
     LIMITED_METHOD_CONTRACT;
 
     {
@@ -29,7 +28,7 @@ inline Module* DomainFile::GetLoadedModule()
 }
 
 inline Module* DomainFile::GetModule()
-{ 
+{
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
 
@@ -41,13 +40,12 @@ inline Module* DomainFile::GetModule()
         CONSISTENCY_CHECK(CheckLoadLevel(FILE_LOAD_ALLOCATE));
     }
 
-    return m_pModule; 
+    return m_pModule;
 }
 
 inline Assembly* DomainAssembly::GetCurrentAssembly()
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return m_pAssembly;
 }
@@ -70,14 +68,8 @@ inline Assembly* DomainAssembly::GetLoadedAssembly()
 inline Assembly* DomainAssembly::GetAssembly()
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
-    {
-        // CheckLoadLevel() is SO_INTOLERANT.  However, this is only done in
-        // debug for the consistency check, so we can accept the SO violation.
-        CONTRACT_VIOLATION(SOToleranceViolation);
-        CONSISTENCY_CHECK(CheckLoadLevel(FILE_LOAD_ALLOCATE));
-    }
+    CONSISTENCY_CHECK(CheckLoadLevel(FILE_LOAD_ALLOCATE));
     return m_pAssembly;
 }
 

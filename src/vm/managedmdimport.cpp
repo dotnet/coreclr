@@ -17,10 +17,10 @@ void ThrowMetaDataImportException(HRESULT hr)
 
     if (hr == CLDB_E_RECORD_NOTFOUND)
         return;
-   
+
     MethodDescCallSite throwError(METHOD__METADATA_IMPORT__THROW_ERROR);
-    
-    ARG_SLOT args[] = { hr };
+
+    ARG_SLOT args[] = { (ARG_SLOT)hr };
     throwError.Call(args);
 }
 
@@ -35,7 +35,7 @@ FCIMPL11(void, MetaDataImport::GetMarshalAs,
     INT32*          unmanagedType,
     INT32*          safeArraySubType,
     STRINGREF*      safeArrayUserDefinedSubType,
-    INT32*          arraySubType, 
+    INT32*          arraySubType,
     INT32*          sizeParamIndex,
     INT32*          sizeConst,
     STRINGREF*      marshalType,
@@ -43,7 +43,7 @@ FCIMPL11(void, MetaDataImport::GetMarshalAs,
     INT32*          iidParamIndex)
 {
     FCALL_CONTRACT;
-    
+
     HELPER_METHOD_FRAME_BEGIN_0();
     {
         NativeTypeParamInfo info;
@@ -74,11 +74,11 @@ FCIMPL11(void, MetaDataImport::GetMarshalAs,
 
         *safeArrayUserDefinedSubType = NULL;
 #endif
-        
+
         *marshalType = info.m_strCMMarshalerTypeName == NULL ? NULL :
             StringObject::NewString(info.m_strCMMarshalerTypeName, info.m_cCMMarshalerTypeNameBytes);
-            
-        *marshalCookie = info.m_strCMCookie == NULL ? NULL : 
+
+        *marshalCookie = info.m_strCMCookie == NULL ? NULL :
             StringObject::NewString(info.m_strCMCookie, info.m_cCMCookieStrBytes);
     }
     HELPER_METHOD_FRAME_END();
@@ -88,17 +88,15 @@ FCIMPLEND
 MDImpl4(Object *, MetaDataImport::GetDefaultValue, mdToken tk, INT64* pDefaultValue, INT32* pLength, INT32* pCorElementType)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr = S_OK;
     Object *pRetVal = NULL;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    
+
     IMDInternalImport *_pScope = pScope;
-    
+
     MDDefaultValue value;
     IfFailGo(_pScope->GetDefaultValue(tk, &value));
-    
+
     // We treat string values differently. That's because on big-endian architectures we can't return a
     // pointer to static string data in the metadata, we have to buffer the string in order to byte-swap
     // all the unicode characters. MDDefaultValue therefore has a destructor on big-endian machines which
@@ -119,17 +117,15 @@ MDImpl4(Object *, MetaDataImport::GetDefaultValue, mdToken tk, INT64* pDefaultVa
     {
         *pDefaultValue = value.m_ullValue;
     }
-    
+
     *pCorElementType = (UINT32)value.m_bType;
     *pLength = (INT32)value.m_cbSize;
 ErrExit:
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrow(kBadImageFormatException);
     }
-    
+
     return pRetVal;
 }
 FCIMPLEND
@@ -137,16 +133,13 @@ FCIMPLEND
 MDImpl3(void, MetaDataImport::GetCustomAttributeProps, mdCustomAttribute cv, mdToken* ptkType, ConstArray* ppBlob)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr = S_OK;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     IfFailGo(_pScope->GetCustomAttributeProps(cv, ptkType));
     IfFailGo(_pScope->GetCustomAttributeAsBlob(cv, (const void **)&ppBlob->m_array, (ULONG *)&ppBlob->m_count));
 ErrExit:
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -229,7 +222,7 @@ MDImpl3(void, MetaDataImport::Enum, mdToken type, mdToken tkParent, MetadataEnum
 FCIMPLEND
 
 #if defined(_MSC_VER) && defined(_TARGET_X86_)
-#pragma optimize("y", on)		// Small critical routines, don't put in EBP frame 
+#pragma optimize("y", on)		// Small critical routines, don't put in EBP frame
 #endif
 
 MDImpl1(FC_BOOL_RET, MetaDataImport::IsValidToken, mdToken tk)
@@ -237,22 +230,21 @@ MDImpl1(FC_BOOL_RET, MetaDataImport::IsValidToken, mdToken tk)
     FCALL_CONTRACT;
 
     IMDInternalImport *_pScope = pScope;
-    
+
     FC_RETURN_BOOL(_pScope->IsValidToken(tk));
 }
-FCIMPLEND 
+FCIMPLEND
 
 
 MDImpl3(void, MetaDataImport::GetClassLayout, mdTypeDef td, DWORD* pdwPackSize, ULONG* pulClassSize)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr = S_OK;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     {
         IMDInternalImport *_pScope = pScope;
-        
+
         if (pdwPackSize != NULL)
         {
             hr = _pScope->GetClassPackSize(td, (ULONG *)pdwPackSize);
@@ -263,7 +255,7 @@ MDImpl3(void, MetaDataImport::GetClassLayout, mdTypeDef td, DWORD* pdwPackSize, 
             }
             IfFailGo(hr);
         }
-        
+
         if (pulClassSize != NULL)
         {
             hr = _pScope->GetClassTotalSize(td, pulClassSize);
@@ -276,36 +268,33 @@ MDImpl3(void, MetaDataImport::GetClassLayout, mdTypeDef td, DWORD* pdwPackSize, 
         }
     }
 ErrExit:
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
-FCIMPLEND 
+FCIMPLEND
 
 MDImpl3(FC_BOOL_RET, MetaDataImport::GetFieldOffset, mdTypeDef td, mdFieldDef target, DWORD* pdwFieldOffset)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr = S_OK;
     IMDInternalImport *_pScope = pScope;
     MD_CLASS_LAYOUT layout;
     BOOL retVal = FALSE;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
+
     IfFailGo(_pScope->GetClassLayoutInit(td, &layout));
-    
+
     ULONG cFieldOffset;
     cFieldOffset = layout.m_ridFieldEnd - layout.m_ridFieldCur;
-    
+
     for (COUNT_T i = 0; i < cFieldOffset; i ++)
     {
         mdFieldDef fd;
         ULONG offset;
         IfFailGo(_pScope->GetClassLayoutNext(&layout, &fd, &offset));
-        
+
         if (fd == target)
         {
             *pdwFieldOffset = offset;
@@ -314,43 +303,37 @@ MDImpl3(FC_BOOL_RET, MetaDataImport::GetFieldOffset, mdTypeDef td, mdFieldDef ta
         }
     }
 ErrExit:
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrow(kBadImageFormatException);
     }
     FC_RETURN_BOOL(retVal);
 }
-FCIMPLEND 
+FCIMPLEND
 
 MDImpl3(void, MetaDataImport::GetUserString, mdToken tk, LPCSTR* pszName, ULONG* pCount)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
     BOOL bHasExtendedChars;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetUserString(tk, pCount, &bHasExtendedChars, (LPCWSTR *)pszName);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
-FCIMPLEND 
+FCIMPLEND
 
 MDImpl2(void, MetaDataImport::GetName, mdToken tk, LPCSTR* pszName)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr = S_OK;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     if (TypeFromToken(tk) == mdtMethodDef)
     {
         hr = _pScope->GetNameOfMethodDef(tk, pszName);
@@ -386,8 +369,7 @@ MDImpl2(void, MetaDataImport::GetName, mdToken tk, LPCSTR* pszName)
     {
         hr = E_FAIL;
     }
-    END_SO_INTOLERANT_CODE;
-    
+
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -398,34 +380,29 @@ FCIMPLEND
 MDImpl2(void, MetaDataImport::GetNamespace, mdToken tk, LPCSTR* pszName)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
     LPCSTR szName = NULL;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetNameOfTypeDef(tk, &szName, pszName);
-    END_SO_INTOLERANT_CODE;
-    
+
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 
 MDImpl2(void, MetaDataImport::GetGenericParamProps, mdToken tk, DWORD* pAttributes)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetGenericParamProps(tk, NULL, pAttributes, NULL, NULL, NULL);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -436,14 +413,11 @@ FCIMPLEND
 MDImpl3(void, MetaDataImport::GetEventProps, mdToken tk, LPCSTR* pszName, INT32 *pdwEventFlags)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetEventProps(tk, pszName, (DWORD*)pdwEventFlags, NULL);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -454,12 +428,11 @@ FCIMPLEND
 MDImpl4(void, MetaDataImport::GetPinvokeMap, mdToken tk, DWORD* pMappingFlags, LPCSTR* pszImportName, LPCSTR* pszImportDll)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
     mdModule tkModule;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetPinvokeMap(tk, pMappingFlags, pszImportName, &tkModule);
     if (FAILED(hr))
     {
@@ -472,25 +445,22 @@ MDImpl4(void, MetaDataImport::GetPinvokeMap, mdToken tk, DWORD* pMappingFlags, L
     {
         hr = _pScope->GetModuleRefProps(tkModule, pszImportDll);
     }
-    END_SO_INTOLERANT_CODE;
-    
+
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 MDImpl3(void, MetaDataImport::GetParamDefProps, mdToken tk, INT32* pSequence, INT32* pAttributes)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
     USHORT usSequence = 0;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
-    
+
     // Is this a valid token?
     if (_pScope->IsValidToken((mdParamDef)tk))
     {
@@ -503,26 +473,22 @@ MDImpl3(void, MetaDataImport::GetParamDefProps, mdToken tk, INT32* pSequence, IN
         hr = COR_E_BADIMAGEFORMAT;
     }
     *pSequence = (INT32) usSequence;
-    END_SO_INTOLERANT_CODE;
-    
+
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 MDImpl2(void, MetaDataImport::GetFieldDefProps, mdToken tk, INT32 *pdwFieldFlags)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetFieldDefProps(tk, (DWORD *)pdwFieldFlags);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -533,29 +499,25 @@ FCIMPLEND
 MDImpl4(void, MetaDataImport::GetPropertyProps, mdToken tk, LPCSTR* pszName, INT32 *pdwPropertyFlags, ConstArray* ppValue)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetPropertyProps(tk, pszName, (DWORD*)pdwPropertyFlags, (PCCOR_SIGNATURE*)&ppValue->m_array, (ULONG*)&ppValue->m_count);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-        
+
 MDImpl2(void, MetaDataImport::GetFieldMarshal, mdToken tk, ConstArray* ppValue)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetFieldMarshal(tk, (PCCOR_SIGNATURE *)&ppValue->m_array, (ULONG *)&ppValue->m_count);
     if (hr == CLDB_E_RECORD_NOTFOUND)
     {
@@ -563,44 +525,37 @@ MDImpl2(void, MetaDataImport::GetFieldMarshal, mdToken tk, ConstArray* ppValue)
         ppValue->m_count = 0;
         hr = S_OK;
     }
-    END_SO_INTOLERANT_CODE;
-    
+
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 MDImpl2(void, MetaDataImport::GetSigOfMethodDef, mdToken tk, ConstArray* ppValue)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE(GetThread())
+
     hr = _pScope->GetSigOfMethodDef(tk, (ULONG*)&ppValue->m_count, (PCCOR_SIGNATURE *)&ppValue->m_array);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 MDImpl2(void, MetaDataImport::GetSignatureFromToken, mdToken tk, ConstArray* ppValue)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetSigFromToken(tk, (ULONG*)&ppValue->m_count, (PCCOR_SIGNATURE *)&(ppValue->m_array));
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -611,14 +566,11 @@ FCIMPLEND
 MDImpl2(void, MetaDataImport::GetSigOfFieldDef, mdToken tk, ConstArray* ppValue)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetSigOfFieldDef(tk, (ULONG*)&ppValue->m_count, (PCCOR_SIGNATURE *)&ppValue->m_array);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
@@ -629,11 +581,9 @@ FCIMPLEND
 MDImpl2(void, MetaDataImport::GetParentToken, mdToken tk, mdToken* ptk)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
 
     switch (TypeFromToken(tk))
     {
@@ -666,55 +616,47 @@ MDImpl2(void, MetaDataImport::GetParentToken, mdToken tk, mdToken* ptk)
         break;
     }
 
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
 FCIMPLEND
-    
+
 MDImpl1(void, MetaDataImport::GetScopeProps, GUID* pmvid)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     LPCSTR szName;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     IMDInternalImport *_pScope = pScope;
     hr = _pScope->GetScopeProps(&szName, pmvid);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
-FCIMPLEND 
+FCIMPLEND
 
-    
-MDImpl2(void, MetaDataImport::GetMemberRefProps, 
-    mdMemberRef mr, 
+
+MDImpl2(void, MetaDataImport::GetMemberRefProps,
+    mdMemberRef mr,
     ConstArray* ppvSigBlob)
 {
     FCALL_CONTRACT;
-    
+
     HRESULT hr;
     IMDInternalImport *_pScope = pScope;
     LPCSTR szName_Ignore;
-    
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
+
     hr = _pScope->GetNameAndSigOfMemberRef(mr, (PCCOR_SIGNATURE*)&ppvSigBlob->m_array, (ULONG*)&ppvSigBlob->m_count, &szName_Ignore);
-    END_SO_INTOLERANT_CODE;
-    
     if (FAILED(hr))
     {
         FCThrowVoid(kBadImageFormatException);
     }
 }
-FCIMPLEND 
+FCIMPLEND
 
 #if defined(_MSC_VER) && defined(_TARGET_X86_)
 #pragma optimize("", on)			// restore command line optimization defaults

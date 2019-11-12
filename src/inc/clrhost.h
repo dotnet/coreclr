@@ -22,6 +22,7 @@
 #include "predeftlsslot.h"
 #include "safemath.h"
 #include "debugreturn.h"
+#include "yieldprocessornormalized.h"
 
 #if !defined(_DEBUG_IMPL) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
 #define _DEBUG_IMPL 1
@@ -89,10 +90,9 @@ inline void ClrFlsIncrementValue(DWORD slot, int increment)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE(increment != 0);
-    
+
     void **block = (*__ClrFlsGetBlock)();
     size_t value;
 
@@ -106,8 +106,6 @@ inline void ClrFlsIncrementValue(DWORD slot, int increment)
     else
     {
         BEGIN_PRESERVE_LAST_ERROR;
-
-        ANNOTATION_VIOLATION(SOToleranceViolation);
 
         IExecutionEngine * pEngine = GetExecutionEngine();
         value = (size_t) pEngine->TLS_GetValue(slot);
@@ -126,7 +124,6 @@ inline void * ClrFlsGetValue (DWORD slot)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 	void **block = (*__ClrFlsGetBlock)();
 	if (block != NULL)
@@ -135,8 +132,6 @@ inline void * ClrFlsGetValue (DWORD slot)
     }
     else
     {
-        ANNOTATION_VIOLATION(SOToleranceViolation);
-
         void * value = GetExecutionEngine()->TLS_GetValue(slot);
         return value;
     }
@@ -148,20 +143,18 @@ inline BOOL ClrFlsCheckValue(DWORD slot, void ** pValue)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #ifdef _DEBUG
     *pValue = ULongToPtr(0xcccccccc);
-#endif //_DEBUG 
+#endif //_DEBUG
 	void **block = (*__ClrFlsGetBlock)();
 	if (block != NULL)
     {
         *pValue = block[slot];
-        return TRUE;    
+        return TRUE;
     }
     else
     {
-        ANNOTATION_VIOLATION(SOToleranceViolation);    
         BOOL result = GetExecutionEngine()->TLS_CheckValue(slot, pValue);
         return result;
     }
@@ -173,10 +166,9 @@ inline void ClrFlsSetValue(DWORD slot, void *pData)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
-	void **block = (*__ClrFlsGetBlock)();
-	if (block != NULL)
+    void **block = (*__ClrFlsGetBlock)();
+    if (block != NULL)
     {
         block[slot] = pData;
     }
@@ -184,15 +176,17 @@ inline void ClrFlsSetValue(DWORD slot, void *pData)
     {
         BEGIN_PRESERVE_LAST_ERROR;
 
-        ANNOTATION_VIOLATION(SOToleranceViolation);
         GetExecutionEngine()->TLS_SetValue(slot, pData);
 
         END_PRESERVE_LAST_ERROR;
     }
 }
 
-typedef LPVOID (*FastAllocInProcessHeapFunc)(DWORD dwFlags, SIZE_T dwBytes);
-extern FastAllocInProcessHeapFunc __ClrAllocInProcessHeap;
+#ifndef SELF_NO_HOST
+LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes);
+BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem);
+#endif
+
 inline LPVOID ClrAllocInProcessHeap(DWORD dwFlags, S_SIZE_T dwBytes)
 {
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
@@ -202,7 +196,7 @@ inline LPVOID ClrAllocInProcessHeap(DWORD dwFlags, S_SIZE_T dwBytes)
     }
 
 #ifndef SELF_NO_HOST
-    return __ClrAllocInProcessHeap(dwFlags, dwBytes.Value());
+    return EEHeapAllocInProcessHeap(dwFlags, dwBytes.Value());
 #else
 #undef HeapAlloc
 #undef GetProcessHeap
@@ -215,13 +209,11 @@ inline LPVOID ClrAllocInProcessHeap(DWORD dwFlags, S_SIZE_T dwBytes)
 #endif
 }
 
-typedef BOOL (*FastFreeInProcessHeapFunc)(DWORD dwFlags, LPVOID lpMem);
-extern FastFreeInProcessHeapFunc __ClrFreeInProcessHeap;
 inline BOOL ClrFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem)
 {
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 #ifndef SELF_NO_HOST
-    return __ClrFreeInProcessHeap(dwFlags, lpMem);
+    return EEHeapFreeInProcessHeap(dwFlags, lpMem);
 #else
 #undef HeapFree
 #undef GetProcessHeap
@@ -366,227 +358,6 @@ private:
 
 HMODULE GetCLRModule ();
 
-#ifndef FEATURE_NO_HOST
-/*
-    Here we start the list of functions we want to deprecate.
-    We use a define to generate a linker error.
-    We must insure to include the header file that has the definition we are about
-    to deprecate before we use the #define otherwise we will run into a linker error
-    when legitimately undef'ing the function
-*/
-
-//
-// following are windows deprecates
-//
-#include <windows.h>
-
-/*
-    If you are reading this, you have probably tracked down the fact that memory Alloc,
-    etc. don't work inside your DLL because you are using src\inc & src\utilcode
-    services.
-    You need to use the ClrXXX equivalent functions to properly guarantee your code
-    works correctly wrt hosting and others execution engine requirements.
-    Check the list of Clr functions above
-*/
-
-#define GetProcessHeap() \
-        Dont_Use_GetProcessHeap()
-
-#define VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect) \
-        Dont_Use_VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect)
-
-#define VirtualFree(lpAddress, dwSize, dwFreeType) \
-        Dont_Use_VirtualFree(lpAddress, dwSize, dwFreeType)
-
-#define VirtualQuery(lpAddress, lpBuffer, dwLength) \
-        Dont_Use_VirtualQuery(lpAddress, lpBuffer, dwLength)
-
-#define VirtualProtect(lpAddress, dwSize, flNewProtect, lpflOldProtect) \
-        Dont_Use_VirtualProtect(lpAddress, dwSize, flNewProtect, lpflOldProtect)
-
-#define HeapCreate(flOptions, dwInitialSize, dwMaximumSize) \
-        Dont_Use_HeapCreate(flOptions, dwInitialSize, dwMaximumSize)
-
-#define HeapDestroy(hHeap) \
-        Dont_Use_HeapDestroy(hHeap)
-
-#define HeapAlloc(hHeap, dwFlags, dwBytes) \
-        Dont_Use_HeapAlloc(hHeap, dwFlags, dwBytes)
-
-#define HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes) \
-        Dont_Use_HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes)
-
-#define HeapFree(hHeap, dwFlags, lpMem) \
-        Dont_Use_HeapFree(hHeap, dwFlags, lpMem)
-
-#define HeapValidate(hHeap, dwFlags, lpMem) \
-        Dont_Use_HeapValidate(hHeap, dwFlags, lpMem)
-
-#define LocalAlloc(uFlags, uBytes) \
-        Dont_Use_LocalAlloc(uFlags, uBytes)
-
-#define LocalFree(hMem) \
-        Dont_Use_LocalFree(hMem)
-
-#define LocalReAlloc(hMem, uBytes, uFlags) \
-        Dont_Use_LocalReAlloc(hMem, uBytes, uFlags)
-
-#define GlobalAlloc(uFlags, dwBytes) \
-        Dont_Use_GlobalAlloc(uFlags, dwBytes)
-
-#define GlobalFree(hMem) \
-        Dont_Use_GlobalFree(hMem)
-
-//#define ExitThread          Dont_Use_ExitThread
-
-#define ExitProcess         Dont_Use_ExitProcess
-
-/*
-    If you are reading this, you have probably tracked down the fact that TlsAlloc,
-    etc. don't work inside your DLL because you are using src\inc & src\utilcode
-    services.
-
-    This is because the CLR can operate in a fiberized environment under host control.
-    When this is the case, logical thread local storage must be fiber-relative rather
-    than thread-relative.
-
-    Although the OS provides FLS routines on .NET Server, it does not yet provide
-    those services on WinXP or Win2K.  So you cannot just use fiber routines from
-    the OS.
-
-    Instead, you must use the ClrFls_ routines described above.  However, there are
-    some important differences between these EE-provided services and the OS TLS
-    services that you are used to:
-
-    1)  There is no TlsAlloc/FlsAlloc equivalent.  You must statically describe
-        your needs via the PredefinedTlsSlots below.  If you have dynamic requirements,
-        you should give yourself a single static slot and then build your dynamic
-        requirements on top of this.  The lack of a dynamic API is a deliberate
-        choice on my part, rather than lack of time.
-
-    2)  You can provide a cleanup routine, which we will call on your behalf.  However,
-        this can be called on a different thread than the "thread" (fiber or thread)
-        which holds the data.  It can be called after that thread has actually been
-        terminated.  It can be called before you see a DLL_THREAD_DETACH on your
-        physical thread.  The circumstances vary based on whether the process is hosted
-        and based on whether TS_WeOwn is set on the internal Thread object.  Make
-        no assumptions here.
-*/
-#define TlsAlloc() \
-        Dont_Use_TlsAlloc()
-
-#define TlsSetValue(dwTlsIndex, lpTlsValue) \
-        Dont_Use_TlsSetValue(dwTlsIndex, lpTlsValue)
-
-#define TlsGetValue(dwTlsIndex) \
-        Dont_Use_TlsGetValue(dwTlsIndex)
-
-#define TlsFree(dwTlsIndex) \
-        Dont_Use_TlsFree(dwTlsIndex)
-
-
-/*
-    If you are reading this, you have probably tracked down the fact that synchronization objects
-    and critical sections don't work inside your DLL because you are using src\inc & src\utilcode services.
-    Please refer to the ClrXXX functions described above to make proper use of synchronization obejct, etc.
-
-    Also it's extremely useful to look at the Holder classes defined above.
-    Those classes provide a nice encapsulation for synchronization object that allows automatic release of locks.
-*/
-#define InitializeCriticalSection(lpCriticalSection) \
-        Dont_Use_InitializeCriticalSection(lpCriticalSection)
-
-#define InitializeCriticalSectionAndSpinCount(lpCriticalSection, dwSpinCount) \
-        Dont_Use_InitializeCriticalSectionAndSpinCount(lpCriticalSection, dwSpinCount)
-
-#define DeleteCriticalSection(lpCriticalSection) \
-        Dont_Use_DeleteCriticalSection(lpCriticalSection)
-
-#define EnterCriticalSection(lpCriticalSection) \
-        Dont_Use_EnterCriticalSection(lpCriticalSection)
-
-#define TryEnterCriticalSection(lpCriticalSection) \
-        Dont_Use_TryEnterCriticalSection(lpCriticalSection)
-
-#define LeaveCriticalSection(lpCriticalSection) \
-        Dont_Use_LeaveCriticalSection(lpCriticalSection)
-
-#ifdef CreateEvent
-#undef CreateEvent
-#endif
-#define CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName) \
-        Dont_Use_CreateEvent(lpEventAttributes, bManualReset, bInitialState, lpName)
-
-#ifdef OpenEvent
-#undef OpenEvent
-#endif
-#define OpenEvent(dwDesiredAccess, bInheritHandle, lpName) \
-        Dont_Use_OpenEvent(dwDesiredAccess, bInheritHandle, lpName)
-
-#define ResetEvent(hEvent) \
-        Dont_Use_ResetEvent(hEvent)
-
-#define SetEvent(hEvent) \
-        Dont_Use_SetEvent(hEvent)
-
-#define PulseEvent(hEvent) \
-        Dont_Use_PulseEvent(hEvent)
-
-#ifdef CreateSemaphore
-#undef CreateSemaphore
-#endif
-#define CreateSemaphore(lpSemaphoreAttributes, lInitialCount, lMaximumCount, lpName) \
-        Dont_Use_CreateSemaphore(lpSemaphoreAttributes, lInitialCount, lMaximumCount, lpName)
-
-#ifdef OpenSemaphore
-#undef OpenSemaphore
-#endif
-#define OpenSemaphore(dwDesiredAccess, bInheritHandle, lpName) \
-        Dont_Use_OpenSemaphore(dwDesiredAccess, bInheritHandle, lpName)
-
-#define ReleaseSemaphore(hSemaphore, lReleaseCount, lpPreviousCount) \
-        Dont_Use_ReleaseSemaphore(hSemaphore, lReleaseCount, lpPreviousCount)
-
-#ifdef Sleep
-#undef Sleep
-#endif
-#define Sleep(dwMilliseconds) \
-        Dont_Use_Sleep(dwMilliseconds)
-
-#ifdef SleepEx
-#undef SleepEx
-#endif
-#define SleepEx(dwMilliseconds,bAlertable) \
-        Dont_Use_SleepEx(dwMilliseconds,bAlertable)
-
-//
-// following are clib deprecates
-//
-#include <stdlib.h>
-#include <malloc.h>
-
-#ifdef malloc
-#undef malloc
-#endif
-
-#define _CRT_EXCEPTION_NO_MALLOC
-#define malloc(size) \
-        Dont_Use_malloc(size)
-
-#ifdef realloc
-#undef realloc
-#endif
-#define realloc(memblock, size) \
-        Dont_Use_realloc(memblock, size)
-
-#ifdef free
-#undef free
-#endif
-#define free(memblock) \
-        Dont_Use_free(memblock)
-
-#endif //!FEATURE_NO_HOST
-
 extern void IncCantAllocCount();
 extern void DecCantAllocCount();
 
@@ -609,7 +380,7 @@ inline bool IsInCantAllocRegion ()
 {
     size_t count = 0;
     if (ClrFlsCheckValue(TlsIdx_CantAllocCount, (LPVOID *)&count))
-    {        
+    {
         _ASSERTE (count >= 0);
         return count > 0;
     }
@@ -617,7 +388,5 @@ inline bool IsInCantAllocRegion ()
 }
 // for stress log the rule is more restrict, we have to check the global counter too
 extern BOOL IsInCantAllocStressLogRegion();
-
-#include "genericstackprobe.inl"
 
 #endif

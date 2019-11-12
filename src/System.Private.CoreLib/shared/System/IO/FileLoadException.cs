@@ -16,66 +16,53 @@ namespace System.IO
             HResult = HResults.COR_E_FILELOAD;
         }
 
-        public FileLoadException(string message)
+        public FileLoadException(string? message)
             : base(message)
         {
             HResult = HResults.COR_E_FILELOAD;
         }
 
-        public FileLoadException(string message, Exception inner)
+        public FileLoadException(string? message, Exception? inner)
             : base(message, inner)
         {
             HResult = HResults.COR_E_FILELOAD;
         }
 
-        public FileLoadException(string message, string fileName) : base(message)
+        public FileLoadException(string? message, string? fileName) : base(message)
         {
             HResult = HResults.COR_E_FILELOAD;
             FileName = fileName;
         }
 
-        public FileLoadException(string message, string fileName, Exception inner)
+        public FileLoadException(string? message, string? fileName, Exception? inner)
             : base(message, inner)
         {
             HResult = HResults.COR_E_FILELOAD;
             FileName = fileName;
         }
 
-        public override string Message
-        {
-            get
-            {
-                if (_message == null)
-                {
-                    _message = FormatFileLoadExceptionMessage(FileName, HResult);
-                }
-                return _message;
-            }
-        }
+        public override string Message => _message ??= FormatFileLoadExceptionMessage(FileName, HResult);
 
-        public string FileName { get; }
-        public string FusionLog { get; }
+        public string? FileName { get; }
+        public string? FusionLog { get; }
 
         public override string ToString()
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName != null && FileName.Length != 0)
-                s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
+            if (!string.IsNullOrEmpty(FileName))
+                s += Environment.NewLineConst + SR.Format(SR.IO_FileName_Name, FileName);
 
             if (InnerException != null)
-                s = s + " ---> " + InnerException.ToString();
+                s += Environment.NewLineConst + InnerExceptionPrefix + InnerException.ToString();
 
             if (StackTrace != null)
-                s += Environment.NewLine + StackTrace;
+                s += Environment.NewLineConst + StackTrace;
 
             if (FusionLog != null)
             {
-                if (s == null)
-                    s = " ";
-                s += Environment.NewLine;
-                s += Environment.NewLine;
-                s += FusionLog;
+                s ??= " ";
+                s += Environment.NewLineConst + Environment.NewLineConst + FusionLog;
             }
 
             return s;

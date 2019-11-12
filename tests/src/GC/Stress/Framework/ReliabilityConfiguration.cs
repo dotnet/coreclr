@@ -19,10 +19,19 @@ using System.IO;
 public enum TestStartModeEnum
 {
     AppDomainLoader,
-    ProcessLoader
+    ProcessLoader,
+    AssemblyLoadContextLoader
 }
 
 public enum AppDomainLoaderMode
+{
+    FullIsolation,
+    Normal,
+    RoundRobin,
+    Lazy
+}
+
+public enum AssemblyLoadContextLoaderMode
 {
     FullIsolation,
     Normal,
@@ -41,8 +50,9 @@ public enum LoggingLevels
     Logging = 0x20,
     UrtFrameworks = 0x40,
     TestStarter = 0x80,
+    AssemblyLoadContext = 0x100,
 
-    All = (0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x80)
+    All = (0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x80 | 0x100)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +107,9 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
     private const string configULWaitTime = "ulWaitTime";
     private const string configCcFailMail = "ccFailMail";
     private const string configAppDomainLoaderMode = "appDomainLoaderMode";
+    private const string configAssemblyLoadContextLoaderMode = "assemblyLoadContextLoaderMode";
     private const string configRoundRobinAppDomainCount = "numAppDomains";
+    private const string configRoundRobinAssemblyLoadContextCount = "numAssemblyLoadContexts";
     // Attributes for the <Assembly ...> tag
     private const string configAssemblyName = "id";
     private const string configAssemblyFilename = "filename";
@@ -137,6 +149,7 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
     // Test start modes
     private const string configTestStartModeAppDomainLoader = "appDomainLoader";
     private const string configTestStartModeProcessLoader = "processLoader";
+    private const string configTestStartModeAssemblyLoadContextLoader = "assemblyLoadContextLoader";
     private const string configTestStartModeTaskLoader = "taskLoader";
 
     // APp domain loader modes
@@ -144,6 +157,12 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
     private const string configAppDomainLoaderModeNormal = "normal";
     private const string configAppDomainLoaderModeRoundRobin = "roundRobin";
     private const string configAppDomainLoaderModeLazy = "lazy";
+
+    // AssemblyLoadContext loader modes
+    private const string configAssemblyLoadContextLoaderModeFullIsolation = "fullIsolation";
+    private const string configAssemblyLoadContextLoaderModeNormal = "normal";
+    private const string configAssemblyLoadContextLoaderModeRoundRobin = "roundRobin";
+    private const string configAssemblyLoadContextLoaderModeLazy = "lazy";
 
 
     /// <summary>
@@ -168,7 +187,7 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
         throw new Exception(String.Format("Unknown option value for {0}: {1}", configSettingName, value));
     }
 
-
+    // returns time in minutes
     public static int ConvertTimeValueToTestRunTime(string timeValue)
     {
         int returnValue;
@@ -362,7 +381,15 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
 
                                 _curTestSet = new ReliabilityTestSet();
 
-                                while (currentXML.MoveToNextAttribute())
+                                // when running as an ordinary test, limit run time to 10 min.
+                                bool limitTime = ReliabilityFramework.IsRunningAsUnitTest && !ReliabilityFramework.IsRunningLongGCTests;
+
+                                if (limitTime)
+                                {
+                                    _curTestSet.MaximumTime = 10;
+                                }
+
+                                    while (currentXML.MoveToNextAttribute())
                                 {
                                     XmlDebugOut(" " + currentXML.Name + "=\"" + currentXML.Value + "\"");
                                     switch (currentXML.Name)
@@ -372,7 +399,12 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                             break;
                                         case "maximumExecutionTime":
                                             string timeValue = currentXML.Value;
-                                            _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
+
+                                            if (!limitTime)
+                                            {
+                                                _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
+                                            }
+
                                             break;
                                         case "id":
                                             _curTestSet.FriendlyName = currentXML.Value;
@@ -496,6 +528,9 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                                     }
                                                     _curTestSet.DefaultTestStartMode = TestStartModeEnum.AppDomainLoader;
                                                     break;
+                                                case configTestStartModeAssemblyLoadContextLoader:
+                                                    _curTestSet.DefaultTestStartMode = TestStartModeEnum.AssemblyLoadContextLoader;
+                                                    break;
                                                 case configTestStartModeProcessLoader:
                                                     _curTestSet.DefaultTestStartMode = TestStartModeEnum.ProcessLoader;
                                                     break;
@@ -510,6 +545,20 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                                 if (_curTestSet.NumAppDomains <= 0)
                                                 {
                                                     throw new Exception("Number of app domains must be greater than zero!");
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                throw new Exception(String.Format("The value {0} is not an integer", currentXML.Value));
+                                            }
+                                            break;
+                                        case configRoundRobinAssemblyLoadContextCount:
+                                            try
+                                            {
+                                                _curTestSet.NumAssemblyLoadContexts = Convert.ToInt32(currentXML.Value);
+                                                if (_curTestSet.NumAssemblyLoadContexts <= 0)
+                                                {
+                                                    throw new Exception("Number of AssemblyLoadContexts must be greater than zero!");
                                                 }
                                             }
                                             catch
@@ -535,6 +584,26 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
 
                                                 default:
                                                     throw new Exception(String.Format("Unknown AD Loader mode {0} specified!", currentXML.Value));
+                                            }
+                                            break;
+                                        case configAssemblyLoadContextLoaderMode:
+                                            switch (currentXML.Value)
+                                            {
+                                                case configAssemblyLoadContextLoaderModeFullIsolation:
+                                                    _curTestSet.AssemblyLoadContextLoaderMode = AssemblyLoadContextLoaderMode.FullIsolation;
+                                                    break;
+                                                case configAssemblyLoadContextLoaderModeNormal:
+                                                    _curTestSet.AssemblyLoadContextLoaderMode = AssemblyLoadContextLoaderMode.Normal;
+                                                    break;
+                                                case configAssemblyLoadContextLoaderModeRoundRobin:
+                                                    _curTestSet.AssemblyLoadContextLoaderMode = AssemblyLoadContextLoaderMode.RoundRobin;
+                                                    break;
+                                                case configAssemblyLoadContextLoaderModeLazy:
+                                                    _curTestSet.AssemblyLoadContextLoaderMode = AssemblyLoadContextLoaderMode.Lazy;
+                                                    break;
+
+                                                default:
+                                                    throw new Exception(String.Format("Unknown ALC Loader mode {0} specified!", currentXML.Value));
                                             }
                                             break;
                                         case configPercentPassIsPass:
@@ -813,6 +882,9 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                                 case configTestStartModeProcessLoader:
                                                     rt.TestStartMode = TestStartModeEnum.ProcessLoader;
                                                     break;
+                                                case configTestStartModeAssemblyLoadContextLoader:
+                                                    rt.TestStartMode = TestStartModeEnum.AssemblyLoadContextLoader;
+                                                    break;
                                                 default:
                                                     throw new Exception(String.Format("Unknown test starter {0} specified!", currentXML.Value));
                                             }
@@ -891,15 +963,17 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                 }
 
                                 int testCopies = 1;
-                                if (_curTestSet.AppDomainLoaderMode == AppDomainLoaderMode.FullIsolation)
+                                if (_curTestSet.AppDomainLoaderMode == AppDomainLoaderMode.FullIsolation || 
+                                    _curTestSet.AssemblyLoadContextLoaderMode == AssemblyLoadContextLoaderMode.FullIsolation)
                                 {
-                                    // in this mode each copy of the test is ran in it's own app domain,
+                                    // in this mode each copy of the test is ran in it's own app domain or AssemblyLoadContext,
                                     // fully isolated from all other copies of the test.  If the user
                                     // specified a cloning level we need to duplicate the test.
                                     testCopies = rt.ConcurrentCopies;
                                     rt.ConcurrentCopies = 1;
                                 }
-                                else if (_curTestSet.AppDomainLoaderMode == AppDomainLoaderMode.RoundRobin)
+                                else if (_curTestSet.AppDomainLoaderMode == AppDomainLoaderMode.RoundRobin ||
+                                         _curTestSet.AssemblyLoadContextLoaderMode == AssemblyLoadContextLoaderMode.RoundRobin)
                                 {
                                     // In this mode each test is ran in an app domain w/ other tests.
                                     testCopies = rt.ConcurrentCopies;
@@ -907,7 +981,7 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                 }
                                 else
                                 {
-                                    // Normal mode - tests are ran in app domains w/ copies of themselves
+                                    // Normal mode - tests are ran in app domains / AssemblyLoadContexts w/ copies of themselves
                                 }
 
                                 string refOrId = rt.RefOrID;

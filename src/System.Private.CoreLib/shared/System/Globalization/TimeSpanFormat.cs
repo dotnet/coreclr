@@ -12,34 +12,11 @@ namespace System.Globalization
 {
     internal static class TimeSpanFormat
     {
-        private static unsafe void AppendNonNegativeInt32(StringBuilder sb, int n, int digits)
-        {
-            Debug.Assert(n >= 0);
-            uint value = (uint)n;
-
-            const int MaxUInt32Digits = 10;
-            char* buffer = stackalloc char[MaxUInt32Digits];
-
-            int index = 0;
-            do
-            {
-                uint div = value / 10;
-                buffer[index++] = (char)(value - (div * 10) + '0');
-                value = div;
-            }
-            while (value != 0);
-            Debug.Assert(index <= MaxUInt32Digits);
-
-            for (int i = digits - index; i > 0; --i) sb.Append('0');
-            for (int i = index - 1; i >= 0; --i) sb.Append(buffer[i]);
-        }
-
         internal static readonly FormatLiterals PositiveInvariantFormatLiterals = TimeSpanFormat.FormatLiterals.InitInvariant(isNegative: false);
         internal static readonly FormatLiterals NegativeInvariantFormatLiterals = TimeSpanFormat.FormatLiterals.InitInvariant(isNegative: true);
 
-
         /// <summary>Main method called from TimeSpan.ToString.</summary>
-        internal static string Format(TimeSpan value, string format, IFormatProvider formatProvider)
+        internal static string Format(TimeSpan value, string? format, IFormatProvider? formatProvider)
         {
             if (string.IsNullOrEmpty(format))
             {
@@ -67,7 +44,7 @@ namespace System.Globalization
         }
 
         /// <summary>Main method called from TimeSpan.TryFormat.</summary>
-        internal static bool TryFormat(TimeSpan value, Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider formatProvider)
+        internal static bool TryFormat(TimeSpan value, Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? formatProvider)
         {
             if (format.Length == 0)
             {
@@ -87,7 +64,7 @@ namespace System.Globalization
                         c == 'g' ? StandardFormat.g :
                         c == 'G' ? StandardFormat.G :
                         throw new FormatException(SR.Format_InvalidString);
-                   return TryFormatStandard(value, sf, DateTimeFormatInfo.GetInstance(formatProvider).DecimalSeparator, destination, out charsWritten);
+                    return TryFormatStandard(value, sf, DateTimeFormatInfo.GetInstance(formatProvider).DecimalSeparator, destination, out charsWritten);
                 }
             }
 
@@ -126,7 +103,7 @@ namespace System.Globalization
 
         private enum StandardFormat { C, G, g }
 
-        private static bool TryFormatStandard(TimeSpan value, StandardFormat format, string decimalSeparator, Span<char> destination, out int charsWritten)
+        private static bool TryFormatStandard(TimeSpan value, StandardFormat format, string? decimalSeparator, Span<char> destination, out int charsWritten)
         {
             Debug.Assert(format == StandardFormat.C || format == StandardFormat.G || format == StandardFormat.g);
 
@@ -281,11 +258,12 @@ namespace System.Globalization
             // Write fraction and separator, if necessary
             if (fractionDigits != 0)
             {
+                Debug.Assert(format == StandardFormat.C || decimalSeparator != null);
                 if (format == StandardFormat.C)
                 {
                     destination[idx++] = '.';
                 }
-                else if (decimalSeparator.Length == 1)
+                else if (decimalSeparator!.Length == 1)
                 {
                     destination[idx++] = decimalSeparator[0];
                 }
@@ -330,7 +308,7 @@ namespace System.Globalization
         }
 
         /// <summary>Format the TimeSpan instance using the specified format.</summary>
-        private static StringBuilder FormatCustomized(TimeSpan value, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, StringBuilder result = null)
+        private static StringBuilder FormatCustomized(TimeSpan value, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, StringBuilder? result = null)
         {
             Debug.Assert(dtfi != null);
 
@@ -390,7 +368,7 @@ namespace System.Globalization
                         break;
                     case 'f':
                         //
-                        // The fraction of a second in single-digit precision. The remaining digits are truncated. 
+                        // The fraction of a second in single-digit precision. The remaining digits are truncated.
                         //
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits)
@@ -400,7 +378,7 @@ namespace System.Globalization
 
                         tmp = fraction;
                         tmp /= TimeSpanParse.Pow10(DateTimeFormat.MaxSecondsFractionDigits - tokenLen);
-                        result.Append((tmp).ToString(DateTimeFormat.fixedNumberFormats[tokenLen - 1], CultureInfo.InvariantCulture));
+                        result.AppendSpanFormattable(tmp, DateTimeFormat.fixedNumberFormats[tokenLen - 1], CultureInfo.InvariantCulture);
                         break;
                     case 'F':
                         //
@@ -419,7 +397,7 @@ namespace System.Globalization
                         {
                             if (tmp % 10 == 0)
                             {
-                                tmp = tmp / 10;
+                                tmp /= 10;
                                 effectiveDigits--;
                             }
                             else
@@ -429,7 +407,7 @@ namespace System.Globalization
                         }
                         if (effectiveDigits > 0)
                         {
-                            result.Append((tmp).ToString(DateTimeFormat.fixedNumberFormats[effectiveDigits - 1], CultureInfo.InvariantCulture));
+                            result.AppendSpanFormattable(tmp, DateTimeFormat.fixedNumberFormats[effectiveDigits - 1], CultureInfo.InvariantCulture);
                         }
                         break;
                     case 'd':
@@ -451,7 +429,7 @@ namespace System.Globalization
                         break;
                     case '%':
                         // Optional format character.
-                        // For example, format string "%d" will print day 
+                        // For example, format string "%d" will print day
                         // Most of the cases, "%" can be ignored.
                         nextChar = DateTimeFormat.ParseNextChar(format, i);
                         // nextChar will be -1 if we already reach the end of the format string.
@@ -479,7 +457,7 @@ namespace System.Globalization
                         nextChar = DateTimeFormat.ParseNextChar(format, i);
                         if (nextChar >= 0)
                         {
-                            result.Append(((char)nextChar));
+                            result.Append((char)nextChar);
                             tokenLen = 2;
                         }
                         else
@@ -524,7 +502,7 @@ namespace System.Globalization
             /* factory method for static invariant FormatLiterals */
             internal static FormatLiterals InitInvariant(bool isNegative)
             {
-                FormatLiterals x = new FormatLiterals();
+                FormatLiterals x = default;
                 x._literals = new string[6];
                 x._literals[0] = isNegative ? "-" : string.Empty;
                 x._literals[1] = ".";
@@ -532,7 +510,7 @@ namespace System.Globalization
                 x._literals[3] = ":";
                 x._literals[4] = ".";
                 x._literals[5] = string.Empty;
-                x.AppCompatLiteral = ":."; // MinuteSecondSep+SecondFractionSep;       
+                x.AppCompatLiteral = ":."; // MinuteSecondSep+SecondFractionSep;
                 x.dd = 2;
                 x.hh = 2;
                 x.mm = 2;

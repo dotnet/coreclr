@@ -2,10 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Reflection;
-using System.Runtime.InteropServices;
-
 namespace System.Reflection.Emit
 {
     public sealed class LocalBuilder : LocalVariableInfo
@@ -41,15 +37,9 @@ namespace System.Reflection.Emit
         #endregion
 
         #region LocalVariableInfo Override
-        public override bool IsPinned { get { return m_isPinned; } }
-        public override Type LocalType
-        {
-            get
-            {
-                return m_localType;
-            }
-        }
-        public override int LocalIndex { get { return m_localIndex; } }
+        public override bool IsPinned => m_isPinned;
+        public override Type LocalType => m_localType;
+        public override int LocalIndex => m_localIndex;
         #endregion
 
         #region Public Members
@@ -67,7 +57,7 @@ namespace System.Reflection.Emit
             byte[] mungedSig;
             int index;
 
-            MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
+            MethodBuilder? methodBuilder = m_methodBuilder as MethodBuilder;
             if (methodBuilder == null)
                 // it's a light code gen entity
                 throw new NotSupportedException();
@@ -93,7 +83,7 @@ namespace System.Reflection.Emit
             // front of the signature, but InternalGetSignature returns
             // the callinging convention. So we strip it off. This is a
             // bit unfortunate, since it means that we need to allocate
-            // yet another array of bytes...  
+            // yet another array of bytes...
             mungedSig = new byte[sigLength - 1];
             Buffer.BlockCopy(signature, 1, mungedSig, 0, sigLength - 1);
 
@@ -101,7 +91,7 @@ namespace System.Reflection.Emit
             if (index == -1)
             {
                 // top level scope information is kept with methodBuilder
-                methodBuilder.m_localSymInfo.AddLocalSymInfo(
+                methodBuilder.m_localSymInfo!.AddLocalSymInfo(
                      name,
                      mungedSig,
                      m_localIndex,
@@ -121,4 +111,3 @@ namespace System.Reflection.Emit
         #endregion
     }
 }
-

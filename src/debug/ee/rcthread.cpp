@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: RCThread.cpp
-// 
+//
 
 //
 // Runtime Controller Thread
@@ -11,15 +11,15 @@
 //*****************************************************************************
 
 #include "stdafx.h"
-
+#include "threadsuspend.h"
 #ifndef FEATURE_PAL
+
 #include "securitywrapper.h"
 #endif
 #include <aclapi.h>
 #include <hosting.h>
 
 #include "eemessagebox.h"
-#include "genericstackprobe.h"
 
 #ifndef SM_REMOTESESSION
 #define SM_REMOTESESSION 0x1000
@@ -36,17 +36,16 @@ EEThreadId DebuggerRCThread::s_DbgHelperThreadId;
 // Constructor
 //
 DebuggerRCThread::DebuggerRCThread(Debugger * pDebugger)
-    : m_debugger(pDebugger), 
-    m_pDCB(NULL), 
-    m_thread(NULL), 
+    : m_debugger(pDebugger),
+    m_pDCB(NULL),
+    m_thread(NULL),
     m_run(true),
     m_threadControlEvent(NULL),
     m_helperThreadCanGoEvent(NULL),
-    m_fDetachRightSide(false)      
+    m_fDetachRightSide(false)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         WRAPPER(THROWS);
         GC_NOTRIGGER;
         CONSTRUCTOR_CHECK;
@@ -74,7 +73,6 @@ DebuggerRCThread::~DebuggerRCThread()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         DESTRUCTOR_CHECK;
@@ -84,7 +82,7 @@ DebuggerRCThread::~DebuggerRCThread()
     LOG((LF_CORDB,LL_INFO1000, "DebuggerRCThread::~DebuggerRCThread\n"));
 
     // We explicitly leak the debugger object on shutdown. See Debugger::StopDebugger for details.
-    _ASSERTE(!"RCThread dtor should not be called.");   
+    _ASSERTE(!"RCThread dtor should not be called.");
 }
 
 
@@ -101,7 +99,6 @@ void DebuggerRCThread::CloseIPCHandles()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -215,9 +212,9 @@ HANDLE OpenWin32EventOrThrow(
 //     We assume ownership of the handles as soon as we're called; regardless of our success.
 //     On failure, we throw.
 //     Initialization of the debugger control block occurs partly on the left side and partly on
-//     the right side. This initialization occurs in parallel, so it's unsafe to make assumptions about 
-//     the order in which the fields will be initialized. 
-//     
+//     the right side. This initialization occurs in parallel, so it's unsafe to make assumptions about
+//     the order in which the fields will be initialized.
+//
 //
 //---------------------------------------------------------------------------------------
 HRESULT DebuggerIPCControlBlock::Init(
@@ -230,16 +227,15 @@ HRESULT DebuggerIPCControlBlock::Init(
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
     // NOTE this works since there are no virtual functions - don't add any without changing this!
-    // Although we assume the IPC block is zero-initialized by the OS upon creation, we still need to clear 
-    // the memory here to protect ourselves from DOS attack.  One scenario is when a malicious debugger 
-    // pre-creates a bogus IPC block.  This means that our synchronization scheme won't work in DOS 
+    // Although we assume the IPC block is zero-initialized by the OS upon creation, we still need to clear
+    // the memory here to protect ourselves from DOS attack.  One scenario is when a malicious debugger
+    // pre-creates a bogus IPC block.  This means that our synchronization scheme won't work in DOS
     // attack scenarios, but we will be messed up anyway.
     // WARNING!!!  m_DCBSize is used as a semaphore and is set to non-zero to signal that initialization of the
     // WARNING!!!  DCB is complete.  if you remove the below memset be sure to initialize m_DCBSize to zero in the ctor!
@@ -321,7 +317,6 @@ HRESULT DebuggerRCThread::Init(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(!ThisIsHelperThreadWorker()); // initialized by main thread
@@ -374,7 +369,7 @@ HRESULT DebuggerRCThread::Init(void)
         hr = m_pDCB->Init(NULL, NULL, NULL, NULL, NULL);
         _ASSERTE(SUCCEEDED(hr)); // throws on error.
     }
-#else //FEATURE_DBGIPC_TRANSPORT_VM 
+#else //FEATURE_DBGIPC_TRANSPORT_VM
 
     // Create the events that the thread will need to receive events
     // from the out of process piece on the right side.
@@ -420,8 +415,8 @@ HRESULT DebuggerRCThread::Init(void)
         leftSideUnmanagedWaitEvent.SuppressRelease();
 
         // NOTE: initialization of the debugger control block occurs partly on the left side and partly on
-        // the right side. This initialization occurs in parallel, so it's unsafe to make assumptions about 
-        // the order in which the fields will be initialized. 
+        // the right side. This initialization occurs in parallel, so it's unsafe to make assumptions about
+        // the order in which the fields will be initialized.
         hr = m_pDCB->Init(rightSideEventAvailable,
                                        rightSideEventRead,
                                        NULL,
@@ -430,7 +425,7 @@ HRESULT DebuggerRCThread::Init(void)
 
         _ASSERTE(SUCCEEDED(hr)); // throws on error.
     }
-#endif //FEATURE_DBGIPC_TRANSPORT_VM 
+#endif //FEATURE_DBGIPC_TRANSPORT_VM
 
     if(m_pDCB)
     {
@@ -459,7 +454,7 @@ HRESULT DebuggerRCThread::Init(void)
              m_pDCB->m_leftSideProtocolCurrent,
              m_pDCB->m_leftSideProtocolMinSupported));
 
-        // Left-side always creates helper-thread. 
+        // Left-side always creates helper-thread.
         // @dbgtodo  inspection - by end of V3, LS will never create helper-thread :)
         m_pDCB->m_rightSideShouldCreateHelperThread = false;
 
@@ -472,179 +467,13 @@ HRESULT DebuggerRCThread::Init(void)
     return S_OK;
 }
 
-#ifndef FEATURE_PAL
-
-// This function is used to verify the security descriptor on an event
-// matches our expectation to prevent attack. This should be called when
-// we opened an event by name and assumed that the RS creates the event.
-// That means the event's dacl should match our default policy - current user
-// and admin. It can be narrower. By default, the DACL looks like the debugger
-// process user, debuggee user, and admin.
-//
-HRESULT DebuggerRCThread::VerifySecurityOnRSCreatedEvents(
-    HANDLE  sse,
-    HANDLE  lsea,
-    HANDLE  lser)
-{
-
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-        NOTHROW; 
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    STRESS_LOG0(LF_CORDB,LL_INFO1000,"DRCT::VerifySecurityOnRSCreatedEvents\n");
-
-    if (lsea == NULL || lser == NULL)
-    {
-        // no valid handle, does not need to verify.
-        // The caller will close the handles
-        return E_FAIL;
-    }
-
-    HRESULT     hr = S_OK;
-
-    SIZE_T         i;
-    ACCESS_ALLOWED_ACE *pAllowAceSSE  = NULL;
-    ACCESS_ALLOWED_ACE *pAllowAceLSEA = NULL;
-    ACCESS_ALLOWED_ACE *pAllowAceLSER = NULL;
-
-
-    EX_TRY
-    {
-        // Get security descriptors for the handles.
-        Win32SecurityDescriptor sdSSE;
-        sdSSE.InitFromHandle(sse);
-
-        Win32SecurityDescriptor sdLSEA;
-        sdLSEA.InitFromHandle(lsea);
-
-        Win32SecurityDescriptor sdLSER;
-        sdLSER.InitFromHandle(lser);
-
-
-    
-    
-        // Make sure all 3 have the same creator
-        // We've already verifed in CreateSetupSyncEvent that the SSE's owner is in the DACL.
-        if (!Sid::Equals(sdSSE.GetOwner(), sdLSEA.GetOwner()) ||
-            !Sid::Equals(sdSSE.GetOwner(), sdLSER.GetOwner()))
-        {
-            // Not equal! return now with failure code.
-            STRESS_LOG1(LF_CORDB,LL_INFO1000,"DRCT::VSORSCE failed on EqualSid - 0x%08x\n", hr);
-            ThrowHR(E_FAIL);
-        }
-
-        // DACL_SECURITY_INFORMATION
-        // Now verify the DACL. It should be only two of them at most. One of them is the
-        // target process SID.
-        Dacl daclSSE = sdSSE.GetDacl();
-        Dacl daclLSEA = sdLSEA.GetDacl();
-        Dacl daclLSER = sdLSER.GetDacl();
-    
-
-        // Now all of these three ACL should be alike. There should be at most two of entries
-        // there. One if the debugger process's SID and one if debuggee sid.
-        if ((daclSSE.GetAceCount() != 1) && (daclSSE.GetAceCount() != 2))
-        {
-            ThrowHR(E_FAIL);
-        }
-
-   
-        // All of the ace count should equal for all events.
-        if ((daclSSE.GetAceCount() != daclLSEA.GetAceCount()) || 
-            (daclSSE.GetAceCount() != daclLSER.GetAceCount()))
-        {
-            ThrowHR(E_FAIL);
-        }
-
-        // Now check the ACE inside.These should be all equal
-        for (i = 0; i < daclSSE.GetAceCount(); i++)
-        {
-            ACE_HEADER *pAce;
-
-            // Get the ace from the SSE
-            pAce = daclSSE.GetAce(i);
-            if (pAce->AceType != ACCESS_ALLOWED_ACE_TYPE)
-            {
-                ThrowHR(E_FAIL);
-            }
-            pAllowAceSSE = (ACCESS_ALLOWED_ACE*)pAce;
-
-            // Get the ace from LSEA
-            pAce = daclLSEA.GetAce(i);        
-            if (pAce->AceType != ACCESS_ALLOWED_ACE_TYPE)
-            {
-                ThrowHR(E_FAIL);
-            }
-            pAllowAceLSEA = (ACCESS_ALLOWED_ACE*)pAce;
-
-            // This is the SID
-            // We can call EqualSid on this pAllowAce->SidStart
-            if (EqualSid((PSID)&(pAllowAceSSE->SidStart), (PSID)&(pAllowAceLSEA->SidStart)) == FALSE)
-            {
-                // ACE not equal. Fail out.
-                ThrowHR(E_FAIL);
-            }
-
-            // Get the ace from LSER
-            pAce = daclLSER.GetAce(i);        
-            if (pAce->AceType != ACCESS_ALLOWED_ACE_TYPE)
-            {
-                ThrowHR(E_FAIL);
-            }
-            pAllowAceLSER = (ACCESS_ALLOWED_ACE*)pAce;
-        
-            if (EqualSid((PSID)&(pAllowAceSSE->SidStart), (PSID)&(pAllowAceLSER->SidStart)) == FALSE)
-            {
-                // ACE not equal. Fail out.
-                ThrowHR(E_FAIL);
-            }
-        } // end for loop.
-
-
-        // The last ACE should be target process. That is it should be
-        // our process's sid!
-        //
-        if (pAllowAceLSER == NULL)
-        {
-            ThrowHR(E_FAIL);; // fail if we don't have the ACE.
-        }
-        {
-            SidBuffer sbCurrentProcess;
-            sbCurrentProcess.InitFromProcess(GetCurrentProcessId());
-            if (!Sid::Equals(sbCurrentProcess.GetSid(), (PSID)&(pAllowAceLSER->SidStart)))
-            {
-                ThrowHR(E_FAIL);
-            }
-        }
-    }
-    EX_CATCH    
-    {
-        // If we threw an exception, then the verification failed.
-        hr = E_FAIL;
-    }
-    EX_END_CATCH(RethrowTerminalExceptions);
-
-    if (FAILED(hr))
-    {
-        STRESS_LOG1(LF_CORDB,LL_INFO1000,"DRCT::VSORSCE failed with - 0x%08x\n", hr);
-    }
-
-    return hr;
-}
-
-#endif // FEATURE_PAL
-
 //---------------------------------------------------------------------------------------
 //
 // Setup the Runtime Offsets struct.
 //
 // Arguments:
 //    pDebuggerIPCControlBlock - Pointer to the debugger's portion of the IPC
-//       block, which this routine will write into the offsets of various parts of 
+//       block, which this routine will write into the offsets of various parts of
 //       the runtime.
 //
 // Return Value:
@@ -655,7 +484,6 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -804,46 +632,6 @@ static LONG _debugFilter(LPEXCEPTION_POINTERS ep, PVOID pv)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-#ifdef _DEBUG
-// Tracking to ensure that we don't call New() for the normal (non interop-safe heap)
-// on the helper thread.  We also can't do a normal allocation when we have hard
-// suspended any other thread (since it could hold the OS heap lock).
-
-// TODO: this probably belongs in the EE itself, not here in the debugger stuff.
-
-void AssertAllocationAllowed()
-{
-#ifdef USE_INTEROPSAFE_HEAP
-    // Don't forget to preserve error status!
-    DWORD err = GetLastError();
-
-    // We can mark certain
-    if (g_DbgSuppressAllocationAsserts == 0)
-    {
-
-        // if we have hard suspended any threads.  We want to assert as it could cause deadlock
-        // since those suspended threads may hold the OS heap lock
-        if (g_fEEStarted) {
-            _ASSERTE (!EEAllocationDisallowed());
-        }
-
-        // Can't call IsDbgHelperSpecialThread() here b/c that changes program state.
-        // So we use our
-        if (DebuggerRCThread::s_DbgHelperThreadId.IsCurrentThread())
-        {
-            // In case assert allocates, bump up the 'OK' counter to avoid an infinite recursion.
-            SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE;
-
-            _ASSERTE(false || !"New called on Helper Thread");
-
-        }
-    }
-    SetLastError(err);
-#endif
-}
-#endif
-
-
 //---------------------------------------------------------------------------------------
 //
 // Primary function of the Runtime Controller thread. First, we let
@@ -855,7 +643,6 @@ void DebuggerRCThread::ThreadProc(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_TRIGGERS;        // Debugger::SuspendComplete can trigger GC
 
@@ -878,7 +665,7 @@ void DebuggerRCThread::ThreadProc(void)
 
         // Call this to force creation of the TLS slots on helper-thread.
         IsDbgHelperSpecialThread();
-    }    
+    }
 
 #ifdef _DEBUG
     // Track the helper thread.
@@ -1046,7 +833,6 @@ bool DebuggerRCThread::HandleRSEA()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         if (g_pEEInterface->GetThread() != NULL) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
         PRECONDITION(ThisIsHelperThreadWorker());
@@ -1114,7 +900,6 @@ void DebuggerRCThread::MainLoop()
 
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
 
         PRECONDITION(m_thread != NULL);
@@ -1131,7 +916,7 @@ void DebuggerRCThread::MainLoop()
     // threads doing helper duty.
     CantStopHolder cantStopHolder;
 
-    HANDLE rghWaitSet[DRCT_COUNT_FINAL]; 
+    HANDLE rghWaitSet[DRCT_COUNT_FINAL];
 
 #ifdef _DEBUG
     DWORD dwSyncSpinCount = 0;
@@ -1160,7 +945,7 @@ void DebuggerRCThread::MainLoop()
 
 #if !defined(FEATURE_DBGIPC_TRANSPORT_VM)
         // If there is a debugger attached, wait on its handle, too...
-        if ((cWaitCount == DRCT_COUNT_INITIAL) && 
+        if ((cWaitCount == DRCT_COUNT_INITIAL) &&
             m_pDCB->m_rightSideProcessHandle.ImportToLocalProcess() != NULL)
         {
             _ASSERTE((cWaitCount + 1) == DRCT_COUNT_FINAL);
@@ -1205,7 +990,7 @@ void DebuggerRCThread::MainLoop()
         {
             // execute the callback set by DoFavor()
             FAVORCALLBACK fpCallback = GetFavorFnPtr();
-            // We never expect the callback to be null unless some other component 
+            // We never expect the callback to be null unless some other component
             // wrongly signals our event (see DD 463807).
             // In case we messed up, we will not set the FavorReadEvent and will hang favor requesting thread.
             if (fpCallback)
@@ -1248,6 +1033,7 @@ void DebuggerRCThread::MainLoop()
         {
             LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: straggler event set.\n"));
 
+            ThreadStoreLockHolder tsl;
             Debugger::DebuggerLockHolder debugLockHolder(m_debugger);
             // Make sure that we're still synchronizing...
             if (m_debugger->IsSynchronizing())
@@ -1258,7 +1044,7 @@ void DebuggerRCThread::MainLoop()
 
                 //
                 // Skip waiting the first time and just give it a go.  Note: Implicit
-                // release of the lock, because we are leaving its scope.
+                // release of the debugger and thread store lock, because we are leaving its scope.
                 //
                 goto LWaitTimedOut;
             }
@@ -1267,6 +1053,7 @@ void DebuggerRCThread::MainLoop()
                 LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: told to wait, but not syncing anymore.\n"));
 #endif
             // dbgLockHolder goes out of scope - implicit Release
+            // tsl goes out of scope - implicit Release
          }
         else if (dwWaitResult == WAIT_TIMEOUT)
         {
@@ -1275,6 +1062,7 @@ LWaitTimedOut:
 
             LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: wait timed out.\n"));
 
+            ThreadStore::LockThreadStore();
             // Debugger::DebuggerLockHolder debugLockHolder(m_debugger);
             // Explicitly get the lock here since we try to check to see if
             // have suspended.  We will release the lock if we are not suspended yet.
@@ -1329,6 +1117,7 @@ LWaitTimedOut:
                 // And so the sweep should always succeed.
                 STRESS_LOG0(LF_CORDB, LL_INFO1000, "DRCT::ML:: threads still syncing after sweep.\n");
                 debugLockHolderSuspended.Release();
+                ThreadStore::UnlockThreadStore();
             }
             // debugLockHolderSuspended does not go out of scope. It has to be either released explicitly on the line above or
             // we intend to hold the lock till we hit continue event.
@@ -1358,7 +1147,6 @@ void DebuggerRCThread::TemporaryHelperThreadMainLoop()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
 
 
@@ -1390,7 +1178,7 @@ void DebuggerRCThread::TemporaryHelperThreadMainLoop()
     rghWaitSet[DRCT_FAVORAVAIL] = GetFavorAvailableEvent();
 #if !defined(FEATURE_DBGIPC_TRANSPORT_VM)
     rghWaitSet[DRCT_RSEA] = m_pDCB->m_rightSideEventAvailable;
-#else //FEATURE_DBGIPC_TRANSPORT_VM 
+#else //FEATURE_DBGIPC_TRANSPORT_VM
     rghWaitSet[DRCT_RSEA] = g_pDbgTransport->GetIPCEventReadyEvent();
 #endif // !FEATURE_DBGIPC_TRANSPORT_VM
 
@@ -1427,7 +1215,7 @@ void DebuggerRCThread::TemporaryHelperThreadMainLoop()
         }
         else if (dwWaitResult == WAIT_OBJECT_0 + DRCT_RSEA)
         {
-            // @todo: 
+            // @todo:
             // We are only interested in dealing with Continue event here...
             // Once we remove the HelperThread duty, this will just go away.
             //
@@ -1560,8 +1348,6 @@ LExit:
     // We just wrap the instance method DebuggerRCThread::ThreadProc
     WRAPPER_NO_CONTRACT;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
-
     ClrFlsSetThreadType(ThreadType_DbgHelper);
 
     LOG((LF_CORDB, LL_EVERYTHING, "ThreadProcStatic called\n"));
@@ -1570,22 +1356,9 @@ LExit:
     dbgOnly_IdentifySpecialEEThread();
 #endif
 
-    // We commit the thread's entire stack to ensure we're robust in low memory conditions. If we can't commit the
-    // stack, then we can't let the CLR continue to function.
-    BOOL fSuccess = Thread::CommitThreadStack(NULL);
-
-    if (!fSuccess)
-    {
-        STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.\n");
-        _ASSERTE(!"Thread::CommitThreadStack failed.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_STACKOVERFLOW);
-    }
-
     DebuggerRCThread* t = (DebuggerRCThread*)g_pRCThread;
 
     t->ThreadProc(); // this thread is local, go and become the helper
-    
-    END_SO_INTOLERANT_CODE;
 
     return 0;
 }
@@ -1605,7 +1378,6 @@ HRESULT DebuggerRCThread::Start(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1673,7 +1445,7 @@ HRESULT DebuggerRCThread::Start(void)
 
 //---------------------------------------------------------------------------------------
 //
-// Stop causes the RC thread to stop receiving events and exit. 
+// Stop causes the RC thread to stop receiving events and exit.
 // It does not wait for it to exit before returning (hence "AsyncStop" instead of "Stop").
 //
 // Return Value:
@@ -1684,7 +1456,6 @@ HRESULT DebuggerRCThread::AsyncStop(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -1692,7 +1463,7 @@ HRESULT DebuggerRCThread::AsyncStop(void)
         PRECONDITION(!ThisIsHelperThreadWorker());
 #else
         PRECONDITION(!ThisIsHelperThreadWorker());
-#endif        
+#endif
     }
     CONTRACTL_END;
 
@@ -1717,7 +1488,6 @@ HRESULT inline DebuggerRCThread::EnsureRuntimeOffsetsInit(IpcTarget ipcTarget)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -1751,7 +1521,7 @@ void DebuggerRCThread::NeedRuntimeOffsetsReInit(IpcTarget i)
 
 //---------------------------------------------------------------------------------------
 //
-// Send an debug event to the Debugger. This may be either a notification 
+// Send an debug event to the Debugger. This may be either a notification
 // or a reply to a debugger query.
 //
 // Arguments:
@@ -1779,26 +1549,42 @@ HRESULT DebuggerRCThread::SendIPCEvent()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER; // duh, we're in preemptive..
 
-        if (ThisIsHelperThreadWorker())
+        if (m_debugger->m_isBlockedOnGarbageCollectionEvent)
         {
-            // When we're stopped, the helper could actually be contracted as either mode-cooperative
-            // or mode-preemptive!
-            // If we're the helper thread, we're only sending events while we're stopped.
-            // Our callers will be mode-cooperative, so call this mode_cooperative to avoid a bunch
-            // of unncessary contract violations.
+            //
+            // If m_debugger->m_isBlockedOnGarbageCollectionEvent is true, then it must be reporting
+            // either the BeforeGarbageCollection event or the AfterGarbageCollection event
+            // The thread is in preemptive mode during BeforeGarbageCollection
+            // The thread is in cooperative mode during AfterGarbageCollection
+            // In either case, the thread mode doesn't really matter because GC has already taken control
+            // of execution.
+            //
+            // Despite the fact that we are actually in preemptive mode during BeforeGarbageCollection,
+            // because IsGCThread() is true, the EEContract::DoCheck() will happily accept the fact we are
+            // testing for MODE_COOPERATIVE.
+            //
             MODE_COOPERATIVE;
         }
         else
         {
-            // Managed threads sending debug events should always be in preemptive mode.
-            MODE_PREEMPTIVE;
+            if (ThisIsHelperThreadWorker())
+            {
+                // When we're stopped, the helper could actually be contracted as either mode-cooperative
+                // or mode-preemptive!
+                // If we're the helper thread, we're only sending events while we're stopped.
+                // Our callers will be mode-cooperative, so call this mode_cooperative to avoid a bunch
+                // of unncessary contract violations.
+                MODE_COOPERATIVE;
+            }
+            else
+            {
+                // Managed threads sending debug events should always be in preemptive mode.
+                MODE_PREEMPTIVE;
+            }
         }
-
-
         PRECONDITION(ThisMaybeHelperThread());
     }
     CONTRACTL_END;
@@ -1872,8 +1658,8 @@ HRESULT DebuggerRCThread::ReDaclEvents(PSECURITY_DESCRIPTOR pSecurityDescriptor)
     {
         if (m_pDCB->m_rightSideEventAvailable)
         {
-            if (SetKernelObjectSecurity(m_pDCB->m_rightSideEventAvailable, 
-                DACL_SECURITY_INFORMATION, 
+            if (SetKernelObjectSecurity(m_pDCB->m_rightSideEventAvailable,
+                DACL_SECURITY_INFORMATION,
                 pSecurityDescriptor) == 0)
             {
                 // failed!
@@ -1882,8 +1668,8 @@ HRESULT DebuggerRCThread::ReDaclEvents(PSECURITY_DESCRIPTOR pSecurityDescriptor)
         }
         if (m_pDCB->m_rightSideEventRead)
         {
-            if (SetKernelObjectSecurity(m_pDCB->m_rightSideEventRead, 
-                DACL_SECURITY_INFORMATION, 
+            if (SetKernelObjectSecurity(m_pDCB->m_rightSideEventRead,
+                DACL_SECURITY_INFORMATION,
                 pSecurityDescriptor) == 0)
             {
                 // failed!
@@ -1907,7 +1693,6 @@ void DebuggerRCThread::DoFavor(FAVORCALLBACK fp, void * pData)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_TRIGGERS;
 

@@ -50,7 +50,7 @@ Is_windows = (os.name == 'nt')
 ##########################################################################
 
 def del_rw(action, name, exc):
-    os.chmod(name, 0651)
+    os.chmod(name, 0o651)
     os.remove(name)
 
 ##########################################################################
@@ -69,6 +69,7 @@ parser.add_argument('-fx_root', dest='fx_root', default=None)
 parser.add_argument('-fx_branch', dest='fx_branch', default='master')
 parser.add_argument('-fx_commit', dest='fx_commit', default=None)
 parser.add_argument('-env_script', dest='env_script', default=None)
+parser.add_argument('-exclusion_rsp_file', dest='exclusion_rsp_file', default=None)
 parser.add_argument('-no_run_tests', dest='no_run_tests', action="store_true", default=False)
 
 
@@ -81,7 +82,7 @@ def validate_args(args):
     Args:
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
+        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests)
             (str, str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
@@ -96,6 +97,7 @@ def validate_args(args):
     fx_branch = args.fx_branch
     fx_commit = args.fx_commit
     env_script = args.env_script
+    exclusion_rsp_file = args.exclusion_rsp_file
     no_run_tests = args.no_run_tests
 
     def validate_arg(arg, check):
@@ -142,7 +144,11 @@ def validate_args(args):
         validate_arg(env_script, lambda item: os.path.isfile(env_script))
         env_script = os.path.abspath(env_script)
 
-    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
+    if exclusion_rsp_file is not None:
+        validate_arg(exclusion_rsp_file, lambda item: os.path.isfile(exclusion_rsp_file))
+        exclusion_rsp_file = os.path.abspath(exclusion_rsp_file)
+
+    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests)
 
     log('Configuration:')
     log(' arch: %s' % arch)
@@ -153,6 +159,7 @@ def validate_args(args):
     log(' fx_branch: %s' % fx_branch)
     log(' fx_commit: %s' % fx_commit)
     log(' env_script: %s' % env_script)
+    log(' exclusion_rsp_file: %s' % exclusion_rsp_file)
     log(' no_run_tests: %s' % no_run_tests)
 
     return args
@@ -181,7 +188,7 @@ def log(message):
         message (str): message to be printed
     """
 
-    print '[%s]: %s' % (sys.argv[0], message)
+    print('[%s]: %s' % (sys.argv[0], message))
 
 def copy_files(source_dir, target_dir):
     """ Copy any files in the source_dir to the target_dir.
@@ -196,7 +203,7 @@ def copy_files(source_dir, target_dir):
 
     global testing
     assert os.path.isdir(source_dir)
-    assert os.path.isdir(target_dir)
+    assert testing or os.path.isdir(target_dir)
 
     for source_filename in os.listdir(source_dir):
         source_pathname = os.path.join(source_dir, source_filename)
@@ -215,7 +222,10 @@ def main(args):
     global Unix_name_map
     global testing
 
-    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests = validate_args(
+    if testing:
+        log("Running with testing = True")
+
+    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests = validate_args(
         args)
 
     clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
@@ -235,7 +245,7 @@ def main(args):
             while True:
                 res = subprocess.check_output(['tasklist'])
                 if not 'VBCSCompiler.exe' in res:
-                   break                
+                   break
         os.chdir(fx_root)
         os.system('git clean -fxd')
         os.chdir(clr_root)
@@ -285,50 +295,29 @@ def main(args):
             os.makedirs(fx_home)
         os.putenv('HOME', fx_home)
         log('HOME=' + fx_home)
- 
-    # Gather up some arguments to pass to build-managed, build-native, and build-tests scripts.
 
-    config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
+    # Gather up some arguments to pass to the different build scripts.
 
-    # Run the primary (non-test) corefx build. We previously passed the argument:
-    #
-    #    /p:CoreCLROverridePath=<path-to-core_root>
-    #
-    # which causes the corefx build to overwrite its built runtime with the binaries from
-    # the coreclr build. However, this often causes build failures when breaking changes are
-    # in progress (e.g., a breaking change is made in coreclr that has not yet had compensating
-    # changes made in the corefx repo). Instead, build corefx normally. This should always work
-    # since corefx is protected by a CI testing system. Then, overwrite the built corefx
-    # runtime with the runtime built in the coreclr build. The result will be that perhaps
-    # some, hopefully few, corefx tests will fail, but the builds will never fail.
+    common_config_args = '-configuration Release -framework netcoreapp -os %s -arch %s' % (clr_os, arch)
+    build_args = '-build -restore'
+    build_test_args = '-buildtests  /p:ArchiveTests=Tests'
 
-    # Cross build corefx for arm64 on x64.
-    # Cross build corefx for arm32 on x86.
+    if not no_run_tests:
+        build_test_args += ' -test'
 
-    build_native_args = ''
 
     if not Is_windows and arch == 'arm' :
         # We need to force clang5.0; we are building in a docker container that doesn't have
-        # clang3.9, which is currently the default used by build-native.sh. We need to pass
-        # "-cross", but we also pass "-portable", which build-native.sh normally passes
-        # (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' -AdditionalArgs:"-portable -cross" -Clang:clang5.0'
+        # clang3.9, which is currently the default used by the native build.
+        common_config_args += ' /p:BuildNativeCompiler=--clang5.0'
 
-    if not Is_windows and arch == 'arm64' :
-        # We need to pass "-cross", but we also pass "-portable", which build-native.sh normally
-        # passes (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' -AdditionalArgs:"-portable -cross"'
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
+        common_config_args += ' --warnAsError false'
 
-    command = ' '.join(('build-native.cmd' if Is_windows else './build-native.sh',
-                        config_args,
-                        build_native_args))
-    log(command)
-    returncode = 0 if testing else os.system(command)
-    if returncode != 0:
-        log('Error: exit code %s' % returncode)
-        sys.exit(1)
+    build_command = 'build.cmd' if Is_windows else './build.sh'
 
-    command = ' '.join(('build-managed.cmd' if Is_windows else './build-managed.sh', config_args))
+    command = ' '.join((build_command, common_config_args, build_args))
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
@@ -339,26 +328,52 @@ def main(args):
     # by its dependencies.props file). Note that we always build Release corefx.
     # We must copy all files, not just the files that already exist in the corefx runtime
     # directory. This is required so we copy over all altjit compilers.
+    #
+    # We find the latest numbered directory in the 'Microsoft.NETCore.App' directory. This
+    # is expected to be the current product version, e.g., 3.0.0.
+    #
     # TODO: it might be cleaner to encapsulate the knowledge of how to do this in the
     # corefx msbuild files somewhere.
 
-    fx_runtime = os.path.join(fx_root,
-                             'bin',
-                             'testhost',
-                             'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch),
-                             'shared',
-                             'Microsoft.NETCore.App',
-                             '9.9.9')
+    netcore_app_path = os.path.join(fx_root,
+                                    'artifacts',
+                                    'bin',
+                                    'testhost',
+                                    'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch),
+                                    'shared',
+                                    'Microsoft.NETCore.App')
+
+    if not testing and not os.path.isdir(netcore_app_path):
+        log("Error: path not found or is not a directory: %s" % netcore_app_path)
+        sys.exit(1)
+
+    fx_runtime = None
+
+    if testing:
+        fx_runtime = os.path.join(netcore_app_path, '9.9.9')
+    else:
+        # Figure out what the latest product version is, and use that.
+        netcore_app_version_dirs = os.listdir(netcore_app_path)
+
+        if netcore_app_version_dirs is None:
+            log("Error: no version directories in %s" % netcore_app_path)
+            sys.exit(1)
+
+        netcore_app_version_dirs.sort(reverse=True)
+        for netcore_app_version_dir in netcore_app_version_dirs:
+            netcore_app_version_path = os.path.join(netcore_app_path, netcore_app_version_dir)
+            if os.path.isdir(netcore_app_version_path):
+                fx_runtime = netcore_app_version_path
+                break
+
+    if fx_runtime is None:
+        log("Error: couldn't find fx runtime directory in %s" % netcore_app_path)
+        sys.exit(1)
 
     log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
     copy_files(core_root, fx_runtime)
 
-    # Build the build-tests command line.
-
-    if Is_windows:
-        command = 'build-tests.cmd'
-    else:
-        command = './build-tests.sh'
+    # Build the test command line.
 
     # If we're doing altjit testing, then don't run any tests that don't work with altjit.
     if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
@@ -380,18 +395,18 @@ def main(args):
         without_categories_string = '/p:WithoutCategories="IgnoreForCI;XsltcExeRequired"'
         with open(without_categories_filename, "w") as without_categories_file:
             without_categories_file.write(without_categories_string)
-        without_categories = "-- @%s" % without_categories_filename
+        without_categories = " @%s" % without_categories_filename
 
         log('Response file %s contents:' % without_categories_filename)
         log('%s' % without_categories_string)
         log('[end response file contents]')
     else:
-        without_categories = '-- /p:WithoutCategories=IgnoreForCI'
+        without_categories = ' /p:WithoutCategories=IgnoreForCI'
 
     command = ' '.join((
-        command,
-        config_args,
-        '-SkipTests' if no_run_tests else '',
+        build_command,
+        common_config_args,
+        build_test_args,
         without_categories
     ))
 
@@ -400,6 +415,13 @@ def main(args):
 
     if not Is_windows:
         command += ' /p:TestWithLocalNativeLibraries=true'
+
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # It is needed under docker where LC_ALL is not configured.
+        command += ' --warnAsError false'
+
+    if exclusion_rsp_file is not None:
+        command += (' /p:TestRspFile=%s' % exclusion_rsp_file)
 
     # Run the corefx test build and run the tests themselves.
 

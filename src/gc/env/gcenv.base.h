@@ -11,16 +11,17 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define REDHAWK_PALIMPORT extern "C"
-#define REDHAWK_PALAPI __stdcall
+#if !defined(_MSC_VER)
+#define _alloca alloca
+#endif //_MSC_VER
 
 #ifndef _MSC_VER
 #define __stdcall
-#ifdef __clang__
+#ifdef __GNUC__
 #define __forceinline __attribute__((always_inline)) inline
-#else // __clang__
+#else // __GNUC__
 #define __forceinline inline
-#endif // __clang__
+#endif // __GNUC__
 // [LOCALGC TODO] is there a better place for this?
 #define NOINLINE __attribute__((noinline))
 #else // !_MSC_VER
@@ -67,6 +68,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
 #define COR_E_EXECUTIONENGINE   0x80131506
+#define CLR_E_GC_BAD_AFFINITY_CONFIG 0x8013200A
+#define CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT 0x8013200B
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -125,7 +128,7 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #define WAIT_TIMEOUT            258
 #define WAIT_FAILED             0xFFFFFFFF
 
-#if defined(_MSC_VER) 
+#if defined(_MSC_VER)
  #if defined(_ARM_)
 
   __forceinline void YieldProcessor() { }
@@ -144,12 +147,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
   #define MemoryBarrier() { __dmb(_ARM64_BARRIER_SY); }
 
  #elif defined(_AMD64_)
-  
+
   extern "C" void
   _mm_pause (
       void
       );
-  
+
   extern "C" void
   _mm_mfence (
       void
@@ -157,12 +160,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
   #pragma intrinsic(_mm_pause)
   #pragma intrinsic(_mm_mfence)
-  
+
   #define YieldProcessor _mm_pause
   #define MemoryBarrier _mm_mfence
 
  #elif defined(_X86_)
-  
+
   #define YieldProcessor() __asm { rep nop }
   #define MemoryBarrier() MemoryBarrierImpl()
   __forceinline void MemoryBarrierImpl()
@@ -178,18 +181,26 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #endif
 #else // _MSC_VER
 
+#ifdef __llvm__
+#define HAS_IA32_PAUSE __has_builtin(__builtin_ia32_pause)
+#define HAS_IA32_MFENCE __has_builtin(__builtin_ia32_mfence)
+#else
+#define HAS_IA32_PAUSE 0
+#define HAS_IA32_MFENCE 0
+#endif
+
 // Only clang defines __has_builtin, so we first test for a GCC define
 // before using __has_builtin.
 
 #if defined(__i386__) || defined(__x86_64__)
 
-#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || __has_builtin(__builtin_ia32_pause)
+#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || HAS_IA32_PAUSE
  // clang added this intrinsic in 3.8
  // gcc added this intrinsic by 4.7.1
  #define YieldProcessor __builtin_ia32_pause
 #endif // __has_builtin(__builtin_ia32_pause)
 
-#if defined(__GNUC__) || __has_builtin(__builtin_ia32_mfence)
+#if defined(__GNUC__) || HAS_IA32_MFENCE
  // clang has had this intrinsic since at least 3.0
  // gcc has had this intrinsic since forever
  #define MemoryBarrier __builtin_ia32_mfence
@@ -220,40 +231,48 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
-#if WIN64
+#pragma intrinsic(_BitScanReverse)
+#if _WIN64
  #pragma intrinsic(_BitScanForward64)
+ #pragma intrinsic(_BitScanReverse64)
 #endif
 #endif // _MSC_VER
 
 // Cross-platform wrapper for the _BitScanForward compiler intrinsic.
+// A value is unconditionally stored through the bitIndex argument,
+// but callers should only rely on it when the function returns TRUE;
+// otherwise, the stored value is undefined and varies by implementation
+// and hardware platform.
 inline uint8_t BitScanForward(uint32_t *bitIndex, uint32_t mask)
 {
 #ifdef _MSC_VER
     return _BitScanForward((unsigned long*)bitIndex, mask);
 #else // _MSC_VER
-    unsigned char ret = FALSE;
-    int iIndex = __builtin_ffsl(mask);
-    if (iIndex != 0)
-    {
-        *bitIndex = (uint32_t)(iIndex - 1);
-        ret = TRUE;
-    }
-
-    return ret;
+    int iIndex = __builtin_ffs(mask);
+    *bitIndex = static_cast<uint32_t>(iIndex - 1);
+    // Both GCC and Clang generate better, smaller code if we check whether the
+    // mask was/is zero rather than the equivalent check that iIndex is zero.
+    return mask != 0 ? TRUE : FALSE;
 #endif // _MSC_VER
 }
 
 // Cross-platform wrapper for the _BitScanForward64 compiler intrinsic.
+// A value is unconditionally stored through the bitIndex argument,
+// but callers should only rely on it when the function returns TRUE;
+// otherwise, the stored value is undefined and varies by implementation
+// and hardware platform.
 inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
 {
 #ifdef _MSC_VER
- #if _WIN32
+ #if _WIN64
+    return _BitScanForward64((unsigned long*)bitIndex, mask);
+ #else
     // MSVC targeting a 32-bit target does not support this intrinsic.
     // We can fake it using two successive invocations of _BitScanForward.
     uint32_t hi = (mask >> 32) & 0xFFFFFFFF;
     uint32_t lo = mask & 0xFFFFFFFF;
     uint32_t fakeBitIndex = 0;
-    
+
     uint8_t result = BitScanForward(bitIndex, lo);
     if (result == 0)
     {
@@ -265,19 +284,63 @@ inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
     }
 
     return result;
- #else
-    return _BitScanForward64((unsigned long*)bitIndex, mask);
- #endif // _WIN32
+ #endif // _WIN64
 #else
-    unsigned char ret = FALSE;
     int iIndex = __builtin_ffsll(mask);
-    if (iIndex != 0)
+    *bitIndex = static_cast<uint32_t>(iIndex - 1);
+    // Both GCC and Clang generate better, smaller code if we check whether the
+    // mask was/is zero rather than the equivalent check that iIndex is zero.
+    return mask != 0 ? TRUE : FALSE;
+#endif // _MSC_VER
+}
+
+// Cross-platform wrapper for the _BitScanReverse compiler intrinsic.
+inline uint8_t BitScanReverse(uint32_t *bitIndex, uint32_t mask)
+{
+#ifdef _MSC_VER
+    return _BitScanReverse((unsigned long*)bitIndex, mask);
+#else // _MSC_VER
+    // The result of __builtin_clzl is undefined when mask is zero,
+    // but it's still OK to call the intrinsic in that case (just don't use the output).
+    // Unconditionally calling the intrinsic in this way allows the compiler to
+    // emit branchless code for this function when possible (depending on how the
+    // intrinsic is implemented for the target platform).
+    int lzcount = __builtin_clzl(mask);
+    *bitIndex = static_cast<uint32_t>(31 - lzcount);
+    return mask != 0 ? TRUE : FALSE;
+#endif // _MSC_VER
+}
+
+// Cross-platform wrapper for the _BitScanReverse64 compiler intrinsic.
+inline uint8_t BitScanReverse64(uint32_t *bitIndex, uint64_t mask)
+{
+#ifdef _MSC_VER
+ #if _WIN64
+    return _BitScanReverse64((unsigned long*)bitIndex, mask);
+ #else
+    // MSVC targeting a 32-bit target does not support this intrinsic.
+    // We can fake it checking whether the upper 32 bits are zeros (or not)
+    // then calling _BitScanReverse() on either the upper or lower 32 bits.
+    uint32_t upper = static_cast<uint32_t>(mask >> 32);
+
+    if (upper != 0)
     {
-        *bitIndex = (uint32_t)(iIndex - 1);
-        ret = TRUE;
+        uint8_t result = _BitScanReverse((unsigned long*)bitIndex, upper);
+        *bitIndex += 32;
+        return result;
     }
 
-    return ret;
+    return _BitScanReverse((unsigned long*)bitIndex, static_cast<uint32_t>(mask));
+ #endif // _WIN64
+#else
+    // The result of __builtin_clzll is undefined when mask is zero,
+    // but it's still OK to call the intrinsic in that case (just don't use the output).
+    // Unconditionally calling the intrinsic in this way allows the compiler to
+    // emit branchless code for this function when possible (depending on how the
+    // intrinsic is implemented for the target platform).
+    int lzcount = __builtin_clzll(mask);
+    *bitIndex = static_cast<uint32_t>(63 - lzcount);
+    return mask != 0 ? TRUE : FALSE;
 #endif // _MSC_VER
 }
 
@@ -354,7 +417,6 @@ typedef struct _PROCESSOR_NUMBER {
 #define STATIC_CONTRACT_DEBUG_ONLY
 #define STATIC_CONTRACT_NOTHROW
 #define STATIC_CONTRACT_CAN_TAKE_LOCK
-#define STATIC_CONTRACT_SO_TOLERANT
 #define STATIC_CONTRACT_GC_NOTRIGGER
 #define STATIC_CONTRACT_MODE_COOPERATIVE
 #define CONTRACTL
@@ -365,8 +427,6 @@ typedef struct _PROCESSOR_NUMBER {
 #define INSTANCE_CHECK
 #define MODE_COOPERATIVE
 #define MODE_ANY
-#define SO_INTOLERANT
-#define SO_TOLERANT
 #define GC_TRIGGERS
 #define GC_NOTRIGGER
 #define CAN_TAKE_LOCK
@@ -406,7 +466,13 @@ typedef DPTR(uint8_t)   PTR_uint8_t;
 
 #define DATA_ALIGNMENT sizeof(uintptr_t)
 #define RAW_KEYWORD(x) x
+
+#ifdef _MSC_VER
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
+#else
+#define DECLSPEC_ALIGN(x)   __attribute__((aligned(x)))
+#endif
+
 #ifndef _ASSERTE
 #define _ASSERTE(_expr) ASSERT(_expr)
 #endif
@@ -449,8 +515,6 @@ inline bool dbgOnly_IsSpecialEEThread()
 // Performance logging
 //
 
-#define COUNTER_ONLY(x)
-
 //#include "etmdummy.h"
 //#define ETW_EVENT_ENABLED(e,f) false
 
@@ -470,23 +534,5 @@ inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
 }
-
-// -----------------------------------------------------------------------------------------------------------
-//
-// AppDomain emulation. The we don't have these in Redhawk so instead we emulate the bare minimum of the API
-// touched by the GC/HandleTable and pretend we have precisely one (default) appdomain.
-//
-
-#define RH_DEFAULT_DOMAIN_ID 1
-
-struct ADIndex
-{
-    DWORD m_dwIndex;
-
-    ADIndex () : m_dwIndex(RH_DEFAULT_DOMAIN_ID) {}
-    explicit ADIndex (DWORD id) : m_dwIndex(id) {}
-    BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
-    BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
-};
 
 #endif // __GCENV_BASE_INCLUDED__

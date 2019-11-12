@@ -30,7 +30,7 @@ public:
     {
         unsigned res = 0;
         // We process "u" in 4-bit nibbles, hence the "*2" below.
-        for (int i = 0; i < sizeof(T) * 2; i++)
+        for (unsigned int i = 0; i < sizeof(T) * 2; i++)
         {
             res += BitCountTable[u & 0xf];
             u >>= 4;
@@ -177,7 +177,7 @@ class BitSetOps
     // Returns "true" iff "bs" may be the uninit value.
     static bool MayBeUninit(BitSetValueArgType bs);
 
-    // Returns the a new BitSet that is empty.  Uses the Allocator of "env" to allocate memory for 
+    // Returns the a new BitSet that is empty.  Uses the Allocator of "env" to allocate memory for
     // the representation, if necessary.
     static BitSetValueRetType MakeEmpty(Env env);
 
@@ -246,7 +246,7 @@ class BitSetOps
 
     // Destructively modify "bs1" to be the set difference of "bs1" and "bs2".
     static void DiffD(Env env, BitSetType& bs1, BitSetValueArgType bs2);
-    
+
     // Returns a new BitSet that is the set difference of "bs1" and "bs2".
     static BitSetValueRetType Diff(Env env, BitSetValueArgType bs1, BitSetValueArgType bs2);
 

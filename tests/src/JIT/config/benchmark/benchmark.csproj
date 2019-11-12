@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.props))\Directory.Build.props" />
   <PropertyGroup>
     <NugetTargetMoniker>.NETStandard,Version=v1.4</NugetTargetMoniker>
     <NugetTargetMonikerShort>netstandard1.4</NugetTargetMonikerShort>
@@ -23,7 +23,7 @@
       <Version>$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.NETCore.Platforms">
-      <Version>$(MicrosoftNETCorePlatformsPackageVersion)</Version>
+      <Version>$(MicrosoftNETCorePlatformsVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Collections.NonGeneric">
       <Version>4.4.0-beta-24913-02</Version>
@@ -44,10 +44,10 @@
       <Version>4.4.0-beta-24913-02</Version>
     </PackageReference>
     <PackageReference Include="System.Memory">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>4.5.2</Version>
     </PackageReference>
     <PackageReference Include="System.Numerics.Vectors">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>4.5.0</Version>
     </PackageReference>
     <PackageReference Include="System.Reflection">
       <Version>4.4.0-beta-24913-02</Version>
@@ -56,13 +56,13 @@
       <Version>4.4.0-beta-24913-02</Version>
     </PackageReference>
     <PackageReference Include="System.Reflection.TypeExtensions">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime">
       <Version>4.4.0-beta-24913-02</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.Extensions">
       <Version>4.4.0-beta-24913-02</Version>
@@ -107,11 +107,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard1.4</TargetFramework>
     <TargetFrameworkIdentifier>.NETStandard</TargetFrameworkIdentifier>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
-    <ContainsPackageReferences>true</ContainsPackageReferences>
-    <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.targets))\Directory.Build.targets" />
   <Target Name="Build"
      DependsOnTargets="ResolveReferences" />
 </Project>

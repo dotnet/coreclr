@@ -24,32 +24,32 @@ HANDLE StressLogChunk::s_LogChunkHeap = NULL;
 /*********************************************************************************/
 #if defined(_TARGET_X86_)
 
-/* This is like QueryPerformanceCounter but a lot faster.  On machines with 
+/* This is like QueryPerformanceCounter but a lot faster.  On machines with
    variable-speed CPUs (for power management), this is not accurate, but may
    be good enough.
 */
 __forceinline __declspec(naked) unsigned __int64 getTimeStamp() {
     STATIC_CONTRACT_LEAF;
-    
+
    __asm {
         RDTSC   // read time stamp counter
         ret
     };
 }
 
-#else // _TARGET_X86_ 
+#else // _TARGET_X86_
 unsigned __int64 getTimeStamp() {
     STATIC_CONTRACT_LEAF;
-    
+
     LARGE_INTEGER ret;
     ZeroMemory(&ret, sizeof(LARGE_INTEGER));
-    
+
     QueryPerformanceCounter(&ret);
 
     return ret.QuadPart;
 }
 
-#endif // _TARGET_X86_ 
+#endif // _TARGET_X86_
 
 #if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 
@@ -58,10 +58,10 @@ unsigned __int64 getTimeStamp() {
    frequency of the RDTSC instruction, which is just the clock rate of the CPU.
    This can vary due to power management, so this is at best a rough approximation.
 */
-unsigned __int64 getTickFrequency() 
+unsigned __int64 getTickFrequency()
 {
     //
-    // At startup, the OS calculates the CPU clock frequency and makes it available 
+    // At startup, the OS calculates the CPU clock frequency and makes it available
     // at HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0
     //
 
@@ -69,7 +69,7 @@ unsigned __int64 getTickFrequency()
 
     HKEY hKey;
     if (ERROR_SUCCESS == RegOpenKeyExW(
-        HKEY_LOCAL_MACHINE, 
+        HKEY_LOCAL_MACHINE,
         W("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
         0,
         KEY_QUERY_VALUE,
@@ -94,15 +94,15 @@ unsigned __int64 getTickFrequency()
 
         RegCloseKey(hKey);
     }
-    
+
     return hz;
 }
 
-#else // _TARGET_X86_ 
+#else // _TARGET_X86_
 
 
 /*********************************************************************************/
-/* Get the the frequency cooresponding to 'getTimeStamp'.  For non-x86 
+/* Get the the frequency cooresponding to 'getTimeStamp'.  For non-x86
    architectures, this is just the performance counter frequency.
 */
 unsigned __int64 getTickFrequency()
@@ -113,17 +113,17 @@ unsigned __int64 getTickFrequency()
     return ret.QuadPart;
 }
 
-#endif // _TARGET_X86_ 
+#endif // _TARGET_X86_
 
 #ifdef STRESS_LOG
 
-StressLog StressLog::theLog = { 0, 0, 0, 0, 0, 0, TLS_OUT_OF_INDEXES, 0, 0, 0 };    
+StressLog StressLog::theLog = { 0, 0, 0, 0, 0, 0, TLS_OUT_OF_INDEXES, 0, 0, 0 };
 const static unsigned __int64 RECYCLE_AGE = 0x40000000L;        // after a billion cycles, we can discard old threads
 
 /*********************************************************************************/
 void StressLog::Enter(CRITSEC_COOKIE) {
     STATIC_CONTRACT_LEAF;
-    
+
     IncCantAllocCount();
     ClrEnterCriticalSection(theLog.lock);
     DecCantAllocCount();
@@ -131,15 +131,15 @@ void StressLog::Enter(CRITSEC_COOKIE) {
 
 void StressLog::Leave(CRITSEC_COOKIE) {
     STATIC_CONTRACT_LEAF;
-    
+
     IncCantAllocCount();
     ClrLeaveCriticalSection(theLog.lock);
     DecCantAllocCount();
 }
 
 /*********************************************************************************/
-void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxBytesPerThread, 
-            unsigned maxBytesTotal, HMODULE hMod) 
+void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxBytesPerThread,
+            unsigned maxBytesTotal, HMODULE hMod)
 {
     STATIC_CONTRACT_LEAF;
 
@@ -148,7 +148,7 @@ void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxByt
         // guard ourself against multiple initialization. First init wins.
         return;
     }
-    
+
     _ASSERTE (theLog.TLSslot == (unsigned int)TLS_OUT_OF_INDEXES);
     theLog.lock = ClrCreateCriticalSection(CrstStressLog,(CrstFlags)(CRST_UNSAFE_ANYMODE|CRST_DEBUGGER_THREAD));
     // StressLog::Terminate is going to free memory.
@@ -168,9 +168,9 @@ void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxByt
     theLog.levelToLog = level;
     theLog.deadCount = 0;
     theLog.TLSslot = TlsIdx_StressLog;
-	
+
     theLog.tickFrequency = getTickFrequency();
-	
+
     GetSystemTimeAsFileTime (&theLog.startTime);
     theLog.startTimeStamp = getTimeStamp();
 
@@ -187,7 +187,7 @@ void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxByt
     theLog.moduleOffset = (SIZE_T)PAL_GetSymbolModuleBase((void *)StressLog::Initialize);
 #endif // !FEATURE_PAL
 
-#if !defined (STRESS_LOG_READONLY)    
+#if !defined (STRESS_LOG_READONLY)
     StressLogChunk::s_LogChunkHeap = ClrHeapCreate (0, STRESSLOG_CHUNK_SIZE * 128, 0);
     if (StressLogChunk::s_LogChunkHeap == NULL)
     {
@@ -201,7 +201,7 @@ void StressLog::Initialize(unsigned facilities,  unsigned level, unsigned maxByt
 void StressLog::Terminate(BOOL fProcessDetach) {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_FORBID_FAULT;
-    
+
     if (theLog.TLSslot != (unsigned int)TLS_OUT_OF_INDEXES) {
         theLog.facilitiesToLog = 0;
 
@@ -213,9 +213,9 @@ void StressLog::Terminate(BOOL fProcessDetach) {
                     // This is not strictly threadsafe, since there is no way of insuring when all the
                     // threads are out of logMsg.  In practice, since they can no longer enter logMsg
                     // and there are no blocking operations in logMsg, simply sleeping will insure
-                    // that everyone gets out. 
+                    // that everyone gets out.
             ClrSleepEx(2, FALSE);
-            lockh.Acquire();    
+            lockh.Acquire();
         }
 
         // Free the log memory
@@ -232,7 +232,7 @@ void StressLog::Terminate(BOOL fProcessDetach) {
             lockh.Release();
         }
     }
-#if !defined (STRESS_LOG_READONLY)    
+#if !defined (STRESS_LOG_READONLY)
     if (StressLogChunk::s_LogChunkHeap != NULL && StressLogChunk::s_LogChunkHeap != ClrGetProcessHeap ())
     {
         ClrHeapDestroy (StressLogChunk::s_LogChunkHeap);
@@ -249,10 +249,9 @@ ThreadStressLog* StressLog::CreateThreadStressLog() {
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-    
+
     static PVOID callerID = NULL;
 
     ThreadStressLog* msgs = (ThreadStressLog*) ClrFlsGetValue(theLog.TLSslot);
@@ -278,7 +277,6 @@ ThreadStressLog* StressLog::CreateThreadStressLog() {
         return NULL;
     }
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return NULL);
     StressLogLockHolder lockh(theLog.lock, FALSE);
 
     class NestedCaller
@@ -300,7 +298,7 @@ ThreadStressLog* StressLog::CreateThreadStressLog() {
     NestedCaller nested;
 
     BOOL noFLSNow = FALSE;
-    
+
     PAL_CPP_TRY
     {
         // Acquiring the lack can throw an OOM exception the first time its called on a thread. We go
@@ -325,8 +323,6 @@ ThreadStressLog* StressLog::CreateThreadStressLog() {
     if (noFLSNow == FALSE && theLog.facilitiesToLog != 0)
         msgs = CreateThreadStressLogHelper();
 
-    END_SO_INTOLERANT_CODE;
-
     return msgs;
 }
 
@@ -336,7 +332,6 @@ ThreadStressLog* StressLog::CreateThreadStressLogHelper() {
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_INTOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -348,36 +343,36 @@ ThreadStressLog* StressLog::CreateThreadStressLogHelper() {
     ThreadStressLog* msgs = NULL;
 
     // See if we can recycle a dead thread
-    if (theLog.deadCount > 0) 
-    {        
+    if (theLog.deadCount > 0)
+    {
         unsigned __int64 recycleStamp = getTimeStamp() - RECYCLE_AGE;
         msgs = theLog.logs;
-        //find out oldest dead ThreadStressLog in case we can't find one within 
+        //find out oldest dead ThreadStressLog in case we can't find one within
         //recycle age but can't create a new chunk
         ThreadStressLog * oldestDeadMsg = NULL;
-        
-        while(msgs != 0) 
+
+        while(msgs != 0)
         {
             if (msgs->isDead)
             {
                 BOOL hasTimeStamp = msgs->curPtr != (StressMsg *)msgs->chunkListTail->EndPtr();
-                if (hasTimeStamp && msgs->curPtr->timeStamp < recycleStamp) 
+                if (hasTimeStamp && msgs->curPtr->timeStamp < recycleStamp)
                 {
-                    skipInsert = TRUE;                
+                    skipInsert = TRUE;
                     InterlockedDecrement(&theLog.deadCount);
                     break;
                 }
-                
+
                 if (!oldestDeadMsg)
                 {
                     oldestDeadMsg = msgs;
-                }                
+                }
                 else if (hasTimeStamp && oldestDeadMsg->curPtr->timeStamp > msgs->curPtr->timeStamp)
                 {
                     oldestDeadMsg = msgs;
-                }                               
+                }
             }
-            
+
             msgs = msgs->next;
         }
 
@@ -397,10 +392,10 @@ ThreadStressLog* StressLog::CreateThreadStressLogHelper() {
     	{
             goto LEAVE;
     	}
-        
+
     	msgs = new (nothrow) ThreadStressLog;
 
-        if (msgs == 0 ||!msgs->IsValid ()) 
+        if (msgs == 0 ||!msgs->IsValid ())
         {
             delete msgs;
             msgs = 0;
@@ -435,7 +430,7 @@ LEAVE:
     ;
     return msgs;
 }
-    
+
 /*********************************************************************************/
 /* static */
 void StressLog::ThreadDetach(ThreadStressLog *msgs) {
@@ -473,7 +468,7 @@ BOOL StressLog::AllowNewChunk (LONG numChunksInCurThread)
         perThreadLimit *= GC_STRESSLOG_MULTIPLY;
     }
 #endif
-        
+
     if ((DWORD)numChunksInCurThread * STRESSLOG_CHUNK_SIZE >= perThreadLimit)
     {
         return FALSE;
@@ -486,7 +481,7 @@ BOOL StressLog::ReserveStressLogChunks (unsigned chunksToReserve)
 {
     ThreadStressLog* msgs = (ThreadStressLog*) ClrFlsGetValue(theLog.TLSslot);
 
-    if (msgs == 0) 
+    if (msgs == 0)
     {
         msgs = CreateThreadStressLog();
 
@@ -534,17 +529,16 @@ void ThreadStressLog::LogMsg(unsigned facility, int cArgs, const char* format, v
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 	// Asserts in this function cause infinite loops in the asserting mechanism.
 	// Just use debug breaks instead.
-	
+
 #ifndef DACCESS_COMPILE
 #ifdef _DEBUG
     // _ASSERTE ( cArgs >= 0 && cArgs <= 7 );
 	if (cArgs < 0 || cArgs > 7) DebugBreak();
-#endif // 
-    
+#endif //
+
     size_t offs = ((size_t)format - StressLog::theLog.moduleOffset);
 
     // _ASSERTE ( offs < StressMsg::maxOffset );
@@ -553,9 +547,9 @@ void ThreadStressLog::LogMsg(unsigned facility, int cArgs, const char* format, v
 #ifdef _DEBUG
 		DebugBreak(); // in lieu of the above _ASSERTE
 #endif // _DEBUG
-		
+
 		// Set it to this string instead.
-		offs = 
+		offs =
 #ifdef _DEBUG
 			(size_t)"<BUG: StressLog format string beyond maxOffset>";
 #else // _DEBUG
@@ -589,7 +583,7 @@ FORCEINLINE BOOL StressLog::InlinedStressLogOn(unsigned facility, unsigned level
     STATIC_CONTRACT_LEAF;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
-#if defined(DACCESS_COMPILE) 
+#if defined(DACCESS_COMPILE)
     return FALSE;
 #else
     return ((theLog.facilitiesToLog & facility) && (level <= theLog.levelToLog));
@@ -620,7 +614,7 @@ BOOL StressLog::ETWLogOn(unsigned facility, unsigned level)
     return InlinedETWLogOn(facility, level);
 }
 
-#if !defined(DACCESS_COMPILE) 
+#if !defined(DACCESS_COMPILE)
 BOOL StressLog::LogOn(unsigned facility, unsigned level)
 {
     STATIC_CONTRACT_LEAF;
@@ -638,7 +632,6 @@ void StressLog::LogMsg (unsigned level, unsigned facility, int cArgs, const char
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     // Any stresslog LogMsg could theoretically create a new stress log and thus
@@ -650,7 +643,7 @@ void StressLog::LogMsg (unsigned level, unsigned facility, int cArgs, const char
     _ASSERTE ( cArgs >= 0 && cArgs <= 7 );
 
     va_list Args;
-    
+
     if(InlinedStressLogOn(facility, level))
     {
         ThreadStressLog* msgs = (ThreadStressLog*) ClrFlsGetValue(theLog.TLSslot);
@@ -673,14 +666,14 @@ void StressLog::LogMsg (unsigned level, unsigned facility, int cArgs, const char
 #ifdef _DEBUG
 /* static */
 void  StressLog::LogCallStack(const char *const callTag){
-   if (theLog.RtlCaptureStackBackTrace) 
+   if (theLog.RtlCaptureStackBackTrace)
    {
         size_t  CallStackTrace[MAX_CALL_STACK_TRACE];
         ULONG hash;
         USHORT stackTraceCount = theLog.RtlCaptureStackBackTrace (2, MAX_CALL_STACK_TRACE, (PVOID *)CallStackTrace, &hash);
         if (stackTraceCount > MAX_CALL_STACK_TRACE)
             stackTraceCount = MAX_CALL_STACK_TRACE;
-        LogMsgOL("Start of %s stack \n", callTag); 
+        LogMsgOL("Start of %s stack \n", callTag);
         USHORT i = 0;
         for (;i < stackTraceCount; i++)
         {

@@ -71,15 +71,15 @@ void Cleanup();
 void CreateProgressBar(LONG lRange);
 BOOL ProgressStep();
 void DestroyProgressBar();
-char * DumpQString(void* GUICookie, 
-                   __in __nullterminated const char* szToDump, 
-                   __in __nullterminated const char* szPrefix, 
+char * DumpQString(void* GUICookie,
+                   __in __nullterminated const char* szToDump,
+                   __in __nullterminated const char* szPrefix,
                    unsigned uMaxLen);
 void DumpVtable(void* GUICookie);
 char* DumpUnicodeString(void* GUICookie,
                         __inout __nullterminated char* szString,
                         __in_ecount(cbString) WCHAR* pszString,
-                        ULONG cbString, 
+                        ULONG cbString,
                         bool SwapString = false);
 
 void TokenSigInit(IMDInternalImport *pImport);
@@ -109,9 +109,9 @@ struct  MTokName
 extern BOOL g_fPrettyPrint;
 extern MTokName*    rExeloc;
 extern ULONG    nExelocs;
-void DumpImplementation(mdToken tkImplementation, 
-                        DWORD dwOffset, 
-                        __inout __nullterminated char* szString, 
+void DumpImplementation(mdToken tkImplementation,
+                        DWORD dwOffset,
+                        __inout __nullterminated char* szString,
                         void* GUICookie);
 void DumpComType(LocalComTypeDescr* pCTD,
                  __inout __nullterminated char* szString,
@@ -142,9 +142,9 @@ extern WCHAR   wzUniBuf[]; // defined in dis.cpp
 #define SZSTRING_SIZE 131072
 extern char   szString[]; // defined in dis.cpp
 
-char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, 
-                      mdToken tok, 
-                      void* GUICookie=NULL, 
+char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString,
+                      mdToken tok,
+                      void* GUICookie=NULL,
                       BOOL fSplit=FALSE);
 
 #include "safemath.h"
@@ -152,30 +152,4 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString,
 #define CHECK_REMAINING_SIZE if(ovadd_le((size_t)szString, SZSTRING_SIZE_M4, (size_t)szptr)) break;
 #define SZSTRING_REMAINING_SIZE(x) (ovadd_le((size_t)szString,SZSTRING_SIZE,(size_t)(x))?0:(SZSTRING_SIZE-((size_t)(x)-(size_t)szString)))
 
-typedef int (STDAPICALLTYPE *MetaDataGetDispenserFunc) (
-    REFCLSID    rclsid,                 // The class to desired.
-    REFIID      riid,                   // Interface wanted on class factory.
-    LPVOID FAR  *ppv);                  // Return interface pointer here.
-
-typedef int (STDAPICALLTYPE *GetMetaDataInternalInterfaceFunc) (
-    LPVOID      pData,                  // [IN] in memory metadata section
-    ULONG       cbData,                 // [IN] size of the metadata section
-    DWORD       flags,                  // [IN] CorOpenFlags
-    REFIID      riid,                   // [IN] desired interface
-    void        **ppv);                 // [OUT] returned interface
-
-typedef int (STDAPICALLTYPE *GetMetaDataInternalInterfaceFromPublicFunc) (
-    IUnknown    *pv,                    // [IN] Given interface
-    REFIID      riid,                   // [IN] desired interface
-    void        **ppv);                 // [OUT] returned interface
-
-typedef int (STDAPICALLTYPE *GetMetaDataPublicInterfaceFromInternalFunc) (
-    void        *pv,                    // [IN] Given interface
-    REFIID      riid,                   // [IN] desired interface
-    void        **ppv);                 // [OUT] returned interface
-
-extern MetaDataGetDispenserFunc metaDataGetDispenser;
-extern GetMetaDataInternalInterfaceFunc getMetaDataInternalInterface;
-extern GetMetaDataInternalInterfaceFromPublicFunc getMetaDataInternalInterfaceFromPublic;
-extern GetMetaDataPublicInterfaceFromInternalFunc getMetaDataPublicInterfaceFromInternal;
 

@@ -19,11 +19,6 @@
 #include "../../vm/gdbjithelpers.h"
 #endif // FEATURE_GDBJIT
 
-typedef int (STDMETHODCALLTYPE *HostMain)(
-    const int argc,
-    const wchar_t** argv
-    );
-
 #define ASSERTE_ALL_BUILDS(expr) _ASSERTE_ALL_BUILDS(__FILE__, (expr))
 
 // Holder for const wide strings
@@ -41,11 +36,11 @@ public:
     {
     }
 
-    void Set(LPCWSTR* value, int cElements)   
-    {                                             
-        NewArrayHolder<LPCWSTR>::operator=(value);                  
+    void Set(LPCWSTR* value, int cElements)
+    {
+        NewArrayHolder<LPCWSTR>::operator=(value);
         m_cElements = cElements;
-    }                                             
+    }
 
     ~ConstWStringArrayHolder()
     {
@@ -64,7 +59,7 @@ static LPCWSTR StringToUnicode(LPCSTR str)
 
     LPWSTR result = new (nothrow) WCHAR[length];
     ASSERTE_ALL_BUILDS(result != NULL);
-    
+
     length = MultiByteToWideChar(CP_UTF8, 0, str, -1, result, length);
     ASSERTE_ALL_BUILDS(length != 0);
 
@@ -75,12 +70,12 @@ static LPCWSTR StringToUnicode(LPCSTR str)
 static LPCWSTR* StringArrayToUnicode(int argc, LPCSTR* argv)
 {
     LPCWSTR* argvW = nullptr;
-    
+
     if (argc > 0)
     {
         argvW = new (nothrow) LPCWSTR[argc];
         ASSERTE_ALL_BUILDS(argvW != 0);
-        
+
         for (int i = 0; i < argc; i++)
         {
             argvW[i] = StringToUnicode(argv[i]);
@@ -137,7 +132,7 @@ static void ConvertConfigPropertiesToUnicode(
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 // Reference to the global holding the path to the JIT
-extern "C" LPCWSTR g_CLRJITPath;
+extern LPCWSTR g_CLRJITPath;
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 #ifdef FEATURE_GDBJIT
@@ -149,18 +144,19 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 // Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
 //
 // Parameters:
-//  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly
+//  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly (the native host application)
 //  appDomainFriendlyName   - Friendly name of the app domain that will be created to execute the assembly
 //  propertyCount           - Number of properties (elements of the following two arguments)
 //  propertyKeys            - Keys of properties of the app domain
 //  propertyValues          - Values of properties of the app domain
 //  hostHandle              - Output parameter, handle of the created host
-//  domainId                - Output parameter, id of the created app domain 
+//  domainId                - Output parameter, id of the created app domain
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_initialize(
             const char* exePath,
             const char* appDomainFriendlyName,
@@ -274,12 +270,13 @@ int coreclr_initialize(
 //
 // Parameters:
 //  hostHandle              - Handle of the host
-//  domainId                - Id of the domain 
+//  domainId                - Id of the domain
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_shutdown(
             void* hostHandle,
             unsigned int domainId)
@@ -310,6 +307,7 @@ int coreclr_shutdown(
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_shutdown_2(
             void* hostHandle,
             unsigned int domainId,
@@ -330,20 +328,21 @@ int coreclr_shutdown_2(
 }
 
 //
-// Create a native callable delegate for a managed method.
+// Create a native callable function pointer for a managed method.
 //
 // Parameters:
 //  hostHandle              - Handle of the host
-//  domainId                - Id of the domain 
+//  domainId                - Id of the domain
 //  entryPointAssemblyName  - Name of the assembly which holds the custom entry point
 //  entryPointTypeName      - Name of the type which holds the custom entry point
 //  entryPointMethodName    - Name of the method which is the custom entry point
-//  delegate                - Output parameter, the function stores a pointer to the delegate at the specified address
+//  delegate                - Output parameter, the function stores a native callable function pointer to the delegate at the specified address
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_create_delegate(
             void* hostHandle,
             unsigned int domainId,
@@ -364,7 +363,7 @@ int coreclr_create_delegate(
                             entryPointTypeNameW,
                             entryPointMethodNameW,
                             (INT_PTR*)delegate);
-    
+
     return hr;
 }
 
@@ -373,7 +372,7 @@ int coreclr_create_delegate(
 //
 // Parameters:
 //  hostHandle              - Handle of the host
-//  domainId                - Id of the domain 
+//  domainId                - Id of the domain
 //  argc                    - Number of arguments passed to the executed assembly
 //  argv                    - Array of arguments passed to the executed assembly
 //  managedAssemblyPath     - Path of the managed assembly to execute (or NULL if using a custom entrypoint).
@@ -383,6 +382,7 @@ int coreclr_create_delegate(
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
+DLLEXPORT
 int coreclr_execute_assembly(
             void* hostHandle,
             unsigned int domainId,
@@ -401,7 +401,7 @@ int coreclr_execute_assembly(
 
     ConstWStringArrayHolder argvW;
     argvW.Set(StringArrayToUnicode(argc, argv), argc);
-    
+
     ConstWStringHolder managedAssemblyPathW = StringToUnicode(managedAssemblyPath);
 
     HRESULT hr = host->ExecuteAssembly(domainId, managedAssemblyPathW, argc, argvW, (DWORD *)exitCode);

@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if defined(__arm__)
+#if defined(__arm__) || defined(__aarch64__)
 #define PAGE_SIZE sysconf(_SC_PAGESIZE)
 #define PAGE_MASK (~(PAGE_SIZE-1))
 #endif
@@ -24,7 +24,7 @@ enum MEMORY_REGION_FLAGS : uint32_t
     MEMORY_REGION_FLAG_MEMORY_BACKED = 0x40
 };
 
-struct MemoryRegion 
+struct MemoryRegion
 {
 private:
     uint32_t m_flags;
@@ -36,7 +36,7 @@ private:
     const char* m_fileName;
 
 public:
-    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end) : 
+    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end) :
         m_flags(flags),
         m_startAddress(start),
         m_endAddress(end),
@@ -47,7 +47,7 @@ public:
         assert((end & ~PAGE_MASK) == 0);
     }
 
-    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t offset, const char* filename) : 
+    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t offset, const char* filename) :
         m_flags(flags),
         m_startAddress(start),
         m_endAddress(end),
@@ -61,7 +61,7 @@ public:
     // This is a special constructor for the module base address
     // set where the start/end are not page aligned and "offset"
     // is reused as the module base address.
-    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t baseAddress) : 
+    MemoryRegion(uint32_t flags, uint64_t start, uint64_t end, uint64_t baseAddress) :
         m_flags(flags),
         m_startAddress(start),
         m_endAddress(end),
@@ -71,7 +71,7 @@ public:
     }
 
     // copy with new file name constructor
-    MemoryRegion(const MemoryRegion& region, const char* fileName) : 
+    MemoryRegion(const MemoryRegion& region, const char* fileName) :
         m_flags(region.m_flags),
         m_startAddress(region.m_startAddress),
         m_endAddress(region.m_endAddress),
@@ -81,7 +81,7 @@ public:
     }
 
     // copy with new flags constructor. The file name is not copied.
-    MemoryRegion(const MemoryRegion& region, uint32_t flags) : 
+    MemoryRegion(const MemoryRegion& region, uint32_t flags) :
         m_flags(flags),
         m_startAddress(region.m_startAddress),
         m_endAddress(region.m_endAddress),
@@ -91,7 +91,7 @@ public:
     }
 
     // copy constructor
-    MemoryRegion(const MemoryRegion& region) : 
+    MemoryRegion(const MemoryRegion& region) :
         m_flags(region.m_flags),
         m_startAddress(region.m_startAddress),
         m_endAddress(region.m_endAddress),
@@ -100,13 +100,13 @@ public:
     {
     }
 
-    const uint32_t Permissions() const { return m_flags & MEMORY_REGION_FLAG_PERMISSIONS_MASK; }
-    const uint32_t Flags() const { return m_flags; }
-    const bool IsBackedByMemory() const { return (m_flags & MEMORY_REGION_FLAG_MEMORY_BACKED) != 0; }
-    const uint64_t StartAddress() const { return m_startAddress; }
-    const uint64_t EndAddress() const { return m_endAddress; }
-    const uint64_t Size() const { return m_endAddress - m_startAddress; }
-    const uint64_t Offset() const { return m_offset; }
+    uint32_t Permissions() const { return m_flags & MEMORY_REGION_FLAG_PERMISSIONS_MASK; }
+    uint32_t Flags() const { return m_flags; }
+    bool IsBackedByMemory() const { return (m_flags & MEMORY_REGION_FLAG_MEMORY_BACKED) != 0; }
+    uint64_t StartAddress() const { return m_startAddress; }
+    uint64_t EndAddress() const { return m_endAddress; }
+    uint64_t Size() const { return m_endAddress - m_startAddress; }
+    uint64_t Offset() const { return m_offset; }
     const char* FileName() const { return m_fileName; }
 
     bool operator<(const MemoryRegion& rhs) const

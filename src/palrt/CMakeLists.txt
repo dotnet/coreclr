@@ -8,12 +8,9 @@ set(PALRT_SOURCES
     guid.cpp
     memorystream.cpp
     path.cpp
-    urlpars.cpp
     unicode.cpp
     variant.cpp
 )
-
-add_compile_options(-fPIC)
 
 add_library_clr(palrt
     STATIC

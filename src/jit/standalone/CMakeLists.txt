@@ -12,11 +12,15 @@ if(WIN32)
   add_definitions(-DFX_VER_INTERNALNAME_STR=clrjit.dll)
 endif(WIN32)
 
+set_source_files_properties(${JIT_EXPORTS_FILE} PROPERTIES GENERATED TRUE)
+
 add_library_clr(clrjit
    SHARED
    ${SHARED_LIB_SOURCES}
    ${JIT_ARCH_SOURCES}
 )
+
+target_precompile_header(TARGET clrjit HEADER jitpch.h ADDITIONAL_INCLUDE_DIRECTORIES ${JIT_SOURCE_DIR})
 
 add_dependencies(clrjit jit_exports)
 

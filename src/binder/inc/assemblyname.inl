@@ -131,14 +131,4 @@ void AssemblyName::SetHave(DWORD dwIdentityFlags)
     AssemblyIdentity::SetHave(dwIdentityFlags);
 }
 
-BOOL AssemblyName::HaveAssemblyVersion()
-{
-    return m_version.HasMajor();
-}
-
-BOOL AssemblyName::HaveNeutralCulture()
-{
-    return GetDeNormalizedCulture().IsEmpty();
-}
-
 #endif

@@ -2,16 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Runtime;
-using System.Security;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -32,7 +23,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // object this[int index] { get }
-        internal object Indexer_Get(int index)
+        internal object? Indexer_Get(int index)
         {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -71,8 +62,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             IBindableVector _this = Unsafe.As<IBindableVector>(this);
 
-            uint index;
-            return _this.IndexOf(item, out index);
+            return _this.IndexOf(item, out _);
         }
 
         // void Clear()
@@ -154,7 +144,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Helpers:
 
-        private static object GetAt(IBindableVector _this, uint index)
+        private static object? GetAt(IBindableVector _this, uint index)
         {
             try
             {
@@ -165,7 +155,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -183,7 +173,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -201,7 +191,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -219,7 +209,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;

@@ -17,9 +17,9 @@
 #include <twowaypipe.h>
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- DbgTransportSession was originally designed around cross-machine debugging via sockets and it is supposed to 
+ DbgTransportSession was originally designed around cross-machine debugging via sockets and it is supposed to
  handle network interruptions. Right now we use pipes (see TwoWaypipe) and don't expect to have connection issues.
- But there seem to be no good reason to try hard to get rid of existing working protocol even if it's a bit 
+ But there seem to be no good reason to try hard to get rid of existing working protocol even if it's a bit
  cautious about connection quality. So please KEEP IN MIND THAT SOME COMMENTS REFERING TO NETWORK AND SOCKETS
  CAN BE OUTDATED.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -244,7 +244,7 @@ enum DbgTransportFaultState
 #endif // _DEBUG
 
 // The PAL doesn't define htons (host-to-network-short) and friends. So provide our own versions here.
-// winsock2.h defines BIGENDIAN to 0x0000 and LITTLEENDIAN to 0x0001, so we need to be careful with the 
+// winsock2.h defines BIGENDIAN to 0x0000 and LITTLEENDIAN to 0x0001, so we need to be careful with the
 // #ifdef.
 #if BIGENDIAN > 0
 #define DBGIPC_HTONS(x) (x)
@@ -287,10 +287,10 @@ private:
 };
 
 // The transport has only one queue for IPC events, but each IPC event can be marked as one of two types.
-// The transport will signal the handle corresponding to the type of each IPC event.  (See 
+// The transport will signal the handle corresponding to the type of each IPC event.  (See
 // code:DbgTransportSession::GetIPCEventReadyEvent and code:DbgTransportSession::GetDebugEventReadyEvent.)
 // This is effectively a basic multiplexing scheme.  The old-style IPC event are for all RS-to-LS IPC events
-// and for all LS-to-RS replies.  The other type is for LS-to-RS IPC events transported over the native 
+// and for all LS-to-RS replies.  The other type is for LS-to-RS IPC events transported over the native
 // pipeline.  For more information, see the comments for the interface code:IEventChannel.
 enum IPCEventType
 {
@@ -318,7 +318,7 @@ public:
     // requires the addresses of a couple of runtime data structures to service certain debugger requests that
     // may be delivered once the session is established.
 #ifdef RIGHT_SIDE_COMPILE
-    HRESULT Init(DWORD pid, HANDLE hProcessExited);
+    HRESULT Init(const ProcessDescriptor& pd, HANDLE hProcessExited);
 #else
     HRESULT Init(DebuggerIPCControlBlock * pDCB, AppDomainEnumerationIPCBlock * pADB);
 #endif // RIGHT_SIDE_COMPILE
@@ -332,7 +332,7 @@ public:
     void Shutdown();
 
 #ifdef RIGHT_SIDE_COMPILE
-    // Used by debugger side (RS) to cleanup the target (LS) named pipes 
+    // Used by debugger side (RS) to cleanup the target (LS) named pipes
     // and semaphores when the debugger detects the debuggee process  exited.
     void CleanupTargetProcess();
 #else
@@ -717,11 +717,11 @@ private:
 
 #ifdef RIGHT_SIDE_COMPILE
     // On the RS the transport thread needs to know the IP address and port number to Connect() to.
-    DWORD           m_pid;                  // Id of a process we're talking to.
+    ProcessDescriptor m_pd;                  // Descriptor of a process we're talking to.
 
-    HANDLE          m_hProcessExited;       // event which will be signaled when the debuggee is terminated
+    HANDLE            m_hProcessExited;       // event which will be signaled when the debuggee is terminated
 
-    bool            m_fDebuggerAttached;
+    bool              m_fDebuggerAttached;
 #endif
 
     // Debugger event handling. To improve performance we allow the debugger to send as many events as it
@@ -792,7 +792,7 @@ private:
     // the send queue and signalling the completion event. Returns true if no network error was encountered.
     bool ProcessReply(MessageHeader *pHeader);
 
-    // Upon receiving a reply message, signal the event on the message to wake up the thread waiting for 
+    // Upon receiving a reply message, signal the event on the message to wake up the thread waiting for
     // the reply message and close the handle to the event.
     void SignalReplyEvent(Message * pMesssage);
 

@@ -132,8 +132,8 @@ CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE elemTy
 
 // Given resolved token that corresponds to an intrinsic classified as
 // a CORINFO_INTRINSIC_GetRawHandle intrinsic, fetch the handle associated
-// with the token. If this is not possible at compile-time (because the current method's 
-// code is shared and the token contains generic parameters) then indicate 
+// with the token. If this is not possible at compile-time (because the current method's
+// code is shared and the token contains generic parameters) then indicate
 // how the handle should be looked up at runtime.
 void expandRawHandleIntrinsic(
     CORINFO_RESOLVED_TOKEN *        pResolvedToken,
@@ -144,9 +144,8 @@ void expandRawHandleIntrinsic(
 // *pMustExpand tells whether or not JIT must expand the intrinsic.
 CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMustExpand = NULL /* OUT */);
 
-// Is the given module the System.Numerics.Vectors module?
-// This defaults to false.
-bool isInSIMDModule(CORINFO_CLASS_HANDLE classHnd); /* { return false; } */
+// Is the given type in System.Private.Corelib and marked with IntrinsicAttribute?
+bool isIntrinsicType(CORINFO_CLASS_HANDLE classHnd);
 
 // return the unmanaged calling convention for a PInvoke
 CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_HANDLE method);
@@ -291,6 +290,11 @@ int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
 // CORINFO_FLG_VALUECLASS, except faster.
 BOOL isValueClass(CORINFO_CLASS_HANDLE cls);
 
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source);
+
 // If this method returns true, JIT will do optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
 BOOL canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
@@ -355,7 +359,7 @@ CORINFO_FIELD_HANDLE getFieldInClass(CORINFO_CLASS_HANDLE clsHnd, INT num);
 BOOL checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier, BOOL fOptional);
 
 // returns the "NEW" helper optimized for "newCls."
-CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool* pHasSideEffects = NULL /* OUT */);
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
 CorInfoHelpFunc getNewArrHelper(CORINFO_CLASS_HANDLE arrayCls);
@@ -456,8 +460,11 @@ TypeCompareState compareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLA
 // equal, or the comparison needs to be resolved at runtime.
 TypeCompareState compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
 
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE mergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
+
+// Returns true if cls2 is known to be a more specific type than cls1.
+BOOL isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
 
 // Given a class handle, returns the Parent type.
 // For COMObjectType, it returns Class Handle of System.Object.
@@ -711,7 +718,8 @@ const char* getMethodName(CORINFO_METHOD_HANDLE ftn,       /* IN */
 // Suitable for non-debugging use.
 const char* getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,       /* IN */
                                       const char**          className, /* OUT */
-                                      const char**          namespaceName /* OUT */
+                                      const char**          namespaceName, /* OUT */
+                                      const char**          enclosingClassName /* OUT */
                                       );
 
 // this function is for debugging only.  It returns a value that
@@ -877,6 +885,9 @@ unsigned getClassDomainID(CORINFO_CLASS_HANDLE cls, void** ppIndirection = NULL)
 // return the data's address (for static fields only)
 void* getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection = NULL);
 
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *pIsSpeculative);
+
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)
 CORINFO_VARARGS_HANDLE getVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection = NULL);
 
@@ -1005,24 +1016,24 @@ int doAssert(const char* szFile, int iLine, const char* szExpr);
 void reportFatalError(CorJitResult result);
 
 /*
-struct ProfileBuffer  // Also defined here: code:CORBBTPROF_BLOCK_DATA
+struct BlockCounts  // Also defined here: code:CORBBTPROF_BLOCK_DATA
 {
-    ULONG ILOffset;
-    ULONG ExecutionCount;
+    UINT32 ILOffset;
+    UINT32 ExecutionCount;
 };
 */
 
 // allocate a basic block profile buffer where execution counts will be stored
 // for jitted basic blocks.
-HRESULT allocBBProfileBuffer(ULONG           count, // The number of basic blocks that we have
-                             ProfileBuffer** profileBuffer);
+HRESULT allocMethodBlockCounts(UINT32          count, // The number of basic blocks that we have
+                               BlockCounts**   pBlockCounts);
 
 // get profile information to be used for optimizing the current method.  The format
-// of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-HRESULT getBBProfileData(CORINFO_METHOD_HANDLE ftnHnd,
-                         ULONG*                count, // The number of basic blocks that we have
-                         ProfileBuffer**       profileBuffer,
-                         ULONG*                numRuns);
+// of the buffer is the same as the format the JIT passes to allocMethodBlockCounts.
+HRESULT getMethodBlockCounts(CORINFO_METHOD_HANDLE ftnHnd,
+                             UINT32 *          pCount, // The number of basic blocks that we have
+                             BlockCounts**     pBlockCounts,
+                             UINT32 *          pNumRuns);
 
 // Associates a native call site, identified by its offset in the native code stream, with
 // the signature information and method handle the JIT used to lay out the call site. If

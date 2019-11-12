@@ -10,39 +10,31 @@ usage()
     exit 1
 }
 
-initHostDistroRid()
+initDistroRid()
 {
-    __HostDistroRid=""
-    if [ "$__HostOS" == "Linux" ]; then
-        if [ -e /etc/os-release ]; then
-            source /etc/os-release
-            if [[ $ID == "rhel" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
-            fi
-            __HostDistroRid="$ID.$VERSION_ID-$__Arch"
-            if [[ $ID == "alpine" ]]; then
-                __HostDistroRid="linux-musl-$__Arch"
-            fi
-        elif [ -e /etc/redhat-release ]; then
-            local redhatRelease=$(</etc/redhat-release)
-            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
-               __HostDistroRid="rhel.6-$__Arch"
-            fi
-        fi
-    fi
-    if [ "$__HostOS" == "FreeBSD" ]; then
-        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
-        __HostDistroRid="freebsd.$__freebsd_version-$__Arch"
+    source ${__ProjectRoot}/init-distro-rid.sh
+
+    local passedRootfsDir=""
+
+    # Only pass ROOTFS_DIR if __DoCrossArchBuild is specified.
+    if (( ${__CrossBuild} == 1 )); then
+        passedRootfsDir=${ROOTFS_DIR}
     fi
 
-    if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Cannot determine runtime id for current distro."
-    fi
+    initDistroRidGlobal ${__BuildOS} ${__BuildArch} ${__IsPortableBuild} ${passedRootfsDir}
 }
 
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+__RepoRootDir=${__ProjectRoot}/../..
+
+# BEGIN SECTION to remove after repo consolidation
+if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
+  __RepoRootDir=${__ProjectRoot}
+fi
+# END SECTION to remove after repo consolidation
+
 __IsPortableBuild=1
+__CrossBuild=0
 
 # Use uname to determine what the OS is.
 OSName=$(uname -s)
@@ -84,8 +76,11 @@ case $OSName in
         ;;
 esac
 
+buildArgs=
 unprocessedBuildArgs=
 
+# TODO: get rid of argument processing entirely once we remove the
+# uses of -Arg=Value style in buildpipeline.
 while :; do
     if [ $# -le 0 ]; then
         break
@@ -93,41 +88,61 @@ while :; do
 
     case "$1" in
         -\?|-h|--help)
-        usage
-        exit 1
-        ;;
+            usage
+            exit 1
+            ;;
         -BuildArch=*)
-        unprocessedBuildArgs="$unprocessedBuildArgs $1"
-        __Arch=$(echo $1| cut -d'=' -f 2)
-        ;;
-
+            __BuildArch=$(echo $1| cut -d'=' -f 2)
+            buildArgs="$buildArgs /p:__BuildArch=$__BuildArch"
+            ;;
+        -BuildType=*)
+            __Type=$(echo $1| cut -d'=' -f 2)
+            buildArgs="$buildArgs /p:__BuildType=$__Type"
+            ;;
+        -OfficialBuildId=*|-officialbuildid=*)
+            __Id=$(echo $1| cut -d'=' -f 2)
+            buildArgs="$buildArgs /p:OfficialBuildId=$__Id"
+            ;;
+        -__DoCrossArchBuild=*)
+            __CrossBuild=$(echo $1| cut -d'=' -f 2)
+            buildArgs="$buildArgs /p:__DoCrossArchBuild=$__CrossBuild"
+            ;;
         -portablebuild=false)
-            unprocessedBuildArgs="$unprocessedBuildArgs $1"
+            buildArgs="$buildArgs /p:PortableBuild=false"
             __IsPortableBuild=0
             ;;
+        --)
+            ;;
         *)
-        unprocessedBuildArgs="$unprocessedBuildArgs $1"
+            unprocessedBuildArgs="$unprocessedBuildArgs $1"
     esac
     shift
 done
 
-# Portable builds target the base RID
-if [ $__IsPortableBuild == 1 ]; then
-    if [ "$__BuildOS" == "Linux" ]; then
-        export __DistroRid="linux-$__Arch"
-    elif [ "$__BuildOS" == "OSX" ]; then
-        export __DistroRid="osx-$__Arch"
-    fi
-else
-    # init the host distro name
-    initHostDistroRid
-    export __DistroRid="$__HostDistroRid"
+initDistroRid
+
+if [ "${__DistroRid}" = "linux-musl-arm64" ]; then
+    # ArchGroup is generally determined from parsing {}-{}; however, linux-musl-arm64
+    # will break this logic. To work around this, pass ArchGroup explicitely.
+
+    export ArchGroup=arm64
+
+    # Currently the decision tree in src/.nuget/dirs.props will incorrectly
+    # reparse the already calculated __DistroRid. For linux-musl-arm64 use
+    # the hack/hook to specifically bypass this logic.
+    export OutputRID=${__DistroRid}
 fi
 
-$__ProjectRoot/run.sh build-packages -Project=$__ProjectRoot/src/.nuget/packages.builds -DistroRid=$__DistroRid -UseSharedCompilation=false -BuildNugetPackage=false -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" $unprocessedBuildArgs
+logFile=$__ProjectRoot/bin/Logs/build-packages.binlog
+$__RepoRootDir/eng/common/build.sh -r -b -projects $__ProjectRoot/src/.nuget/packages.builds \
+                                   -verbosity minimal -bl:$logFile \
+                                   /p:__BuildOS=$__BuildOS \
+                                   /p:PortableBuild=true /p:__DistroRid=$__DistroRid \
+                                   $buildArgs $unprocessedBuildArgs
 if [ $? -ne 0 ]
 then
-    echo "ERROR: An error occurred while building packages; See build-packages.log for more details."
+    echo "ERROR: An error occurred while building packages; See log for more details:"
+    echo "    $logFile"
     exit 1
 fi
 

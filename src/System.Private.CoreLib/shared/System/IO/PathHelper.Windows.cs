@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -11,7 +12,7 @@ namespace System.IO
     /// <summary>
     /// Wrapper to help with path normalization.
     /// </summary>
-    internal class PathHelper
+    internal static class PathHelper
     {
         /// <summary>
         /// Normalize the given path.
@@ -25,8 +26,7 @@ namespace System.IO
         /// <returns>Normalized path</returns>
         internal static string Normalize(string path)
         {
-            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            var builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(stackalloc char[PathInternal.MaxShortPath]);
 
             // Get the full path
             GetFullPathName(path.AsSpan(), ref builder);
@@ -50,8 +50,7 @@ namespace System.IO
         /// </remarks>
         internal static string Normalize(ref ValueStringBuilder path)
         {
-            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            var builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(stackalloc char[PathInternal.MaxShortPath]);
 
             // Get the full path
             GetFullPathName(path.AsSpan(terminate: true), ref builder);
@@ -69,13 +68,14 @@ namespace System.IO
         /// Calls GetFullPathName on the given path.
         /// </summary>
         /// <param name="path">The path name. MUST be null terminated after the span.</param>
+        /// <param name="builder">Builder that will store the result.</param>
         private static void GetFullPathName(ReadOnlySpan<char> path, ref ValueStringBuilder builder)
         {
             // If the string starts with an extended prefix we would need to remove it from the path before we call GetFullPathName as
             // it doesn't root extended paths correctly. We don't currently resolve extended paths, so we'll just assert here.
             Debug.Assert(PathInternal.IsPartiallyQualified(path) || !PathInternal.IsExtended(path));
 
-            uint result = 0;
+            uint result;
             while ((result = Interop.Kernel32.GetFullPathNameW(ref MemoryMarshal.GetReference(path), (uint)builder.Capacity, ref builder.GetPinnableReference(), IntPtr.Zero)) > builder.Capacity)
             {
                 // Reported size is greater than the buffer size. Increase the capacity.
@@ -125,10 +125,10 @@ namespace System.IO
             }
         }
 
-        internal static string TryExpandShortFileName(ref ValueStringBuilder outputBuilder, string originalPath)
+        internal static string TryExpandShortFileName(ref ValueStringBuilder outputBuilder, string? originalPath)
         {
             // We guarantee we'll expand short names for paths that only partially exist. As such, we need to find the part of the path that actually does exist. To
-            // avoid allocating like crazy we'll create only one input array and modify the contents with embedded nulls.
+            // avoid allocating a lot we'll create only one input array and modify the contents with embedded nulls.
 
             Debug.Assert(!PathInternal.IsPartiallyQualified(outputBuilder.AsSpan()), "should have resolved by now");
 
@@ -146,7 +146,7 @@ namespace System.IO
             bool isDevice = PathInternal.IsDevice(outputBuilder.AsSpan());
 
             // As this is a corner case we're not going to add a stackalloc here to keep the stack pressure down.
-            var inputBuilder = new ValueStringBuilder();
+            ValueStringBuilder inputBuilder = default;
 
             bool isDosUnc = false;
             int rootDifference = 0;
@@ -213,7 +213,6 @@ namespace System.IO
                 {
                     // Not enough space. The result count for this API does not include the null terminator.
                     outputBuilder.EnsureCapacity(checked((int)result));
-                    result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder.GetPinnableReference(), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
                 }
                 else
                 {

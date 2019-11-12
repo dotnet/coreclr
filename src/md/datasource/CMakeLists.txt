@@ -1,7 +1,3 @@
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
-
 set(MDDATASOURCE_SOURCES
   api.cpp
   datatargetreader.cpp
@@ -9,7 +5,21 @@ set(MDDATASOURCE_SOURCES
   targettypes.cpp
 )
 
+set(MDDATASOURCE_HEADERS
+  ../../inc/cor.h
+  ../../inc/corpriv.h
+  datatargetreader.h
+  remotemdinternalrwsource.h
+  targettypes.h
+)
+
 convert_to_absolute_path(MDDATASOURCE_SOURCES ${MDDATASOURCE_SOURCES})
+convert_to_absolute_path(MDDATASOURCE_HEADERS ${MDDATASOURCE_HEADERS})
 
-add_subdirectory(dbi)
+if (WIN32)
+    list(APPEND MDDATASOURCE_SOURCES ${MDDATASOURCE_HEADERS})
+endif (WIN32)
 
+add_library_clr(mddatasource_dbi STATIC ${MDDATASOURCE_SOURCES})
+set_target_properties(mddatasource_dbi PROPERTIES DBI_COMPONENT TRUE)
+target_precompile_header(TARGET mddatasource_dbi HEADER stdafx.h)

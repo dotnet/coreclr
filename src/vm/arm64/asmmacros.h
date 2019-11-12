@@ -34,11 +34,11 @@ $name   SETS    "|$symbol|"
     MEND
 ;-----------------------------------------------------------------------------
 ; The following group of macros assist in implementing prologs and epilogs for methods that set up some
-; subclass of TransitionFrame. They ensure that the SP is 16-byte aligned at the conclusion of the prolog 
+; subclass of TransitionFrame. They ensure that the SP is 16-byte aligned at the conclusion of the prolog
 
 ;-----------------------------------------------------------------------------
 ; Define the prolog for a TransitionFrame-based method. This macro should be called first in the method and
-; comprises the entire prolog (i.e. don't modify SP after calling this).The locals must be 8 byte aligned 
+; comprises the entire prolog (i.e. don't modify SP after calling this).The locals must be 8 byte aligned
 ;
     MACRO
         PROLOG_WITH_TRANSITION_BLOCK $extraLocals, $SaveFPArgs
@@ -68,7 +68,7 @@ __PWTB_FloatArgumentRegisters SETA __PWTB_FloatArgumentRegisters + 8
         ENDIF
 
         IF __PWTB_SaveFPArgs
-__PWTB_TransitionBlock SETA __PWTB_FloatArgumentRegisters + SIZEOF__FloatArgumentRegisters  
+__PWTB_TransitionBlock SETA __PWTB_FloatArgumentRegisters + SIZEOF__FloatArgumentRegisters
         ELSE
 __PWTB_TransitionBlock SETA __PWTB_FloatArgumentRegisters
         ENDIF
@@ -78,21 +78,21 @@ __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 104
 __PWTB_ArgumentRegister_FirstArg SETA __PWTB_ArgumentRegisters + 8
 
         PROLOG_SAVE_REG_PAIR   fp, lr, #-176!
-        ; Spill callee saved registers 
+        ; Spill callee saved registers
         PROLOG_SAVE_REG_PAIR   x19, x20, #16
         PROLOG_SAVE_REG_PAIR   x21, x22, #32
         PROLOG_SAVE_REG_PAIR   x23, x24, #48
         PROLOG_SAVE_REG_PAIR   x25, x26, #64
         PROLOG_SAVE_REG_PAIR   x27, x28, #80
-       
+
         ; Allocate space for the rest of the frame
         PROLOG_STACK_ALLOC  __PWTB_StackAlloc
-        
+
         ; Spill argument registers.
         SAVE_ARGUMENT_REGISTERS        sp, __PWTB_ArgumentRegisters
 
         IF __PWTB_SaveFPArgs
-        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, __PWTB_FloatArgumentRegisters 
+        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, __PWTB_FloatArgumentRegisters
         ENDIF
 
     MEND
@@ -104,7 +104,7 @@ __PWTB_ArgumentRegister_FirstArg SETA __PWTB_ArgumentRegisters + 8
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
 
         EPILOG_STACK_FREE                 __PWTB_StackAlloc
-       
+
         EPILOG_RESTORE_REG_PAIR   x19, x20, #16
         EPILOG_RESTORE_REG_PAIR   x21, x22, #32
         EPILOG_RESTORE_REG_PAIR   x23, x24, #48
@@ -112,8 +112,8 @@ __PWTB_ArgumentRegister_FirstArg SETA __PWTB_ArgumentRegisters + 8
         EPILOG_RESTORE_REG_PAIR   x27, x28, #80
         EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
 		EPILOG_RETURN
-    MEND	
-	
+    MEND
+
 ;-----------------------------------------------------------------------------
 ; Provides a matching epilog to PROLOG_WITH_TRANSITION_BLOCK and ends by preparing for tail-calling.
 ; Since this is a tail call argument registers are restored.
@@ -121,13 +121,13 @@ __PWTB_ArgumentRegister_FirstArg SETA __PWTB_ArgumentRegisters + 8
     MACRO
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
-        IF __PWTB_SaveFPArgs 
+        IF __PWTB_SaveFPArgs
         RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, __PWTB_FloatArgumentRegisters
         ENDIF
 
         RESTORE_ARGUMENT_REGISTERS        sp, __PWTB_ArgumentRegisters
         EPILOG_STACK_FREE                 __PWTB_StackAlloc
-        
+
         EPILOG_RESTORE_REG_PAIR   x19, x20, #16
         EPILOG_RESTORE_REG_PAIR   x21, x22, #32
         EPILOG_RESTORE_REG_PAIR   x23, x24, #48
@@ -159,13 +159,13 @@ $FuncName
     MEND
 
 ;-----------------------------------------------------------------------------
-; The Following sets of SAVE_*_REGISTERS expect the memory to be reserved and 
+; The Following sets of SAVE_*_REGISTERS expect the memory to be reserved and
 ; base address to be passed in $reg
 ;
 
 ; Reserve 72 bytes of memory before calling  SAVE_ARGUMENT_REGISTERS
     MACRO
-       SAVE_ARGUMENT_REGISTERS $reg, $offset 
+       SAVE_ARGUMENT_REGISTERS $reg, $offset
 
        GBLA __PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET
 
@@ -183,9 +183,9 @@ __PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET SETA 0
 
     MEND
 
-; Reserve 64 bytes of memory before calling  SAVE_FLOAT_ARGUMENT_REGISTERS
+; Reserve 128 bytes of memory before calling  SAVE_FLOAT_ARGUMENT_REGISTERS
     MACRO
-       SAVE_FLOAT_ARGUMENT_REGISTERS $reg, $offset 
+       SAVE_FLOAT_ARGUMENT_REGISTERS $reg, $offset
 
        GBLA __PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET
 
@@ -195,14 +195,14 @@ __PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET SETA $offset
 __PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET SETA 0
        ENDIF
 
-        stp                    d0, d1, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET)]
-        stp                    d2, d3, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 16)]
-        stp                    d4, d5, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 32)]
-        stp                    d6, d7, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 48)]
+        stp                    q0, q1, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET)]
+        stp                    q2, q3, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 32)]
+        stp                    q4, q5, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 64)]
+        stp                    q6, q7, [$reg, #(__PWTB_SAVE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 96)]
     MEND
 
     MACRO
-       RESTORE_ARGUMENT_REGISTERS $reg, $offset 
+       RESTORE_ARGUMENT_REGISTERS $reg, $offset
 
        GBLA __PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET
 
@@ -221,7 +221,7 @@ __PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET SETA 0
     MEND
 
     MACRO
-       RESTORE_FLOAT_ARGUMENT_REGISTERS $reg, $offset 
+       RESTORE_FLOAT_ARGUMENT_REGISTERS $reg, $offset
 
        GBLA __PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET
 
@@ -231,10 +231,10 @@ __PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET SETA $offset
 __PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET SETA 0
        ENDIF
 
-        ldp                    d0, d1, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET)]
-        ldp                    d2, d3, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 16)]
-        ldp                    d4, d5, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 32)]
-        ldp                    d6, d7, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 48)]
+        ldp                    q0, q1, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET)]
+        ldp                    q2, q3, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 32)]
+        ldp                    q4, q5, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 64)]
+        ldp                    q6, q7, [$reg, #(__PWTB_RESTORE_FLOAT_ARGUMENT_REGISTERS_OFFSET + 96)]
     MEND
 
 ; ------------------------------------------------------------------
@@ -257,8 +257,8 @@ __RedirectionFuncName SETS "|?RedirectedHandledJITCaseFor":CC:"$reason":CC:"@Thr
         IMPORT $__RedirectionFuncName
 
         NESTED_ENTRY $__RedirectionStubFuncName
-        PROLOG_SAVE_REG_PAIR    fp, lr, #-16!    
-        sub sp, sp, #16                          ; stack slot for CONTEXT * and padding 
+        PROLOG_SAVE_REG_PAIR    fp, lr, #-16!
+        sub sp, sp, #16                          ; stack slot for CONTEXT * and padding
 
         ;REDIRECTSTUB_SP_OFFSET_CONTEXT is defined in asmconstants.h and is used in GetCONTEXTFromRedirectedStubStackFrame
         ;If CONTEXT is not saved at 0 offset from SP it must be changed as well.
@@ -298,4 +298,52 @@ $__RedirectionStubEndFuncName
         NESTED_END
 
         MEND
-    
+
+;-----------------------------------------------------------------------------
+; Macro to get a pointer to the Thread* object for the currently executing thread
+;
+__tls_array     equ 0x58    ;; offsetof(TEB, ThreadLocalStoragePointer)
+
+    EXTERN _tls_index
+
+    GBLS __SECTIONREL_gCurrentThreadInfo
+__SECTIONREL_gCurrentThreadInfo SETS "SECTIONREL_gCurrentThreadInfo"
+
+    MACRO
+        INLINE_GETTHREAD $destReg, $trashReg
+
+        ;; The following macro variables are just some assembler magic to get the name of the 32-bit version
+        ;; of $trashReg. It does it by string manipulation. Replaces something like x3 with w3.
+        LCLS TrashRegister32Bit
+TrashRegister32Bit SETS "$trashReg"
+TrashRegister32Bit SETS "w":CC:("$TrashRegister32Bit":RIGHT:((:LEN:TrashRegister32Bit) - 1))
+
+        ldr         $trashReg, =_tls_index
+        ldr         $TrashRegister32Bit, [$trashReg]
+        ldr         $destReg, [xpr, #__tls_array]
+        ldr         $destReg, [$destReg, $trashReg lsl #3]
+        ldr         $trashReg, =$__SECTIONREL_gCurrentThreadInfo
+        ldr         $trashReg, [$trashReg]
+        ldr         $destReg, [$destReg, $trashReg]        ; return gCurrentThreadInfo.m_pThread
+    MEND
+
+;-----------------------------------------------------------------------------
+; INLINE_GETTHREAD_CONSTANT_POOL macro has to be used after the last function in the .asm file that used
+; INLINE_GETTHREAD. Optionally, it can be also used after any function that used INLINE_GETTHREAD
+; to improve density, or to reduce distance betweeen the constant pool and its use.
+;
+
+    MACRO
+        INLINE_GETTHREAD_CONSTANT_POOL
+
+        EXTERN gCurrentThreadInfo
+
+    ;; Section relocs are 32 bits. Using an extra DCD initialized to zero for 8-byte alignment.
+$__SECTIONREL_gCurrentThreadInfo
+        DCD gCurrentThreadInfo
+        RELOC 8, gCurrentThreadInfo      ;; SECREL
+        DCD 0
+
+__SECTIONREL_gCurrentThreadInfo SETS "$__SECTIONREL_gCurrentThreadInfo":CC:"_"
+
+    MEND

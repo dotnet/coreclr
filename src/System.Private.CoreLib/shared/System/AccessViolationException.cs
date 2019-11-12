@@ -11,7 +11,6 @@
 **
 =============================================================================*/
 
-using System;
 using System.Runtime.Serialization;
 
 namespace System
@@ -26,13 +25,13 @@ namespace System
             HResult = HResults.E_POINTER;
         }
 
-        public AccessViolationException(string message)
+        public AccessViolationException(string? message)
             : base(message)
         {
             HResult = HResults.E_POINTER;
         }
 
-        public AccessViolationException(string message, Exception innerException)
+        public AccessViolationException(string? message, Exception? innerException)
             : base(message, innerException)
         {
             HResult = HResults.E_POINTER;
@@ -42,10 +41,10 @@ namespace System
         {
         }
 
-#pragma warning disable 169  // Field is not used from managed.
+#pragma warning disable CA1823, 169 // Field is not used from managed.
         private IntPtr _ip;             // Address of faulting instruction.
         private IntPtr _target;         // Address that could not be accessed.
         private int _accessType;        // 0:read, 1:write
-#pragma warning restore 169
+#pragma warning restore CA1823, 169
     }
 }

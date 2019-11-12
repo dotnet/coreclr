@@ -13,19 +13,13 @@ inline BOOL MethodDesc::HasTemporaryEntryPoint()
     return GetMethodDescChunk()->HasTemporaryEntryPoints();
 }
 
-inline InstantiatedMethodDesc* MethodDesc::AsInstantiatedMethodDesc() const 
+inline InstantiatedMethodDesc* MethodDesc::AsInstantiatedMethodDesc() const
 {
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
     _ASSERTE(GetClassification() == mcInstantiated);
     return dac_cast<PTR_InstantiatedMethodDesc>(this);
-}
-
-inline BOOL MethodDesc::IsDomainNeutral()
-{
-    WRAPPER_NO_CONTRACT;
-    return !IsLCGMethod() && GetDomain()->IsSharedDomain();
 }
 
 inline BOOL MethodDesc::IsZapped()
@@ -75,7 +69,6 @@ inline PTR_LCGMethodResolver DynamicMethodDesc::GetLCGMethodResolver()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsLCGMethod());
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -90,7 +83,6 @@ inline PTR_ILStubResolver DynamicMethodDesc::GetILStubResolver()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsILStub());
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -105,7 +97,6 @@ inline PTR_DynamicMethodDesc MethodDesc::AsDynamicMethodDesc()
         GC_NOTRIGGER;
         NOTHROW;
         PRECONDITION(IsDynamicMethod());
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -176,14 +167,6 @@ inline ComPlusCallInfo *ComPlusCallInfo::FromMethodDesc(MethodDesc *pMD)
 
 #endif //FEATURE_COMINTEROP
 
-#ifndef FEATURE_TYPEEQUIVALENCE
-inline BOOL HasTypeEquivalentStructParameters()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-#endif // FEATURE_TYPEEQUIVALENCE
-
 #ifdef FEATURE_CODE_VERSIONING
 inline CodeVersionManager * MethodDesc::GetCodeVersionManager()
 {
@@ -196,7 +179,15 @@ inline CodeVersionManager * MethodDesc::GetCodeVersionManager()
 inline CallCounter * MethodDesc::GetCallCounter()
 {
     LIMITED_METHOD_CONTRACT;
-    return GetModule()->GetCallCounter();
+    return GetLoaderAllocator()->GetCallCounter();
+}
+#endif
+
+#ifndef CROSSGEN_COMPILE
+inline MethodDescBackpatchInfoTracker * MethodDesc::GetBackpatchInfoTracker()
+{
+    LIMITED_METHOD_CONTRACT;
+    return GetLoaderAllocator()->GetMethodDescBackpatchInfoTracker();
 }
 #endif
 

@@ -246,7 +246,7 @@ unsigned StackLevelSetter::PopArgumentsFromCall(GenTreeCall* call)
             fgArgTabEntry* argTab = argInfo->ArgTable()[i];
             if (argTab->numSlots != 0)
             {
-                GenTree* node = argTab->node;
+                GenTree* node = argTab->GetNode();
                 assert(node->OperIsPutArgStkOrSplit());
 
                 GenTreePutArgStk* putArg = node->AsPutArgStk();
@@ -317,7 +317,7 @@ void StackLevelSetter::CheckArgCnt()
                    "interruptible\n");
         }
 #endif
-        comp->genInterruptible = false;
+        comp->SetInterruptible(false);
     }
     if (maxStackLevel >= sizeof(unsigned))
     {

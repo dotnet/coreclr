@@ -53,27 +53,21 @@ namespace System.Globalization
     //  Hebrew text and parsing Hebrew number text.
     //
     //  Limitations:
-    //      Parse can only handles value 1 ~ 999.
-    //      ToString() can only handles 1 ~ 999. If value is greater than 5000,
+    //      Parse can only handle value 1 ~ 999.
+    //      Append() can only handle 1 ~ 999. If value is greater than 5000,
     //      5000 will be subtracted from the value.
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    internal class HebrewNumber
+    internal static class HebrewNumber
     {
-        // This class contains only static methods.  Add a private ctor so that
-        // compiler won't generate a default one for us.
-        private HebrewNumber()
-        {
-        }
-
         ////////////////////////////////////////////////////////////////////////////
         //
-        //  ToString
+        //  Append
         //
         //  Converts the given number to Hebrew letters according to the numeric
-        //  value of each Hebrew letter.  Basically, this converts the lunar year
-        //  and the lunar month to letters.
+        //  value of each Hebrew letter, appending to the supplied StringBuilder.
+        //  Basically, this converts the lunar year and the lunar month to letters.
         //
         //  The character of a year is described by three letters of the Hebrew
         //  alphabet, the first and third giving, respectively, the days of the
@@ -87,13 +81,14 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////////
 
-        internal static string ToString(int Number)
+        internal static void Append(StringBuilder outputBuffer, int Number)
         {
+            Debug.Assert(outputBuffer != null);
+            int outputBufferStartingLength = outputBuffer.Length;
+
             char cTens = '\x0';
             char cUnits;               // tens and units chars
             int Hundreds, Tens;              // hundreds and tens values
-            StringBuilder szHebrew = new StringBuilder();
-
 
             //
             //  Adjust the number if greater than 5000.
@@ -103,7 +98,7 @@ namespace System.Globalization
                 Number -= 5000;
             }
 
-            Debug.Assert(Number > 0 && Number <= 999, "Number is out of range."); ;
+            Debug.Assert(Number > 0 && Number <= 999, "Number is out of range.");
 
             //
             //  Get the Hundreds.
@@ -120,13 +115,13 @@ namespace System.Globalization
                 // If the number is greater than 400, use the multiples of 400.
                 for (int i = 0; i < (Hundreds / 4); i++)
                 {
-                    szHebrew.Append('\x05ea');
+                    outputBuffer.Append('\x05ea');
                 }
 
                 int remains = Hundreds % 4;
                 if (remains > 0)
                 {
-                    szHebrew.Append((char)((int)'\x05e6' + remains));
+                    outputBuffer.Append((char)((int)'\x05e6' + remains));
                 }
             }
 
@@ -195,27 +190,22 @@ namespace System.Globalization
 
             if (cTens != '\x0')
             {
-                szHebrew.Append(cTens);
+                outputBuffer.Append(cTens);
             }
 
             if (cUnits != '\x0')
             {
-                szHebrew.Append(cUnits);
+                outputBuffer.Append(cUnits);
             }
 
-            if (szHebrew.Length > 1)
+            if (outputBuffer.Length - outputBufferStartingLength > 1)
             {
-                szHebrew.Insert(szHebrew.Length - 1, '"');
+                outputBuffer.Insert(outputBuffer.Length - 1, '"');
             }
             else
             {
-                szHebrew.Append('\'');
+                outputBuffer.Append('\'');
             }
-
-            //
-            //  Return success.
-            //
-            return (szHebrew.ToString());
         }
 
         ////////////////////////////////////////////////////////////////////////////
@@ -232,13 +222,13 @@ namespace System.Globalization
             Digit200_300 = 1,
             Digit100 = 2,
             Digit10 = 3,    // 10 ~ 90
-            Digit1 = 4,     // 1, 2, 3, 4, 5, 8, 
+            Digit1 = 4,     // 1, 2, 3, 4, 5, 8,
             Digit6_7 = 5,
             Digit7 = 6,
             Digit9 = 7,
             SingleQuote = 8,
             DoubleQuote = 9,
-        };
+        }
 
         ////////////////////////////////////////////////////////////////////////////
         //
@@ -262,37 +252,37 @@ namespace System.Globalization
         // The value is -1 if the Hebrew character does not have a associated value.
         //
         private static readonly HebrewValue[] s_hebrewValues = {
-            new HebrewValue(HebrewToken.Digit1, 1) , // '\x05d0
-            new HebrewValue(HebrewToken.Digit1, 2) , // '\x05d1
-            new HebrewValue(HebrewToken.Digit1, 3) , // '\x05d2
-            new HebrewValue(HebrewToken.Digit1, 4) , // '\x05d3
-            new HebrewValue(HebrewToken.Digit1, 5) , // '\x05d4
-            new HebrewValue(HebrewToken.Digit6_7,6) , // '\x05d5
-            new HebrewValue(HebrewToken.Digit6_7,7) , // '\x05d6
-            new HebrewValue(HebrewToken.Digit1, 8) , // '\x05d7
-            new HebrewValue(HebrewToken.Digit9, 9) , // '\x05d8
-            new HebrewValue(HebrewToken.Digit10, 10) , // '\x05d9;          // Hebrew Letter Yod
-            new HebrewValue(HebrewToken.Invalid, -1) , // '\x05da; 
-            new HebrewValue(HebrewToken.Digit10, 20) , // '\x05db;          // Hebrew Letter Kaf
-            new HebrewValue(HebrewToken.Digit10, 30) , // '\x05dc;          // Hebrew Letter Lamed
-            new HebrewValue(HebrewToken.Invalid, -1) , // '\x05dd;
-            new HebrewValue(HebrewToken.Digit10, 40) , // '\x05de;          // Hebrew Letter Mem
-            new HebrewValue(HebrewToken.Invalid, -1) , // '\x05df;
-            new HebrewValue(HebrewToken.Digit10, 50) , // '\x05e0;          // Hebrew Letter Nun
-            new HebrewValue(HebrewToken.Digit10, 60) , // '\x05e1;          // Hebrew Letter Samekh
-            new HebrewValue(HebrewToken.Digit10, 70) , // '\x05e2;          // Hebrew Letter Ayin
-            new HebrewValue(HebrewToken.Invalid, -1) , // '\x05e3;
-            new HebrewValue(HebrewToken.Digit10, 80) , // '\x05e4;          // Hebrew Letter Pe
-            new HebrewValue(HebrewToken.Invalid, -1) , // '\x05e5;
-            new HebrewValue(HebrewToken.Digit10, 90) , // '\x05e6;          // Hebrew Letter Tsadi
-            new HebrewValue(HebrewToken.Digit100, 100) , // '\x05e7;
-            new HebrewValue(HebrewToken.Digit200_300, 200) , // '\x05e8;
-            new HebrewValue(HebrewToken.Digit200_300, 300) , // '\x05e9;
-            new HebrewValue(HebrewToken.Digit400, 400) , // '\x05ea;
+            new HebrewValue(HebrewToken.Digit1, 1), // '\x05d0
+            new HebrewValue(HebrewToken.Digit1, 2), // '\x05d1
+            new HebrewValue(HebrewToken.Digit1, 3), // '\x05d2
+            new HebrewValue(HebrewToken.Digit1, 4), // '\x05d3
+            new HebrewValue(HebrewToken.Digit1, 5), // '\x05d4
+            new HebrewValue(HebrewToken.Digit6_7, 6), // '\x05d5
+            new HebrewValue(HebrewToken.Digit6_7, 7), // '\x05d6
+            new HebrewValue(HebrewToken.Digit1, 8), // '\x05d7
+            new HebrewValue(HebrewToken.Digit9, 9), // '\x05d8
+            new HebrewValue(HebrewToken.Digit10, 10), // '\x05d9; // Hebrew Letter Yod
+            new HebrewValue(HebrewToken.Invalid, -1), // '\x05da;
+            new HebrewValue(HebrewToken.Digit10, 20), // '\x05db; // Hebrew Letter Kaf
+            new HebrewValue(HebrewToken.Digit10, 30), // '\x05dc; // Hebrew Letter Lamed
+            new HebrewValue(HebrewToken.Invalid, -1), // '\x05dd;
+            new HebrewValue(HebrewToken.Digit10, 40), // '\x05de; // Hebrew Letter Mem
+            new HebrewValue(HebrewToken.Invalid, -1), // '\x05df;
+            new HebrewValue(HebrewToken.Digit10, 50), // '\x05e0; // Hebrew Letter Nun
+            new HebrewValue(HebrewToken.Digit10, 60), // '\x05e1; // Hebrew Letter Samekh
+            new HebrewValue(HebrewToken.Digit10, 70), // '\x05e2; // Hebrew Letter Ayin
+            new HebrewValue(HebrewToken.Invalid, -1), // '\x05e3;
+            new HebrewValue(HebrewToken.Digit10, 80), // '\x05e4; // Hebrew Letter Pe
+            new HebrewValue(HebrewToken.Invalid, -1), // '\x05e5;
+            new HebrewValue(HebrewToken.Digit10, 90), // '\x05e6; // Hebrew Letter Tsadi
+            new HebrewValue(HebrewToken.Digit100, 100), // '\x05e7;
+            new HebrewValue(HebrewToken.Digit200_300, 200), // '\x05e8;
+            new HebrewValue(HebrewToken.Digit200_300, 300), // '\x05e9;
+            new HebrewValue(HebrewToken.Digit400, 400), // '\x05ea;
         };
 
         private const int minHebrewNumberCh = 0x05d0;
-        private static char s_maxHebrewNumberCh = (char)(minHebrewNumberCh + s_hebrewValues.Length - 1);
+        private static readonly char s_maxHebrewNumberCh = (char)(minHebrewNumberCh + s_hebrewValues.Length - 1);
 
         ////////////////////////////////////////////////////////////////////////////
         //
@@ -325,53 +315,53 @@ namespace System.Globalization
             END = 100,          // A terminial state is reached.
         }
 
-        // 
+        //
         // The state machine for Hebrew number pasing.
         //
         private static readonly HS[] s_numberPasingState =
         {
             // 400            300/200         100             90~10           8~1      6,       7,       9,          '           "
             /* 0 */
-                             HS.S400,       HS.X00,         HS.X00,         HS.X0,          HS.X,    HS.X,    HS.X,    HS.S9,      HS._err,    HS._err,
+                             HS.S400,       HS.X00,         HS.X00,          HS.X0,          HS.X,    HS.X,    HS.X,    HS.S9,      HS._err,    HS._err,
             /* 1: S400 */
-                             HS.S400_400,   HS.S400_X00,    HS.S400_X00,    HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9  ,HS.END,     HS.S400_DQ,
+                             HS.S400_400,   HS.S400_X00,    HS.S400_X00,     HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9, HS.END,     HS.S400_DQ,
             /* 2: S400_400 */
-                             HS._err,       HS._err,        HS.S400_400_100,HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9  ,HS._err,    HS.S400_400_DQ,
+                             HS._err,       HS._err,        HS.S400_400_100, HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9, HS._err,    HS.S400_400_DQ,
             /* 3: S400_X00 */
-                             HS._err,       HS._err,        HS._err,        HS.S400_X00_X0, HS._err, HS._err, HS._err, HS.X00_S9  ,HS._err,    HS.X00_DQ,
+                             HS._err,       HS._err,        HS._err,         HS.S400_X00_X0, HS._err, HS._err, HS._err, HS.X00_S9, HS._err,    HS.X00_DQ,
             /* 4: S400_X0 */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.X0_DQ,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.X0_DQ,
             /* 5: X00_DQ */
-                             HS._err,       HS._err,        HS._err,        HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
+                             HS._err,       HS._err,        HS._err,         HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
             /* 6: S400_X00_X0 */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.X0_DQ,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.X0_DQ,
             /* 7: X0_DQ */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
             /* 8: X */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS._err,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS._err,
             /* 9: X0 */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS.X0_DQ,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS.X0_DQ,
             /* 10: X00 */
-                             HS._err,       HS._err,        HS._err,        HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9,  HS.END,     HS.X00_DQ,
+                             HS._err,       HS._err,        HS._err,         HS.S400_X0,     HS._err, HS._err, HS._err, HS.X00_S9,  HS.END,     HS.X00_DQ,
             /* 11: S400_DQ */
-                             HS.END,        HS.END,         HS.END,         HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
+                             HS.END,        HS.END,         HS.END,          HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
             /* 12: S400_400_DQ*/
-                             HS._err,       HS._err,        HS.END,         HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
+                             HS._err,       HS._err,        HS.END,          HS.END,         HS.END,  HS.END,  HS.END,  HS.END,     HS._err,    HS._err,
             /* 13: S400_400_100*/
-                             HS._err,       HS._err,        HS._err,        HS.S400_X00_X0, HS._err, HS._err, HS._err, HS.X00_S9,  HS._err,    HS.X00_DQ,
+                             HS._err,       HS._err,        HS._err,         HS.S400_X00_X0, HS._err, HS._err, HS._err, HS.X00_S9,  HS._err,    HS.X00_DQ,
             /* 14: S9 */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS.S9_DQ,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS.END,     HS.S9_DQ,
             /* 15: X00_S9 */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.S9_DQ,
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS._err, HS._err, HS._err,    HS._err,    HS.S9_DQ,
             /* 16: S9_DQ */
-                             HS._err,       HS._err,        HS._err,        HS._err,        HS._err, HS.END,  HS.END,  HS._err,    HS._err,    HS._err
+                             HS._err,       HS._err,        HS._err,         HS._err,        HS._err, HS.END,  HS.END,  HS._err,    HS._err,    HS._err
         };
 
         // Count of valid HebrewToken, column count in the NumberPasingState array
         private const int HebrewTokenCount = 10;
 
         ////////////////////////////////////////////////////////////////////////
-        //  
+        //
         //  Actions:
         //      Parse the Hebrew number by passing one character at a time.
         //      The state between characters are maintained at HebrewNumberPasingContext.
@@ -409,29 +399,29 @@ namespace System.Globalization
                     token = s_hebrewValues[index].token;
                     if (token == HebrewToken.Invalid)
                     {
-                        return (HebrewNumberParsingState.NotHebrewDigit);
+                        return HebrewNumberParsingState.NotHebrewDigit;
                     }
                     context.result += s_hebrewValues[index].value;
                 }
                 else
                 {
                     // Not in valid Hebrew digit range.
-                    return (HebrewNumberParsingState.NotHebrewDigit);
+                    return HebrewNumberParsingState.NotHebrewDigit;
                 }
             }
             context.state = s_numberPasingState[(int)context.state * (int)HebrewTokenCount + (int)token];
             if (context.state == HS._err)
             {
                 // Invalid Hebrew state.  This indicates an incorrect Hebrew number.
-                return (HebrewNumberParsingState.InvalidHebrewNumber);
+                return HebrewNumberParsingState.InvalidHebrewNumber;
             }
             if (context.state == HS.END)
             {
                 // Reach a terminal state.
-                return (HebrewNumberParsingState.FoundEndOfHebrewNumber);
+                return HebrewNumberParsingState.FoundEndOfHebrewNumber;
             }
             // We should continue to parse.
-            return (HebrewNumberParsingState.ContinueParsing);
+            return HebrewNumberParsingState.ContinueParsing;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -449,9 +439,9 @@ namespace System.Globalization
         {
             if (ch >= minHebrewNumberCh && ch <= s_maxHebrewNumberCh)
             {
-                return (s_hebrewValues[ch - minHebrewNumberCh].value >= 0);
+                return s_hebrewValues[ch - minHebrewNumberCh].value >= 0;
             }
-            return (ch == '\'' || ch == '\"');
+            return ch == '\'' || ch == '\"';
         }
     }
 }

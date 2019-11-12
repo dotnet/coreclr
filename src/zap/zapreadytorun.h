@@ -7,7 +7,7 @@
 
 //
 // Zapping of ready-to-run specific structures
-// 
+//
 // ======================================================================================
 
 #ifndef __ZAPREADYTORUN_H__
@@ -59,6 +59,8 @@ public:
     }
 
     virtual void Save(ZapWriter * pZapWriter);
+
+	DWORD EncodeModuleHelper(LPVOID compileContext, CORINFO_MODULE_HANDLE referencedModule);
 };
 
 #endif // __ZAPREADYTORUN_H__

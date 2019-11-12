@@ -8,7 +8,7 @@
 
 //
 
- 
+
 #ifndef TYPEPARSE_H
 #define TYPEPARSE_H
 
@@ -46,40 +46,13 @@ bool inline IsTypeNameReservedChar(WCHAR ch)
 
 
 DomainAssembly * LoadDomainAssembly(
-    SString *  psszAssemblySpec, 
-    Assembly * pRequestingAssembly, 
+    SString *  psszAssemblySpec,
+    Assembly * pRequestingAssembly,
     ICLRPrivBinder * pPrivHostBinder,
-    BOOL       bThrowIfNotFound, 
+    BOOL       bThrowIfNotFound,
     SString *  pssOuterTypeName);
 
-class TypeNameFactory : public ITypeNameFactory
-{    
-public:
-    static HRESULT CreateObject(REFIID riid, void **ppUnk);
-    
-public:
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppUnk);
-    virtual ULONG STDMETHODCALLTYPE AddRef() { LIMITED_METHOD_CONTRACT; m_count++; return m_count; }
-    virtual ULONG STDMETHODCALLTYPE Release() { LIMITED_METHOD_CONTRACT; SUPPORTS_DAC_HOST_ONLY; m_count--; ULONG count = m_count; if (count == 0) delete this; return count; }
-
-public:
-    virtual HRESULT STDMETHODCALLTYPE ParseTypeName(LPCWSTR szName, DWORD* pError, ITypeName** ppTypeName);
-    virtual HRESULT STDMETHODCALLTYPE GetTypeNameBuilder(ITypeNameBuilder** ppTypeBuilder);
-
-public:
-    TypeNameFactory() : m_count(0)
-    {
-        WRAPPER_NO_CONTRACT;
-        SString::Startup();
-    }
-
-    virtual ~TypeNameFactory() {}
-        
-private:
-    DWORD m_count;
-};
-
-class TypeName : public ITypeName
+class TypeName
 {
 private:
     template<typename PRODUCT>
@@ -87,7 +60,7 @@ private:
     {
     public:
         const static DWORD MAX_PRODUCT = 4;
-        
+
     public:
         Factory() : m_cProduct(0), m_next(NULL) { LIMITED_METHOD_CONTRACT; }
         ~Factory()
@@ -95,20 +68,18 @@ private:
             CONTRACTL
             {
                 NOTHROW;
-                SO_TOLERANT;
             }
             CONTRACTL_END;
-            VALIDATE_BACKOUT_STACK_CONSUMPTION;               
 
-            if (m_next) 
-                delete m_next; 
-          } 
+            if (m_next)
+                delete m_next;
+          }
 
         PRODUCT* Create()
             { WRAPPER_NO_CONTRACT; if (m_cProduct == (INT32)MAX_PRODUCT) return GetNext()->Create(); return &m_product[m_cProduct++]; }
 
     private:
-        Factory* GetNext() { if (!m_next) m_next = new Factory<PRODUCT>(); return m_next; }   
+        Factory* GetNext() { if (!m_next) m_next = new Factory<PRODUCT>(); return m_next; }
 
     private:
         PRODUCT m_product[MAX_PRODUCT];
@@ -146,7 +117,7 @@ private:
 
     private:
         friend class TypeName;
-        
+
     private:
         typedef enum {
             //
@@ -165,11 +136,11 @@ private:
             TypeNameEnd                 = 0x4000,
 
             //
-            // 1 TOKEN LOOK AHEAD 
+            // 1 TOKEN LOOK AHEAD
             //
             TypeNameNAME                = TypeNameIdentifier,
             TypeNameNESTNAME            = TypeNameIdentifier,
-            TypeNameASSEMSPEC           = TypeNameIdentifier, 
+            TypeNameASSEMSPEC           = TypeNameIdentifier,
             TypeNameGENPARAM            = TypeNameOpenSqBracket | TypeNameEmpty,
             TypeNameFULLNAME            = TypeNameNAME,
             TypeNameAQN                 = TypeNameFULLNAME | TypeNameEnd,
@@ -180,7 +151,7 @@ private:
             TypeNameEASSEMSPEC          = TypeNameIdentifier,
             TypeNameARRAY               = TypeNameOpenSqBracket,
             TypeNameQUALIFIER           = TypeNameAmpersand | TypeNameAstrix | TypeNameARRAY | TypeNameEmpty,
-            TypeNameRANK                = TypeNameComma | TypeNameEmpty,            
+            TypeNameRANK                = TypeNameComma | TypeNameEmpty,
         } TypeNameTokens;
 
         typedef enum {
@@ -191,7 +162,7 @@ private:
         } TypeNameIdentifiers;
 
     //
-    // LEXIFIER 
+    // LEXIFIER
     //
     private:
         TypeNameTokens LexAToken(BOOL ignorePlus = FALSE);
@@ -200,65 +171,65 @@ private:
         BOOL NextTokenIs(TypeNameTokens token) { LIMITED_METHOD_CONTRACT; return !!(m_nextToken & token); }
         BOOL TokenIs(TypeNameTokens token) { LIMITED_METHOD_CONTRACT; return !!(m_currentToken & token); }
         BOOL TokenIs(int token) { LIMITED_METHOD_CONTRACT; return TokenIs((TypeNameTokens)token); }
-        
+
     //
     // PRODUCTIONS
     //
-    private: 
+    private:
         BOOL START();
-        
+
         BOOL AQN();
         // /* empty */
         // FULLNAME ',' ASSEMSPEC
         // FULLNAME
-      
+
         BOOL ASSEMSPEC();
         // fusionName
-        
+
         BOOL FULLNAME();
         // NAME GENPARAMS QUALIFIER
-        
+
         BOOL GENPARAMS();
         // *empty*
-        // '[' GENARGS ']'        
-        
+        // '[' GENARGS ']'
+
         BOOL GENARGS();
         // GENARG
         // GENARG ',' GENARGS
-                
+
         BOOL GENARG();
         // '[' EAQN ']'
         // FULLNAME
-        
+
         BOOL EAQN();
         // FULLNAME ',' EASSEMSPEC
         // FULLNAME
-        
+
         BOOL EASSEMSPEC();
         // embededFusionName
-        
+
         BOOL QUALIFIER();
         // *empty*
         // '&'
         // *' QUALIFIER
         // ARRAY QUALIFIER
-        
+
         BOOL ARRAY();
         // '[' RANK ']'
         // '[' '*' ']'
-        
+
         BOOL RANK(DWORD* pdwRank);
         // *empty*
         // ',' RANK
-        
+
         BOOL NAME();
         // id
         // id '+' NESTNAME
-        
+
         BOOL NESTNAME();
         // id
         // id '+' NESTNAME
-  
+
     public:
         void Parse(DWORD* pError)
         {
@@ -274,7 +245,7 @@ private:
             if (!START())
                 *pError = (DWORD)(m_currentItr - m_sszTypeName) - 1;
         }
-    
+
     private:
         TypeName* m_pTypeName;
         LPCWSTR m_sszTypeName;
@@ -284,23 +255,13 @@ private:
         TypeNameTokens m_nextToken;
     };
     friend class TypeName::TypeNameParser;
-    
-public:
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppUnk);
-    virtual ULONG STDMETHODCALLTYPE AddRef();
-    virtual ULONG STDMETHODCALLTYPE Release();
 
 public:
-    virtual HRESULT STDMETHODCALLTYPE GetNameCount(DWORD* pCount);
-    virtual HRESULT STDMETHODCALLTYPE GetNames(DWORD count, BSTR* rgbszNames, DWORD* pFetched);
-    virtual HRESULT STDMETHODCALLTYPE GetTypeArgumentCount(DWORD* pCount);
-    virtual HRESULT STDMETHODCALLTYPE GetTypeArguments(DWORD count, ITypeName** rgpArguments, DWORD* pFetched);
-    virtual HRESULT STDMETHODCALLTYPE GetModifierLength(DWORD* pCount);
-    virtual HRESULT STDMETHODCALLTYPE GetModifiers(DWORD count, DWORD* rgModifiers, DWORD* pFetched);
-    virtual HRESULT STDMETHODCALLTYPE GetAssemblyName(BSTR* rgbszAssemblyNames);
-    
+    ULONG AddRef();
+    ULONG Release();
+
 public:
-    TypeName(LPCWSTR szTypeName, DWORD* pError) : m_bIsGenericArgument(FALSE), m_count(0) 
+    TypeName(LPCWSTR szTypeName, DWORD* pError) : m_bIsGenericArgument(FALSE), m_count(0)
     {
         CONTRACTL
         {
@@ -314,7 +275,7 @@ public:
     }
 
     virtual ~TypeName();
-    
+
 public:
 #ifndef CROSSGEN_COMPILE
     static void QCALLTYPE QCreateTypeNameParser (LPCWSTR wszTypeName, QCall::ObjectHandleOnStack pNames, BOOL throwOnError);
@@ -370,26 +331,26 @@ public:
     // it.
     //--------------------------------------------------------------------------------------------------------------
     static TypeHandle GetTypeManaged(
-        LPCWSTR szTypeName, 
+        LPCWSTR szTypeName,
         DomainAssembly* pAssemblyGetType,
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
         BOOL bProhibitAssemblyQualifiedName,
-        StackCrawlMark* pStackMark,
+        Assembly* pRequestingAssembly,
         BOOL bLoadTypeFromPartialNameHack,
         OBJECTREF *pKeepAlive,
         ICLRPrivBinder * pPrivHostBinder = nullptr);
-    
-    
+
+
 public:
     SString* GetAssembly() { WRAPPER_NO_CONTRACT; return &m_assembly; }
-    
+
 private:
-    TypeName() : m_bIsGenericArgument(FALSE), m_count(0) { LIMITED_METHOD_CONTRACT; }    
+    TypeName() : m_bIsGenericArgument(FALSE), m_count(0) { LIMITED_METHOD_CONTRACT; }
     TypeName* AddGenericArgument();
-    
-    SString* AddName() 
-    { 
+
+    SString* AddName()
+    {
         CONTRACTL
         {
             THROWS;
@@ -397,8 +358,8 @@ private:
             MODE_ANY;
         }
         CONTRACTL_END;
-        
-        return m_names.AppendEx(m_nestNameFactory.Create()); 
+
+        return m_names.AppendEx(m_nestNameFactory.Create());
     }
 
     SArray<SString*>& GetNames() { WRAPPER_NO_CONTRACT; return m_names; }
@@ -407,9 +368,9 @@ private:
     void SetByRef() { WRAPPER_NO_CONTRACT; m_signature.Append(ELEMENT_TYPE_BYREF); }
     void SetPointer() { WRAPPER_NO_CONTRACT;  m_signature.Append(ELEMENT_TYPE_PTR); }
     void SetSzArray() { WRAPPER_NO_CONTRACT; m_signature.Append(ELEMENT_TYPE_SZARRAY); }
-    
-    void SetArray(DWORD rank) 
-    { 
+
+    void SetArray(DWORD rank)
+    {
         CONTRACTL
         {
             THROWS;
@@ -417,12 +378,12 @@ private:
             MODE_ANY;
         }
         CONTRACTL_END;
-        m_signature.Append(ELEMENT_TYPE_ARRAY); 
-        m_signature.Append(rank); 
-    } 
-    
+        m_signature.Append(ELEMENT_TYPE_ARRAY);
+        m_signature.Append(rank);
+    }
+
     SString* ToString(SString* pBuf, BOOL bAssemblySpec = FALSE, BOOL bSignature = FALSE, BOOL bGenericArguments = FALSE);
-        
+
 private:
     //----------------------------------------------------------------------------------------------------------------
     // This is the "uber" GetType() that all public GetType() funnels through. It's main job is to figure out which
@@ -432,19 +393,18 @@ private:
     // for all of the possible GetTypes.
     //----------------------------------------------------------------------------------------------------------------
     TypeHandle GetTypeWorker(
-        BOOL bThrowIfNotFound, 
-        BOOL bIgnoreCase, 
+        BOOL bThrowIfNotFound,
+        BOOL bIgnoreCase,
         Assembly* pAssemblyGetType,
 
-        BOOL fEnableCASearchRules,  
-                                    
+        BOOL fEnableCASearchRules,
+
         BOOL bProhibitAssemblyQualifiedName,
-                                    
-        StackCrawlMark* pStackMark, 
-        Assembly* pRequestingAssembly, 
+
+        Assembly* pRequestingAssembly,
         ICLRPrivBinder * pPrivHostBinder,
         BOOL bLoadTypeFromPartialNameHack,
-        OBJECTREF *pKeepAlive);    
+        OBJECTREF *pKeepAlive);
 
     //----------------------------------------------------------------------------------------------------------------
     // These functions are the ones that actually loads the type once we've pinned down the Assembly it's in.

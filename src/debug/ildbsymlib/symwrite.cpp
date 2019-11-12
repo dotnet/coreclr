@@ -15,9 +15,9 @@
 #include "symwrite.h"
 
 
-// ------------------------------------------------------------------------- 
+// -------------------------------------------------------------------------
 // SymWriter class
-// ------------------------------------------------------------------------- 
+// -------------------------------------------------------------------------
 
 // This is a COM object which is called both directly from the runtime, and from managed code
 // via PInvoke (CoreSymWrapper) and IJW (ISymWrapper).  This is an unusual pattern, and it's not
@@ -26,7 +26,7 @@
 // live in a different DLL instead of being statically linked into the runtime.  But since it
 // relies on utilcode (and actually gets the runtime utilcode, not the nohost utilcode like
 // other external tools), it does have some properties of runtime code.
-// 
+//
 
 //-----------------------------------------------------------
 // NewSymWriter
@@ -115,21 +115,21 @@ SymWriter::~SymWriter()
 // SymWriter Initialize the SymWriter
 //-----------------------------------------------------------
 COM_METHOD SymWriter::Initialize
-(   
+(
     IUnknown *emitter,        // Emitter (IMetaData Emit/Import) - unused by ILDB
     const WCHAR *szFilename,  // FileName of the exe we're creating
     IStream *pIStream,        // Stream to store into
     BOOL fFullBuild           // Is this a full build or an incremental build
 )
-{    
+{
     HRESULT hr = S_OK;
-    
+
     // Incremental compile not implemented
     _ASSERTE(fFullBuild);
-    
+
     if (emitter == NULL)
         return E_INVALIDARG;
-    
+
     if (pIStream != NULL)
     {
         m_pIStream = pIStream;
@@ -142,24 +142,24 @@ COM_METHOD SymWriter::Initialize
             IfFailRet(E_INVALIDARG);
         }
     }
-    
+
     m_pStringPool = NEW(StgStringPool());
     IfFailRet(m_pStringPool->InitNew());
-    
+
     if (szFilename != NULL)
     {
-        wchar_t fullpath[_MAX_PATH];
-        wchar_t drive[_MAX_DRIVE];
-        wchar_t dir[_MAX_DIR];
-        wchar_t fname[_MAX_FNAME];
+        WCHAR fullpath[_MAX_PATH];
+        WCHAR drive[_MAX_DRIVE];
+        WCHAR dir[_MAX_DIR];
+        WCHAR fname[_MAX_FNAME];
         _wsplitpath_s( szFilename, drive, COUNTOF(drive), dir, COUNTOF(dir), fname, COUNTOF(fname), NULL, 0 );
         _wmakepath_s( fullpath, COUNTOF(fullpath), drive, dir, fname, W("ildb") );
         if (wcsncpy_s( m_szPath, COUNTOF(m_szPath), fullpath, _TRUNCATE) == STRUNCATE)
             return HrFromWin32(ERROR_INSUFFICIENT_BUFFER);
     }
-    
+
     // Note that we don't need the emitter - ILDB is agnostic to the module metadata.
-    
+
     return hr;
 }
 
@@ -174,7 +174,7 @@ COM_METHOD SymWriter::Initialize2
     IStream *pIStream,         // Stream to store into
     BOOL fFullBuild,           // Full build or not
     const WCHAR *szFullPathName   // Final destination of the ildb
-)    
+)
 {
     HRESULT hr = S_OK;
     IfFailGo( Initialize( emitter, szTempPath, pIStream, fFullBuild ) );
@@ -187,8 +187,8 @@ ErrExit:
 //-----------------------------------------------------------
 // SymWriter GetorCreateDocument
 // creates a new symbol document writer for a specified source
-// Arguments: 
-//     input:  wcsUrl   - The source file name 
+// Arguments:
+//     input:  wcsUrl   - The source file name
 //     output: ppRetVal - The new document writer
 // Return Value: hr - S_OK if success, OOM otherwise
 //-----------------------------------------------------------
@@ -202,7 +202,7 @@ HRESULT SymWriter::GetOrCreateDocument(
 {
     ULONG UrlEntry;
     DWORD strLength = WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, 0, 0, 0, 0);
-    LPSTR multiByteURL = (LPSTR) new char [strLength+1];
+    LPSTR multiByteURL = (LPSTR) new char [strLength];
     HRESULT hr  = S_OK;
 
     if (multiByteURL == NULL)
@@ -210,7 +210,7 @@ HRESULT SymWriter::GetOrCreateDocument(
         return E_OUTOFMEMORY;
     }
 
-    WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, multiByteURL, strLength+1, 0, 0);
+    WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, multiByteURL, strLength, 0, 0);
 
     if (m_pStringPool->FindString(multiByteURL, &UrlEntry) == S_FALSE) // no file of that name has been seen before
     {
@@ -219,12 +219,12 @@ HRESULT SymWriter::GetOrCreateDocument(
     else // we already have a writer for this file
     {
         UINT32 docInfo = 0;
-        
+
         CRITSEC_COOKIE cs = ClrCreateCriticalSection(CrstLeafLock, CRST_DEFAULT);
-        
+
         ClrEnterCriticalSection(cs);
 
-        while ((docInfo < m_MethodInfo.m_documents.count()) && (m_MethodInfo.m_documents[docInfo].UrlEntry() != UrlEntry)) 
+        while ((docInfo < m_MethodInfo.m_documents.count()) && (m_MethodInfo.m_documents[docInfo].UrlEntry() != UrlEntry))
         {
             docInfo++;
         }
@@ -233,7 +233,7 @@ HRESULT SymWriter::GetOrCreateDocument(
         {
             hr = CreateDocument(wcsUrl, pLanguage, pLanguageVendor, pDocumentType, ppRetVal);
         }
-        else 
+        else
         {
             *ppRetVal = m_MethodInfo.m_documents[docInfo].DocumentWriter();
             (*ppRetVal)->AddRef();
@@ -249,8 +249,8 @@ HRESULT SymWriter::GetOrCreateDocument(
 //-----------------------------------------------------------
 // SymWriter CreateDocument
 // creates a new symbol document writer for a specified source
-// Arguments: 
-//     input:  wcsUrl   - The source file name 
+// Arguments:
+//     input:  wcsUrl   - The source file name
 //     output: ppRetVal - The new document writer
 // Return Value: hr - S_OK if success, OOM otherwise
 //-----------------------------------------------------------
@@ -282,9 +282,7 @@ HRESULT SymWriter::CreateDocument(const WCHAR *wcsUrl,                   // Docu
     pDocument->SetDocumentWriter(sdw);
 
     // stack check needed to call back into utilcode
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
     hr = m_pStringPool->AddStringW(wcsUrl, (UINT32 *)&UrlEntry);
-    END_SO_INTOLERANT_CODE;
     IfFailGo(hr);
 
     pDocument->SetUrlEntry(UrlEntry);
@@ -427,7 +425,7 @@ COM_METHOD SymWriter::OpenMethod(mdMethodDef method)
         {
             if (m_MethodInfo.m_methods[i].MethodToken() == method)
             {
-                return E_INVALIDARG;                
+                return E_INVALIDARG;
             }
         }
     }
@@ -525,7 +523,7 @@ COM_METHOD SymWriter::CloseMethod()
 
     // All done with this method.
     m_openMethodToken = mdMethodDefNil;
-    
+
     return hr;
 }
 
@@ -534,7 +532,7 @@ COM_METHOD SymWriter::CloseMethod()
 // Define the sequence points for this function
 //-----------------------------------------------------------
 COM_METHOD SymWriter::DefineSequencePoints(
-    ISymUnmanagedDocumentWriter *document,  // 
+    ISymUnmanagedDocumentWriter *document,  //
     ULONG32 spCount,        // Count of sequence points
     ULONG32 offsets[],      // Offsets
     ULONG32 lines[],        // Beginning Lines
@@ -636,7 +634,7 @@ COM_METHOD SymWriter::CloseScope(
     // The implicit root scope is only closed internally by CloseMethod.
     if ((m_currentScope == k_noScope) || (m_MethodInfo.m_scopes[m_currentScope].ParentScope() == k_noScope))
         return E_FAIL;
-    
+
     HRESULT hr = CloseScopeInternal(endOffset);
 
     _ASSERTE(m_currentScope != k_noScope);
@@ -739,16 +737,13 @@ COM_METHOD SymWriter::DefineLocalVariable(
     ULONG32 sigLen;
     sigLen = cSig;
 
-    // stack check needed to call back into utilcode
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
     // Copy the name.
     hr = m_pStringPool->AddStringW(name, (UINT32 *)&NameEntry);
-    END_SO_INTOLERANT_CODE;
     IfFailGo(hr);
     var->SetName(NameEntry);
 
     // Copy the signature
-    // Note that we give this back exactly as-is, but callers typically remove any calling 
+    // Note that we give this back exactly as-is, but callers typically remove any calling
     // convention prefix.
     UINT32 i;
     IfFalseGo(m_MethodInfo.m_bytes.grab(sigLen, &i), E_OUTOFMEMORY);
@@ -813,11 +808,8 @@ COM_METHOD SymWriter::DefineParameter(
     var->SetSequence(sequence);
 
 
-    // stack check needed to call back into utilcode
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
     // Copy the name.
     hr = m_pStringPool->AddStringW(name, (UINT32 *)&NameEntry);
-    END_SO_INTOLERANT_CODE;
     IfFailGo(hr);
     var->SetName(NameEntry);
 
@@ -905,11 +897,8 @@ COM_METHOD SymWriter::DefineConstant(
     // the stringpool
     if (V_VT(&value) == VT_BSTR)
     {
-        // stack check needed to call back into utilcode
-        BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
         // Copy the bstrValue.
         hr = m_pStringPool->AddStringW(V_BSTR(&value), (UINT32 *)&ValueBstr);
-        END_SO_INTOLERANT_CODE;
         IfFailGo(hr);
         V_BSTR(&value) = NULL;
     }
@@ -919,11 +908,8 @@ COM_METHOD SymWriter::DefineConstant(
     con->SetValue(value, ValueBstr);
 
 
-    // stack check needed to call back into utilcode
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
     // Copy the name.
     hr = m_pStringPool->AddStringW(name, (UINT32 *)&Name);
-    END_SO_INTOLERANT_CODE;
     IfFailGo(hr);
     con->SetName(Name);
 
@@ -974,7 +960,7 @@ COM_METHOD SymWriter::DefineField(
     ULONG32 addr1, ULONG32 addr2, ULONG32 addr3)
 {
     // This symbol store doesn't support extra random variable
-    // definitions. 
+    // definitions.
     return S_OK;
 }
 
@@ -1111,11 +1097,8 @@ COM_METHOD SymWriter::UsingNamespace(const WCHAR *fullName)
     SymUsingNamespace *use;
     IfNullGo( use = m_MethodInfo.m_usings.next());
 
-    // stack check needed to call back into utilcode
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD_FORCE_SO();
     // Copy the name.
     hr = m_pStringPool->AddStringW(fullName, (UINT32 *)&Name);
-    END_SO_INTOLERANT_CODE;
     IfFailGo(hr);
     use->SetName(Name);
 
@@ -1167,15 +1150,15 @@ COM_METHOD SymWriter::GetDebugCVInfo(
     BYTE buf[])       // [optional, out] Buffer for DebugInfo
 {
 
-    if ( m_szPath == NULL || *m_szPath == 0 )
+    if ( *m_szPath == 0 )
         return E_UNEXPECTED;
 
     // We need to change the .ildb extension to .pdb to be
     // compatible with VS7
-    wchar_t fullpath[_MAX_PATH];
-    wchar_t drive[_MAX_DRIVE];
-    wchar_t dir[_MAX_DIR];
-    wchar_t fname[_MAX_FNAME];
+    WCHAR fullpath[_MAX_PATH];
+    WCHAR drive[_MAX_DRIVE];
+    WCHAR dir[_MAX_DIR];
+    WCHAR fname[_MAX_FNAME];
     if (_wsplitpath_s( m_szPath, drive, COUNTOF(drive), dir, COUNTOF(dir), fname, COUNTOF(fname), NULL, 0 ))
         return E_FAIL;
     if (_wmakepath_s( fullpath, COUNTOF(fullpath), drive, dir, fname, W("pdb") ))
@@ -1189,18 +1172,18 @@ COM_METHOD SymWriter::GetDebugCVInfo(
     DWORD dwSize = sizeof(RSDSI) + DWORD(Utf8Length);
 
     // If the caller is just checking for the size
-    if ( cbBuf == 0 && pcbBuf != NULL ) 
-    {   
+    if ( cbBuf == 0 && pcbBuf != NULL )
+    {
         *pcbBuf = dwSize;
         return S_OK;
     }
 
-    if (cbBuf < dwSize) 
-    {    
+    if (cbBuf < dwSize)
+    {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
     }
 
-    if ( buf == NULL ) 
+    if ( buf == NULL )
     {
         return E_INVALIDARG;
     }
@@ -1228,8 +1211,8 @@ COM_METHOD SymWriter::GetDebugInfo(
     BYTE data[])                  // [optional] Buffer to store into
 {
     HRESULT hr = S_OK;
-    if ( cData == 0 && pcData != NULL ) 
-    {   
+    if ( cData == 0 && pcData != NULL )
+    {
         // just checking for the size
         return GetDebugCVInfo( 0, pcData, NULL );
     }
@@ -1280,7 +1263,7 @@ COM_METHOD SymWriter::RemapToken(mdToken oldToken, mdToken newToken)
                     SymMap *pMethodMap;
                     IfNullGo( pMethodMap = m_MethodMap.next() );
                     pMethodMap->m_MethodToken = newToken;
-                    pMethodMap->MethodEntry = i;                        
+                    pMethodMap->MethodEntry = i;
                     break;
                 }
             }
@@ -1430,7 +1413,7 @@ COM_METHOD SymWriter::WritePDB()
 #if _DEBUG
     // We need to make sure the Variant entry in the constants is 8 byte
     // aligned so make sure everything up to the there is aligned correctly
-    if ((ILDB_SIGNATURE_SIZE % 8) || 
+    if ((ILDB_SIGNATURE_SIZE % 8) ||
         (sizeof(PDBInfo) % 8) ||
         (sizeof(GUID) % 8))
     {
@@ -1444,7 +1427,7 @@ COM_METHOD SymWriter::WritePDB()
     SwapGuid(&ildb_guid);
     IfFailGo(Write((void *)&ildb_guid, sizeof(GUID)));
 
-    // Now we need to write the Project level 
+    // Now we need to write the Project level
     IfFailGo(Write(&ModuleLevelInfo, sizeof(PDBInfo)));
 
     // Now we have to write out each array as appropriate

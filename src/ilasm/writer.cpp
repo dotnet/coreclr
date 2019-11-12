@@ -92,42 +92,42 @@ HRESULT Assembler::CreateTLSDirectory() {
         if(FAILED(hr=m_pCeeFileGen->GetSectionBlock(tlsDirSec, sizeofdir + sizeofptr, sizeofptr, (void**) &tlsDir))) return(hr);
         DWORD* callBackChain = (DWORD*) &tlsDir[1];
         *callBackChain = 0;
-    
+
             // Find out where the tls directory will end up
         ULONG tlsDirOffset;
         if(FAILED(hr=m_pCeeFileGen->GetSectionDataLen(tlsDirSec, &tlsDirOffset))) return(hr);
         tlsDirOffset -= (sizeofdir + sizeofptr);
-    
+
             // Set the start of the TLS data (offset 0 of hte TLS section)
         tlsDir->StartAddressOfRawData = 0;
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofStartAddressOfRawData, m_pTLSSection, srRelocHighLow))) return(hr);
-    
+
             // Set the end of the TLS data
         tlsDir->EndAddressOfRawData = VALPTR(tlsEnd);
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofEndAddressOfRawData, m_pTLSSection, srRelocHighLow))) return(hr);
-    
+
             // Allocate space for the OS to put the TLS index for this PE file (needs to be Read/Write?)
         DWORD* tlsIndex;
         if(FAILED(hr=m_pCeeFileGen->GetSectionBlock(m_pGlobalDataSection, sizeof(DWORD), sizeof(DWORD), (void**) &tlsIndex))) return(hr);
         *tlsIndex = 0xCCCCCCCC;     // Does't really matter, the OS will fill it in
-    
+
             // Find out where tlsIndex index is
         ULONG tlsIndexOffset;
         if(FAILED(hr=m_pCeeFileGen->GetSectionDataLen(tlsDirSec, &tlsIndexOffset))) return(hr);
         tlsIndexOffset -= sizeof(DWORD);
-    
+
             // Set the address of the TLS index
         tlsDir->AddressOfIndex = VALPTR(tlsIndexOffset);
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofAddressOfIndex, m_pGlobalDataSection, srRelocHighLow))) return(hr);
-    
+
             // Set addres of callbacks chain
         tlsDir->AddressOfCallBacks = VALPTR((DWORD)(DWORD_PTR)(PIMAGE_TLS_CALLBACK*)(size_t)(tlsDirOffset + sizeofdir));
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofAddressOfCallBacks, tlsDirSec, srRelocHighLow))) return(hr);
-        
+
             // Set the other fields.
         tlsDir->SizeOfZeroFill = 0;
         tlsDir->Characteristics = 0;
-    
+
         hr=m_pCeeFileGen->SetDirectoryEntry (m_pCeeFile, tlsDirSec, IMAGE_DIRECTORY_ENTRY_TLS,
             sizeofdir, tlsDirOffset);
 
@@ -148,42 +148,42 @@ HRESULT Assembler::CreateTLSDirectory() {
         if(FAILED(hr=m_pCeeFileGen->GetSectionBlock(tlsDirSec, sizeofdir + sizeofptr, sizeofptr, (void**) &tlsDir))) return(hr);
         __int64* callBackChain = (__int64*) &tlsDir[1];
         *callBackChain = 0;
-    
+
             // Find out where the tls directory will end up
         ULONG tlsDirOffset;
         if(FAILED(hr=m_pCeeFileGen->GetSectionDataLen(tlsDirSec, &tlsDirOffset))) return(hr);
         tlsDirOffset -= (sizeofdir + sizeofptr);
-    
+
             // Set the start of the TLS data (offset 0 of hte TLS section)
         tlsDir->StartAddressOfRawData = 0;
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofStartAddressOfRawData, m_pTLSSection, srRelocHighLow))) return(hr);
-    
+
             // Set the end of the TLS data
         tlsDir->EndAddressOfRawData = VALPTR(tlsEnd);
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofEndAddressOfRawData, m_pTLSSection, srRelocHighLow))) return(hr);
-    
+
             // Allocate space for the OS to put the TLS index for this PE file (needs to be Read/Write?)
         DWORD* tlsIndex;
         if(FAILED(hr=m_pCeeFileGen->GetSectionBlock(m_pGlobalDataSection, sizeof(DWORD), sizeof(DWORD), (void**) &tlsIndex))) return(hr);
         *tlsIndex = 0xCCCCCCCC;     // Does't really matter, the OS will fill it in
-    
+
             // Find out where tlsIndex index is
         ULONG tlsIndexOffset;
         if(FAILED(hr=m_pCeeFileGen->GetSectionDataLen(tlsDirSec, &tlsIndexOffset))) return(hr);
         tlsIndexOffset -= sizeof(DWORD);
-    
+
             // Set the address of the TLS index
         tlsDir->AddressOfIndex = VALPTR(tlsIndexOffset);
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofAddressOfIndex, m_pGlobalDataSection, srRelocHighLow))) return(hr);
-    
+
             // Set address of callbacks chain
         tlsDir->AddressOfCallBacks = VALPTR((DWORD)(DWORD_PTR)(PIMAGE_TLS_CALLBACK*)(size_t)(tlsDirOffset + sizeofdir));
         if(FAILED(hr=m_pCeeFileGen->AddSectionReloc(tlsDirSec, tlsDirOffset + offsetofAddressOfCallBacks, tlsDirSec, srRelocHighLow))) return(hr);
-        
+
             // Set the other fields.
         tlsDir->SizeOfZeroFill = 0;
         tlsDir->Characteristics = 0;
-    
+
         hr=m_pCeeFileGen->SetDirectoryEntry (m_pCeeFile, tlsDirSec, IMAGE_DIRECTORY_ENTRY_TLS,
             sizeofdir, tlsDirOffset);
     }
@@ -478,42 +478,26 @@ HRESULT Assembler::CreateExportDirectory()
     return S_OK;
 }
 
-static const BYTE ExportStubAMD64Template[] = 
+static const BYTE ExportStubAMD64Template[] =
 {
-	// Jump through VTFixup table 
+	// Jump through VTFixup table
 	0x48, 0xA1,				// rex.w rex.b mov rax,[following address]
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//address of VTFixup slot
     0xFF, 0xE0              // jmp [rax]
 };
-static const BYTE ExportStubX86Template[] = 
+static const BYTE ExportStubX86Template[] =
 {
-	// Jump through VTFixup table 
+	// Jump through VTFixup table
 	0xFF, 0x25,				// jmp [following address]
     0x00, 0x00, 0x00, 0x00  //address of VTFixup slot
 };
-static const WORD ExportStubARMTemplate[] = 
+static const WORD ExportStubARMTemplate[] =
 {
 	// Jump through VTFixup table
     0xf8df, 0xf000,         // ldr pc, [pc, #0]
     0x0000, 0x0000          //address of VTFixup slot
 };
 
-static const BYTE ExportStubIA64Template[] =
-{
-    // ld8    r9  = [gp]    ;;
-    // ld8    r10 = [r9],8
-    // nop.i                ;;
-    // ld8    gp  = [r9]
-    // mov    b6  = r10
-    // br.cond.sptk.few  b6
-    //
-    0x0B, 0x48, 0x00, 0x02, 0x18, 0x10, 0xA0, 0x40, 
-    0x24, 0x30, 0x28, 0x00, 0x00, 0x00, 0x04, 0x00, 
-    0x10, 0x08, 0x00, 0x12, 0x18, 0x10, 0x60, 0x50, 
-    0x04, 0x80, 0x03, 0x00, 0x60, 0x00, 0x80, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//address of the template
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 //address of VTFixup slot
-};
 DWORD   Assembler::EmitExportStub(DWORD dwVTFSlotRVA)
 {
     DWORD EXPORT_STUB_SIZE = (DWORD)(sizeof(WORD)+sizeof(DWORD));
@@ -523,73 +507,53 @@ DWORD   Assembler::EmitExportStub(DWORD dwVTFSlotRVA)
     DWORD PEFileOffset;
     BYTE* outBuff;
     DWORD*  pdwVTFSlotRVA;
-    if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_IA64)
+
+    if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_AMD64)
     {
-        STUB_TEMPLATE = (BYTE*)&ExportStubIA64Template[0];
-        EXPORT_STUB_SIZE = sizeof(ExportStubIA64Template);
-        OFFSET_OF_ADDR = 40;
-        if (FAILED(m_pCeeFileGen->GetSectionBlock (m_pILSection, EXPORT_STUB_SIZE, STUB_ALIGNMENT, (void **) &outBuff))) return 0;
-        memcpy(outBuff,STUB_TEMPLATE,EXPORT_STUB_SIZE);
-        pdwVTFSlotRVA = (DWORD*)(&outBuff[OFFSET_OF_ADDR]);
-        *pdwVTFSlotRVA = VAL32(dwVTFSlotRVA);
-    
-        // The offset where we start, (not where the alignment bytes start!)
-        if (FAILED(m_pCeeFileGen->GetSectionDataLen (m_pILSection, &PEFileOffset))) return 0;
-    
-        PEFileOffset -= EXPORT_STUB_SIZE;
-        *((DWORD*)(&outBuff[OFFSET_OF_ADDR - 8])) = PEFileOffset; // set PLabel
-        m_pCeeFileGen->AddSectionReloc(m_pILSection, PEFileOffset+OFFSET_OF_ADDR-8,m_pILSection, srRelocHighLow);
-        m_pCeeFileGen->AddSectionReloc(m_pILSection, PEFileOffset+OFFSET_OF_ADDR,m_pGlobalDataSection, srRelocHighLow);
-        PEFileOffset += OFFSET_OF_ADDR - 8; // entry point is PLabel, which points at the template
+        STUB_TEMPLATE = (BYTE*)&ExportStubAMD64Template[0];
+        EXPORT_STUB_SIZE = sizeof(ExportStubAMD64Template);
+        OFFSET_OF_ADDR = 2;
+        STUB_ALIGNMENT = 4;
+    }
+    else if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_I386)
+    {
+        STUB_TEMPLATE = (BYTE*)&ExportStubX86Template[0];
+        EXPORT_STUB_SIZE = sizeof(ExportStubX86Template);
+        OFFSET_OF_ADDR = 2;
+    }
+    else if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_ARM)
+    {
+        STUB_TEMPLATE = (BYTE*)&ExportStubARMTemplate[0];
+        EXPORT_STUB_SIZE = sizeof(ExportStubARMTemplate);
+        OFFSET_OF_ADDR = 4;
+        STUB_ALIGNMENT = 4;
     }
     else
     {
-        if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_AMD64)
-        {
-            STUB_TEMPLATE = (BYTE*)&ExportStubAMD64Template[0];
-            EXPORT_STUB_SIZE = sizeof(ExportStubAMD64Template);
-            OFFSET_OF_ADDR = 2;
-            STUB_ALIGNMENT = 4;
-        }
-        else if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_I386)
-        {
-            STUB_TEMPLATE = (BYTE*)&ExportStubX86Template[0];
-            EXPORT_STUB_SIZE = sizeof(ExportStubX86Template);
-            OFFSET_OF_ADDR = 2;
-        }
-        else if(m_dwCeeFileFlags & ICEE_CREATE_MACHINE_ARM)
-        {
-            STUB_TEMPLATE = (BYTE*)&ExportStubARMTemplate[0];
-            EXPORT_STUB_SIZE = sizeof(ExportStubARMTemplate);
-            OFFSET_OF_ADDR = 4;
-            STUB_ALIGNMENT = 4;
-        }
-        else
-        {
-            report->error("Unmanaged exports are not implemented for unknown platform");
-            return NULL;
-        }
-        // Addr must be aligned, not the stub!
-        if (FAILED(m_pCeeFileGen->GetSectionDataLen (m_pILSection, &PEFileOffset))) return 0;
-        if((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1))
-        {
-            ULONG L = STUB_ALIGNMENT - ((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1));
-            if (FAILED(m_pCeeFileGen->GetSectionBlock (m_pILSection, L, 1, (void **) &outBuff))) return 0;
-            memset(outBuff,0,L);
-        }
-        
-        if (FAILED(m_pCeeFileGen->GetSectionBlock (m_pILSection, EXPORT_STUB_SIZE, 1, (void **) &outBuff))) return 0;
-        memcpy(outBuff,STUB_TEMPLATE,EXPORT_STUB_SIZE);
-        pdwVTFSlotRVA = (DWORD*)(&outBuff[OFFSET_OF_ADDR]);
-        *pdwVTFSlotRVA = VAL32(dwVTFSlotRVA);
-    
-        // The offset where we start, (not where the alignment bytes start!)
-        if (FAILED(m_pCeeFileGen->GetSectionDataLen (m_pILSection, &PEFileOffset))) return 0;
-    
-        PEFileOffset -= EXPORT_STUB_SIZE;
-        _ASSERTE(((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1))==0);
-        m_pCeeFileGen->AddSectionReloc(m_pILSection, PEFileOffset+OFFSET_OF_ADDR,m_pGlobalDataSection, srRelocHighLow);
+        report->error("Unmanaged exports are not implemented for unknown platform");
+        return NULL;
     }
+    // Addr must be aligned, not the stub!
+    if (FAILED(m_pCeeFileGen->GetSectionDataLen (m_pILSection, &PEFileOffset))) return 0;
+    if((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1))
+    {
+        ULONG L = STUB_ALIGNMENT - ((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1));
+        if (FAILED(m_pCeeFileGen->GetSectionBlock (m_pILSection, L, 1, (void **) &outBuff))) return 0;
+        memset(outBuff,0,L);
+    }
+
+    if (FAILED(m_pCeeFileGen->GetSectionBlock (m_pILSection, EXPORT_STUB_SIZE, 1, (void **) &outBuff))) return 0;
+    memcpy(outBuff,STUB_TEMPLATE,EXPORT_STUB_SIZE);
+    pdwVTFSlotRVA = (DWORD*)(&outBuff[OFFSET_OF_ADDR]);
+    *pdwVTFSlotRVA = VAL32(dwVTFSlotRVA);
+
+    // The offset where we start, (not where the alignment bytes start!)
+    if (FAILED(m_pCeeFileGen->GetSectionDataLen (m_pILSection, &PEFileOffset))) return 0;
+
+    PEFileOffset -= EXPORT_STUB_SIZE;
+    _ASSERTE(((PEFileOffset + OFFSET_OF_ADDR)&(STUB_ALIGNMENT-1))==0);
+    m_pCeeFileGen->AddSectionReloc(m_pILSection, PEFileOffset+OFFSET_OF_ADDR,m_pGlobalDataSection, srRelocHighLow);
+
     if(m_dwCeeFileFlags & ICEE_CREATE_FILE_STRIP_RELOCS)
     {
         report->error("Base relocations are emitted, while /STRIPRELOC option has been specified");
@@ -1244,7 +1208,7 @@ HRESULT Assembler::CreatePEFile(__in __nullterminated WCHAR *pwzOutputFilename)
     EmitUnresolvedCustomAttributes();
     // Emit typedefs as special TypeSpecs
     {
-#define ELEMENT_TYPE_TYPEDEF ELEMENT_TYPE_MAX+1
+#define ELEMENT_TYPE_TYPEDEF (ELEMENT_TYPE_MAX+1)
         TypeDefDescr* pTDD;
         unsigned __int8* pb;
         unsigned namesize;
@@ -1476,7 +1440,7 @@ HRESULT Assembler::CreatePEFile(__in __nullterminated WCHAR *pwzOutputFilename)
         {
             PIMAGE_OPTIONAL_HEADER64 pOpt = (PIMAGE_OPTIONAL_HEADER64)(&pNT->OptionalHeader);
             if (m_stSizeOfStackReserve)
-                pOpt->SizeOfStackReserve = VAL64(m_stSizeOfStackReserve); 
+                pOpt->SizeOfStackReserve = VAL64(m_stSizeOfStackReserve);
             if (m_fAppContainer)
                 pOpt->DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_APPCONTAINER;
             if (m_fHighEntropyVA)
@@ -1551,7 +1515,7 @@ HRESULT Assembler::CreatePEFile(__in __nullterminated WCHAR *pwzOutputFilename)
     if(bClock) bClock->cFilegenBegin = GetTickCount();
     // actually output the meta-data
     if (FAILED(hr=m_pCeeFileGen->EmitMetaDataAt(m_pCeeFile, m_pEmitter, m_pILSection, metaDataOffset, metaData, metaDataSize))) goto exit;
-    
+
     if((m_wMSVmajor < 0xFF)&&(m_wMSVminor < 0xFF))
     {
         STORAGESIGNATURE *pSSig = (STORAGESIGNATURE *)metaData;

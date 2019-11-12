@@ -232,8 +232,9 @@ void DumpAssembly(void* GUICookie, BOOL fFullDump)
             if(IsAfPA_NoPlatform(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("noplatform "));
             if(IsAfPA_MSIL(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("cil "));
             if(IsAfPA_x86(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("x86 "));
-            if(IsAfPA_IA64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("ia64 "));
             if(IsAfPA_AMD64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("amd64 "));
+            if(IsAfPA_ARM(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("arm "));
+            if(IsAfPA_ARM64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("arm64 "));
 
 
             wzName[ulNameLen] = 0;
@@ -350,13 +351,14 @@ void DumpAssemblyRefs(void* GUICookie)
 
                     sprintf_s(szString,SZSTRING_SIZE,"%s%s ",g_szAsmCodeIndent,KEYWORD(".assembly extern"));
                     if(g_fDumpTokens) sprintf_s(&szString[strlen(szString)],SZSTRING_SIZE-strlen(szString),COMMENT("/*%08X*/ "),rAsmRefTok[ix]);
-                    
+
                     if(IsAfRetargetable(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("retargetable "));
                     if(IsAfContentType_WindowsRuntime(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("windowsruntime "));
                     if(IsAfPA_MSIL(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("cil "));
                     if(IsAfPA_x86(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("x86 "));
-                    if(IsAfPA_IA64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("ia64 "));
                     if(IsAfPA_AMD64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("amd64 "));
+                    if(IsAfPA_ARM(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("arm "));
+                    if(IsAfPA_ARM64(dwFlags)) strcat_s(szString,SZSTRING_SIZE,KEYWORD("arm64 "));
 
                     {
                         char* sz = new char[3*ulNameLen+32];
@@ -436,9 +438,9 @@ void DumpComTypeFQN(
     VDELETE(sz);
 }
 
-void DumpImplementation(mdToken tkImplementation, 
-                        DWORD dwOffset, 
-                        __inout __nullterminated char* szString, 
+void DumpImplementation(mdToken tkImplementation,
+                        DWORD dwOffset,
+                        __inout __nullterminated char* szString,
                         void* GUICookie)
 {
     ULONG i;
@@ -501,8 +503,8 @@ void DumpImplementation(mdToken tkImplementation,
     }
 }
 
-void DumpComType(LocalComTypeDescr* pCTD, 
-                 __inout __nullterminated char* szString, 
+void DumpComType(LocalComTypeDescr* pCTD,
+                 __inout __nullterminated char* szString,
                  void* GUICookie)
 {
     if(g_fDumpTokens) sprintf_s(&szString[strlen(szString)],SZSTRING_SIZE-strlen(szString),COMMENT("/*%08X*/ "),pCTD->tkComTypeTok);
@@ -629,7 +631,7 @@ void DumpComTypes(void* GUICookie)
 static BOOL ConvertToLegalFileNameInPlace(__inout LPWSTR wzName)
 {
     BOOL fAlias = FALSE;
-    
+
     // neutralize reserved names
     static const WCHAR * const rwzReserved[] =
     {
@@ -668,7 +670,7 @@ static BOOL ConvertToLegalFileNameInPlace(__inout LPWSTR wzName)
     for (;; wzName++)
     {
         WCHAR wch = *wzName;
-        
+
         if (wch > 0 && wch < 32)
         {
             *wzName = '~';
@@ -767,7 +769,7 @@ static void DumpResourceFile(void *GUICookie, BYTE *pRes, DWORD dwOffset, LPCWST
     {
         sprintf_s(szString, SZSTRING_SIZE,
                   "ERROR retrieving/saving embedded managed resource '%s' at offset 0x%8.8X",
-                  UnicodeToUtf(wzName), dwOffset); 
+                  UnicodeToUtf(wzName), dwOffset);
         printError(GUICookie, szString);
     }
     PAL_ENDTRY
@@ -803,7 +805,7 @@ void DumpManifestResources(void* GUICookie)
             if (!qbNameArray.AllocNoThrow(nManRes + 2))
             {
                 sprintf_s(szString, SZSTRING_SIZE,
-                          "ERROR retrieving/saving embedded managed resource '%s'", UnicodeToUtf(wzName)); 
+                          "ERROR retrieving/saving embedded managed resource '%s'", UnicodeToUtf(wzName));
                 printError(GUICookie, szString);
                 return;
             }
@@ -990,14 +992,14 @@ IMetaDataAssemblyImport* GetAssemblyImport(void* GUICookie)
             if(pdwSize && *pdwSize)
             {
                 pbManifest += sizeof(DWORD);
-                if (SUCCEEDED(hr = getMetaDataInternalInterface(
+                if (SUCCEEDED(hr = GetMetaDataInternalInterface(
                     pbManifest,
                     VAL32(*pdwSize),
                     ofRead,
                     IID_IMDInternalImport,
                     (LPVOID *)&pParam->pImport)))
                 {
-                    if (FAILED(hr = getMetaDataPublicInterfaceFromInternal(
+                    if (FAILED(hr = GetMetaDataPublicInterfaceFromInternal(
                         pParam->pImport,
                         IID_IMetaDataAssemblyImport,
                         (LPVOID *)&pParam->pAssemblyImport)))

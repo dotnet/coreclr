@@ -2,33 +2,28 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-////////////////////////////////////////////////////////////////////////////
-//
-//
-//  Purpose:  This Class defines behaviors specific to a writing system.
-//            A writing system is the collection of scripts and
-//            orthographic rules required to represent a language as text.
-//
-//
-////////////////////////////////////////////////////////////////////////////
-
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Unicode;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
-using nint = System.Int64;
 #else // BIT64
 using nuint = System.UInt32;
-using nint = System.Int32;
 #endif // BIT64
 
 namespace System.Globalization
 {
+    /// <summary>
+    /// This Class defines behaviors specific to a writing system.
+    /// A writing system is the collection of scripts and orthographic rules
+    /// required to represent a language as text.
+    /// </summary>
     public partial class TextInfo : ICloneable, IDeserializationCallback
     {
         private enum Tristate : byte
@@ -38,66 +33,44 @@ namespace System.Globalization
             True = 2
         }
 
-        private string _listSeparator;
+        private string? _listSeparator;
         private bool _isReadOnly = false;
 
-        /*    _cultureName is the name of the creating culture.
-              _cultureData is the data that backs this class.
-              _textInfoName is the actual name of the textInfo (from cultureData.STEXTINFO)
-                      In the desktop, when we call the sorting dll, it doesn't
-                      know how to resolve custom locle names to sort ids so we have to have already resolved this.
-        */
+        private readonly string _cultureName;
+        private readonly CultureData _cultureData;
 
-        private readonly string _cultureName;      // Name of the culture that created this text info
-        private readonly CultureData _cultureData; // Data record for the culture that made us, not for this textinfo
-        private readonly string _textInfoName;     // Name of the text info we're using (ie: _cultureData.STEXTINFO)
+        // // Name of the text info we're using (ie: _cultureData.TextInfoName)
+        private readonly string _textInfoName;
 
         private Tristate _isAsciiCasingSameAsInvariant = Tristate.NotInitialized;
 
-        // _invariantMode is defined for the perf reason as accessing the instance field is faster than access the static property GlobalizationMode.Invariant
-        private readonly bool _invariantMode = GlobalizationMode.Invariant;
-
         // Invariant text info
-        internal static TextInfo Invariant
-        {
-            get
-            {
-                if (s_Invariant == null)
-                    s_Invariant = new TextInfo(CultureData.Invariant);
-                return s_Invariant;
-            }
-        }
-        internal volatile static TextInfo s_Invariant;
+        internal static TextInfo Invariant => s_invariant ??= new TextInfo(CultureData.Invariant);
 
-        //////////////////////////////////////////////////////////////////////////
-        ////
-        ////  TextInfo Constructors
-        ////
-        ////  Implements CultureInfo.TextInfo.
-        ////
-        //////////////////////////////////////////////////////////////////////////
+        private static volatile TextInfo? s_invariant;
+
         internal TextInfo(CultureData cultureData)
         {
             // This is our primary data source, we don't need most of the rest of this
             _cultureData = cultureData;
             _cultureName = _cultureData.CultureName;
-            _textInfoName = _cultureData.STEXTINFO;
+            _textInfoName = _cultureData.TextInfoName;
 
             FinishInitialization();
         }
 
-        void IDeserializationCallback.OnDeserialization(object sender)
+        void IDeserializationCallback.OnDeserialization(object? sender)
         {
             throw new PlatformNotSupportedException();
         }
 
-        public virtual int ANSICodePage => _cultureData.IDEFAULTANSICODEPAGE;
+        public virtual int ANSICodePage => _cultureData.ANSICodePage;
 
-        public virtual int OEMCodePage => _cultureData.IDEFAULTOEMCODEPAGE;
+        public virtual int OEMCodePage => _cultureData.OEMCodePage;
 
-        public virtual int MacCodePage => _cultureData.IDEFAULTMACCODEPAGE;
+        public virtual int MacCodePage => _cultureData.MacCodePage;
 
-        public virtual int EBCDICCodePage => _cultureData.IDEFAULTEBCDICCODEPAGE;
+        public virtual int EBCDICCodePage => _cultureData.EBCDICCodePage;
 
         // Just use the LCID from our text info name
         public int LCID => CultureInfo.GetCultureInfo(_textInfoName).LCID;
@@ -106,13 +79,6 @@ namespace System.Globalization
 
         public bool IsReadOnly => _isReadOnly;
 
-        //////////////////////////////////////////////////////////////////////////
-        ////
-        ////  Clone
-        ////
-        ////  Is the implementation of ICloneable.
-        ////
-        //////////////////////////////////////////////////////////////////////////
         public virtual object Clone()
         {
             object o = MemberwiseClone();
@@ -120,22 +86,24 @@ namespace System.Globalization
             return o;
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  ReadOnly
-        //
-        //  Create a cloned readonly instance or return the input one if it is 
-        //  readonly.
-        //
-        ////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Create a cloned readonly instance or return the input one if it is
+        /// readonly.
+        /// </summary>
         public static TextInfo ReadOnly(TextInfo textInfo)
         {
-            if (textInfo == null) { throw new ArgumentNullException(nameof(textInfo)); }
-            if (textInfo.IsReadOnly) { return textInfo; }
+            if (textInfo == null)
+            {
+                throw new ArgumentNullException(nameof(textInfo));
+            }
+
+            if (textInfo.IsReadOnly)
+            {
+                return textInfo;
+            }
 
             TextInfo clonedTextInfo = (TextInfo)(textInfo.MemberwiseClone());
             clonedTextInfo.SetReadOnlyState(true);
-
             return clonedTextInfo;
         }
 
@@ -152,47 +120,31 @@ namespace System.Globalization
             _isReadOnly = readOnly;
         }
 
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  ListSeparator
-        //
-        //  Returns the string used to separate items in a list.
-        //
-        ////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Returns the string used to separate items in a list.
+        /// </summary>
         public virtual string ListSeparator
         {
-            get
-            {
-                if (_listSeparator == null)
-                {
-                    _listSeparator = _cultureData.SLIST;
-                }
-                return _listSeparator;
-            }
-
+            get => _listSeparator ??= _cultureData.ListSeparator;
             set
             {
                 if (value == null)
                 {
-                    throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
+                    throw new ArgumentNullException(nameof(value));
                 }
+
                 VerifyWritable();
                 _listSeparator = value;
             }
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  ToLower
-        //
-        //  Converts the character or string to lower case.  Certain locales
-        //  have different casing semantics from the file systems in Win32.
-        //
-        ////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Converts the character or string to lower case.  Certain locales
+        /// have different casing semantics from the file systems in Win32.
+        /// </summary>
         public virtual char ToLower(char c)
         {
-            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
+            if (GlobalizationMode.Invariant || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToLowerAsciiInvariant(c);
             }
@@ -202,9 +154,12 @@ namespace System.Globalization
 
         public virtual string ToLower(string str)
         {
-            if (str == null) { throw new ArgumentNullException(nameof(str)); }
+            if (str == null)
+            {
+                throw new ArgumentNullException(nameof(str));
+            }
 
-            if (_invariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 return ToLowerAsciiInvariant(str);
             }
@@ -214,13 +169,13 @@ namespace System.Globalization
 
         private unsafe char ChangeCase(char c, bool toUpper)
         {
-            Debug.Assert(!_invariantMode);
-            
+            Debug.Assert(!GlobalizationMode.Invariant);
+
             char dst = default;
             ChangeCase(&c, 1, &dst, 1, toUpper);
             return dst;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ChangeCaseToLower(ReadOnlySpan<char> source, Span<char> destination)
         {
@@ -247,7 +202,7 @@ namespace System.Globalization
             Debug.Assert(typeof(TConversion) == typeof(ToUpperConversion) || typeof(TConversion) == typeof(ToLowerConversion));
             bool toUpper = typeof(TConversion) == typeof(ToUpperConversion); // JIT will treat this as a constant in release builds
 
-            Debug.Assert(!_invariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(charCount >= 0);
 
             if (charCount == 0)
@@ -354,7 +309,7 @@ namespace System.Globalization
             Debug.Assert(typeof(TConversion) == typeof(ToUpperConversion) || typeof(TConversion) == typeof(ToLowerConversion));
             bool toUpper = typeof(TConversion) == typeof(ToUpperConversion); // JIT will treat this as a constant in release builds
 
-            Debug.Assert(!_invariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert(source != null);
 
             // If the string is empty, we're done.
@@ -454,13 +409,13 @@ namespace System.Globalization
             }
         }
 
-        private static unsafe string ToLowerAsciiInvariant(string s)
+        internal static unsafe string ToLowerAsciiInvariant(string s)
         {
             if (s.Length == 0)
             {
                 return string.Empty;
             }
-            
+
             fixed (char* pSource = s)
             {
                 int i = 0;
@@ -472,7 +427,7 @@ namespace System.Globalization
                     }
                     i++;
                 }
-                
+
                 if (i >= s.Length)
                 {
                     return s;
@@ -485,7 +440,7 @@ namespace System.Globalization
                     {
                         pResult[j] = pSource[j];
                     }
-                    
+
                     pResult[i] = (char)(pSource[i] | 0x20);
                     i++;
 
@@ -516,7 +471,7 @@ namespace System.Globalization
             {
                 return string.Empty;
             }
-            
+
             fixed (char* pSource = s)
             {
                 int i = 0;
@@ -528,7 +483,7 @@ namespace System.Globalization
                     }
                     i++;
                 }
-                
+
                 if (i >= s.Length)
                 {
                     return s;
@@ -541,7 +496,7 @@ namespace System.Globalization
                     {
                         pResult[j] = pSource[j];
                     }
-                    
+
                     pResult[i] = (char)(pSource[i] & ~0x20);
                     i++;
 
@@ -575,29 +530,28 @@ namespace System.Globalization
             return c;
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  ToUpper
-        //
-        //  Converts the character or string to upper case.  Certain locales
-        //  have different casing semantics from the file systems in Win32.
-        //
-        ////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Converts the character or string to upper case.  Certain locales
+        /// have different casing semantics from the file systems in Win32.
+        /// </summary>
         public virtual char ToUpper(char c)
         {
-            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
+            if (GlobalizationMode.Invariant || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToUpperAsciiInvariant(c);
             }
-            
+
             return ChangeCase(c, toUpper: true);
         }
 
         public virtual string ToUpper(string str)
         {
-            if (str == null) { throw new ArgumentNullException(nameof(str)); }
+            if (str == null)
+            {
+                throw new ArgumentNullException(nameof(str));
+            }
 
-            if (_invariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 return ToUpperAsciiInvariant(str);
             }
@@ -614,10 +568,7 @@ namespace System.Globalization
             return c;
         }
 
-        private static bool IsAscii(char c)
-        {
-            return c < 0x80;
-        }
+        private static bool IsAscii(char c) => c < 0x80;
 
         private bool IsAsciiCasingSameAsInvariant
         {
@@ -630,7 +581,7 @@ namespace System.Globalization
                 }
 
                 Debug.Assert(_isAsciiCasingSameAsInvariant == Tristate.True || _isAsciiCasingSameAsInvariant == Tristate.False);
-                return (_isAsciiCasingSameAsInvariant == Tristate.True);
+                return _isAsciiCasingSameAsInvariant == Tristate.True;
             }
         }
 
@@ -641,100 +592,63 @@ namespace System.Globalization
             _isAsciiCasingSameAsInvariant = (compareResult) ? Tristate.True : Tristate.False;
         }
 
-        // IsRightToLeft
-        //
-        // Returns true if the dominant direction of text and UI such as the relative position of buttons and scroll bars
-        //
+        /// <summary>
+        /// Returns true if the dominant direction of text and UI such as the
+        /// relative position of buttons and scroll bars
+        /// </summary>
         public bool IsRightToLeft => _cultureData.IsRightToLeft;
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  Equals
-        //
-        //  Implements Object.Equals().  Returns a boolean indicating whether
-        //  or not object refers to the same CultureInfo as the current instance.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            TextInfo that = obj as TextInfo;
-
-            if (that != null)
-            {
-                return CultureName.Equals(that.CultureName);
-            }
-
-            return false;
+            return obj is TextInfo otherTextInfo
+                && CultureName.Equals(otherTextInfo.CultureName);
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  GetHashCode
-        //
-        //  Implements Object.GetHashCode().  Returns the hash code for the
-        //  CultureInfo.  The hash code is guaranteed to be the same for CultureInfo A
-        //  and B where A.Equals(B) is true.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        public override int GetHashCode()
-        {
-            return CultureName.GetHashCode();
-        }
+        public override int GetHashCode() => CultureName.GetHashCode();
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  ToString
-        //
-        //  Implements Object.ToString().  Returns a string describing the
-        //  TextInfo.
-        //
-        ////////////////////////////////////////////////////////////////////////
         public override string ToString()
         {
             return "TextInfo - " + _cultureData.CultureName;
         }
 
-        //
-        // Titlecasing:
-        // -----------
-        // Titlecasing refers to a casing practice wherein the first letter of a word is an uppercase letter
-        // and the rest of the letters are lowercase.  The choice of which words to titlecase in headings
-        // and titles is dependent on language and local conventions.  For example, "The Merry Wives of Windor"
-        // is the appropriate titlecasing of that play's name in English, with the word "of" not titlecased.
-        // In German, however, the title is "Die lustigen Weiber von Windsor," and both "lustigen" and "von"
-        // are not titlecased.  In French even fewer words are titlecased: "Les joyeuses commeres de Windsor."
-        //
-        // Moreover, the determination of what actually constitutes a word is language dependent, and this can
-        // influence which letter or letters of a "word" are uppercased when titlecasing strings.  For example
-        // "l'arbre" is considered two words in French, whereas "can't" is considered one word in English.
-        //
+        /// <summary>
+        /// Titlecasing refers to a casing practice wherein the first letter of a word is an uppercase letter
+        /// and the rest of the letters are lowercase.  The choice of which words to titlecase in headings
+        /// and titles is dependent on language and local conventions.  For example, "The Merry Wives of Windor"
+        /// is the appropriate titlecasing of that play's name in English, with the word "of" not titlecased.
+        /// In German, however, the title is "Die lustigen Weiber von Windsor," and both "lustigen" and "von"
+        /// are not titlecased.  In French even fewer words are titlecased: "Les joyeuses commeres de Windsor."
+        ///
+        /// Moreover, the determination of what actually constitutes a word is language dependent, and this can
+        /// influence which letter or letters of a "word" are uppercased when titlecasing strings.  For example
+        /// "l'arbre" is considered two words in French, whereas "can't" is considered one word in English.
+        /// </summary>
         public unsafe string ToTitleCase(string str)
         {
             if (str == null)
             {
                 throw new ArgumentNullException(nameof(str));
             }
+
             if (str.Length == 0)
             {
                 return str;
             }
 
             StringBuilder result = new StringBuilder();
-            string lowercaseData = null;
+            string? lowercaseData = null;
             // Store if the current culture is Dutch (special case)
             bool isDutchCulture = CultureName.StartsWith("nl-", StringComparison.OrdinalIgnoreCase);
 
             for (int i = 0; i < str.Length; i++)
             {
-                UnicodeCategory charType;
                 int charLen;
-
-                charType = CharUnicodeInfo.InternalGetUnicodeCategory(str, i, out charLen);
+                UnicodeCategory charType = CharUnicodeInfo.InternalGetUnicodeCategory(str, i, out charLen);
                 if (char.CheckLetter(charType))
                 {
-                    // Special case to check for Dutch specific titlecasing with "IJ" characters 
+                    // Special case to check for Dutch specific titlecasing with "IJ" characters
                     // at the beginning of a word
-                    if (isDutchCulture && i < str.Length - 1 && (str[i] == 'i' || str[i] == 'I') && (str[i+1] == 'j' || str[i+1] == 'J'))
+                    if (isDutchCulture && i < str.Length - 1 && (str[i] == 'i' || str[i] == 'I') && (str[i + 1] == 'j' || str[i + 1] == 'J'))
                     {
                         result.Append("IJ");
                         i += 2;
@@ -745,17 +659,14 @@ namespace System.Globalization
                         i = AddTitlecaseLetter(ref result, ref str, i, charLen) + 1;
                     }
 
-                    //
                     // Convert the characters until the end of the this word
                     // to lowercase.
-                    //
                     int lowercaseStart = i;
 
-                    //
                     // Use hasLowerCase flag to prevent from lowercasing acronyms (like "URT", "USA", etc)
                     // This is in line with Word 2000 behavior of titlecasing.
-                    //
                     bool hasLowerCase = (charType == UnicodeCategory.LowercaseLetter);
+
                     // Use a loop to find all of the other letters following this letter.
                     while (i < str.Length)
                     {
@@ -790,7 +701,7 @@ namespace System.Globalization
                         {
                             // This category is considered to be part of the word.
                             // This is any category that is marked as false in wordSeprator array.
-                            i+= charLen;
+                            i += charLen;
                         }
                         else
                         {
@@ -856,7 +767,7 @@ namespace System.Globalization
             {
                 // for surrogate pairs do a ToUpper operation on the substring
                 ReadOnlySpan<char> src = input.AsSpan(inputIndex, 2);
-                if (_invariantMode)
+                if (GlobalizationMode.Invariant)
                 {
                     result.Append(src); // surrogate pair in invariant mode, so changing case is a nop
                 }
@@ -872,27 +783,26 @@ namespace System.Globalization
             {
                 switch (input[inputIndex])
                 {
-                    //
                     // For AppCompat, the Titlecase Case Mapping data from NDP 2.0 is used below.
-                    case (char) 0x01C4:  // DZ with Caron -> Dz with Caron
-                    case (char) 0x01C5:  // Dz with Caron -> Dz with Caron
-                    case (char) 0x01C6:  // dz with Caron -> Dz with Caron
-                        result.Append((char) 0x01C5);
+                    case (char)0x01C4:  // DZ with Caron -> Dz with Caron
+                    case (char)0x01C5:  // Dz with Caron -> Dz with Caron
+                    case (char)0x01C6:  // dz with Caron -> Dz with Caron
+                        result.Append((char)0x01C5);
                         break;
-                    case (char) 0x01C7:  // LJ -> Lj
-                    case (char) 0x01C8:  // Lj -> Lj
-                    case (char) 0x01C9:  // lj -> Lj
-                        result.Append((char) 0x01C8);
+                    case (char)0x01C7:  // LJ -> Lj
+                    case (char)0x01C8:  // Lj -> Lj
+                    case (char)0x01C9:  // lj -> Lj
+                        result.Append((char)0x01C8);
                         break;
-                    case (char) 0x01CA:  // NJ -> Nj
-                    case (char) 0x01CB:  // Nj -> Nj
-                    case (char) 0x01CC:  // nj -> Nj
-                        result.Append((char) 0x01CB);
+                    case (char)0x01CA:  // NJ -> Nj
+                    case (char)0x01CB:  // Nj -> Nj
+                    case (char)0x01CC:  // nj -> Nj
+                        result.Append((char)0x01CB);
                         break;
-                    case (char) 0x01F1:  // DZ -> Dz
-                    case (char) 0x01F2:  // Dz -> Dz
-                    case (char) 0x01F3:  // dz -> Dz
-                        result.Append((char) 0x01F2);
+                    case (char)0x01F1:  // DZ -> Dz
+                    case (char)0x01F2:  // Dz -> Dz
+                    case (char)0x01F3:  // dz -> Dz
+                        result.Append((char)0x01F2);
                         break;
                     default:
                         result.Append(ToUpper(input[inputIndex]));
@@ -902,12 +812,10 @@ namespace System.Globalization
             return inputIndex;
         }
 
-        //
         // Used in ToTitleCase():
         // When we find a starting letter, the following array decides if a category should be
         // considered as word seprator or not.
-        //
-        private const int c_wordSeparatorMask = 
+        private const int c_wordSeparatorMask =
             /* false */ (0 <<  0) | // UppercaseLetter = 0,
             /* false */ (0 <<  1) | // LowercaseLetter = 1,
             /* false */ (0 <<  2) | // TitlecaseLetter = 2,
@@ -938,19 +846,19 @@ namespace System.Globalization
             /* true  */ (1 << 27) | // ModifierSymbol = 27,
             /* true  */ (1 << 28) | // OtherSymbol = 28,
             /* false */ (0 << 29);  // OtherNotAssigned = 29;
-        
-        private static bool IsWordSeparator(UnicodeCategory category) 
+
+        private static bool IsWordSeparator(UnicodeCategory category)
         {
-            return (c_wordSeparatorMask & (1 << (int) category)) != 0;
+            return (c_wordSeparatorMask & (1 << (int)category)) != 0;
         }
 
         private static bool IsLetterCategory(UnicodeCategory uc)
         {
-            return (uc == UnicodeCategory.UppercaseLetter
+            return uc == UnicodeCategory.UppercaseLetter
                  || uc == UnicodeCategory.LowercaseLetter
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
-                 || uc == UnicodeCategory.OtherLetter);
+                 || uc == UnicodeCategory.OtherLetter;
         }
 
         // A dummy struct that is used for 'ToUpper' in generic parameters

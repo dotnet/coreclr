@@ -47,12 +47,13 @@ void DbgTransportTarget::Shutdown()
 // Given a PID attempt to find or create a DbgTransportSession instance to manage a connection to a runtime in
 // that process. Returns E_UNEXPECTED if the process can't be found. Also returns a handle that can be waited
 // on for process termination.
-HRESULT DbgTransportTarget::GetTransportForProcess(DWORD                   dwPID,
-                                                   DbgTransportSession   **ppTransport,
-                                                   HANDLE                 *phProcessHandle)
+HRESULT DbgTransportTarget::GetTransportForProcess(const ProcessDescriptor  *pProcessDescriptor,
+                                                   DbgTransportSession     **ppTransport,
+                                                   HANDLE                   *phProcessHandle)
 {
     RSLockHolder lock(&m_sLock);
     HRESULT hr = S_OK;
+    DWORD dwPID = pProcessDescriptor->m_Pid;
 
     ProcessEntry *entry = LocateProcessByPID(dwPID);
 
@@ -78,7 +79,7 @@ HRESULT DbgTransportTarget::GetTransportForProcess(DWORD                   dwPID
        }
 
        // Initialize it (this immediately starts the remote connection process).
-       hr = transport->Init(dwPID, hProcess);
+       hr = transport->Init(*pProcessDescriptor, hProcess);
        if (FAILED(hr))
        {
            transport->Shutdown();
@@ -87,7 +88,7 @@ HRESULT DbgTransportTarget::GetTransportForProcess(DWORD                   dwPID
        }
 
        entry = newEntry;
-       newEntry.SuppressRelease();   
+       newEntry.SuppressRelease();
        entry->m_dwPID = dwPID;
        entry->m_hProcess = hProcess;
        entry->m_transport = transport;
@@ -103,14 +104,14 @@ HRESULT DbgTransportTarget::GetTransportForProcess(DWORD                   dwPID
     _ASSERTE(entry->m_cProcessRef > 0);
     _ASSERTE(entry->m_transport != NULL);
     _ASSERTE((intptr_t)entry->m_hProcess > 0);
-    
+
     *ppTransport = entry->m_transport;
-    if (!DuplicateHandle(GetCurrentProcess(), 
+    if (!DuplicateHandle(GetCurrentProcess(),
                          entry->m_hProcess,
-                         GetCurrentProcess(), 
+                         GetCurrentProcess(),
                          phProcessHandle,
                          0,      // ignored since we are going to pass DUPLICATE_SAME_ACCESS
-                         FALSE, 
+                         FALSE,
                          DUPLICATE_SAME_ACCESS))
     {
         return HRESULT_FROM_GetLastError();
@@ -131,7 +132,7 @@ void DbgTransportTarget::ReleaseTransport(DbgTransportSession *pTransport)
     // Pointer to the pointer that points to *entry.
     // It either points to m_pProcessList or m_pNext of some entry.
     // It is used to fix the linked list after deletion of an entry.
-    ProcessEntry **prevPtr = &m_pProcessList; 
+    ProcessEntry **prevPtr = &m_pProcessList;
 
     // Looking for ProcessEntry with a given transport
     while (entry)
@@ -174,7 +175,7 @@ HRESULT DbgTransportTarget::CreateProcess(LPCWSTR lpApplicationName,
                           LPPROCESS_INFORMATION lpProcessInformation)
 {
 
-    BOOL result = WszCreateProcess(lpApplicationName, 
+    BOOL result = WszCreateProcess(lpApplicationName,
                                    lpCommandLine,
                                    lpProcessAttributes,
                                    lpThreadAttributes,
@@ -185,7 +186,7 @@ HRESULT DbgTransportTarget::CreateProcess(LPCWSTR lpApplicationName,
                                    lpStartupInfo,
                                    lpProcessInformation);
 
-    if (!result) 
+    if (!result)
     {
         return HRESULT_FROM_GetLastError();
     }

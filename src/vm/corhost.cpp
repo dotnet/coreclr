@@ -39,11 +39,6 @@
 #include "dwreport.h"
 #endif // !FEATURE_PAL
 
-#include "stringarraylist.h"
-#ifdef FEATURE_PERFTRACING
-#include "eventpipe.h"
-#endif // FEATURE_PERFTRACING
-
 #ifdef FEATURE_COMINTEROP
 #include "winrttypenameconverter.h"
 #endif
@@ -51,43 +46,27 @@
 
 GVAL_IMPL_INIT(DWORD, g_fHostConfig, 0);
 
-#ifndef __llvm__
+#ifndef __GNUC__
 EXTERN_C __declspec(thread) ThreadLocalInfo gCurrentThreadInfo;
-#else // !__llvm__
+#else // !__GNUC__
 EXTERN_C __thread ThreadLocalInfo gCurrentThreadInfo;
-#endif // !__llvm__
+#endif // !__GNUC__
 #ifndef FEATURE_PAL
 EXTERN_C UINT32 _tls_index;
 #else // FEATURE_PAL
 UINT32 _tls_index = 0;
 #endif // FEATURE_PAL
 
-#if defined(FEATURE_WINDOWSPHONE)
-SVAL_IMPL_INIT(ECustomDumpFlavor, CCLRErrorReportingManager, g_ECustomDumpFlavor, DUMP_FLAVOR_Default);
-#endif
-
 #ifndef DACCESS_COMPILE
 
 extern void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading);
-extern HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags);
 extern void PrintToStdOutA(const char *pszString);
 extern void PrintToStdOutW(const WCHAR *pwzString);
 extern BOOL g_fEEHostedStartup;
 
-INT64 g_PauseTime;         // Total time in millisecond the CLR has been paused
-Volatile<BOOL> g_IsPaused;  // True if the runtime is paused (FAS)
-CLREventStatic g_ClrResumeEvent; // Event that is fired at FAS Resuming 
-
-extern BYTE g_rbTestKeyBuffer[];
-
 //***************************************************************************
 
 ULONG CorRuntimeHostBase::m_Version = 0;
-
-
-#if defined(FEATURE_WINDOWSPHONE)
-CCLRErrorReportingManager g_CLRErrorReportingManager;
-#endif // defined(FEATURE_WINDOWSPHONE)
 
 #endif // !DAC
 
@@ -104,13 +83,9 @@ typedef DPTR(CONNID)   PTR_CONNID;
 
 // *** ICorRuntimeHost methods ***
 
-CorHost2::CorHost2()
+CorHost2::CorHost2() : m_fFirstToLoadCLR(FALSE), m_fStarted(FALSE), m_fAppDomainCreated(FALSE)
 {
     LIMITED_METHOD_CONTRACT;
-
-    m_fStarted = FALSE;
-    m_fFirstToLoadCLR = FALSE;
-    m_fAppDomainCreated = FALSE;
 }
 
 static DangerousNonHostedSpinLock lockOnlyOneToInvokeStart;
@@ -130,7 +105,7 @@ STDMETHODIMP CorHost2::Start()
 
     // Ensure that only one thread at a time gets in here
     DangerousNonHostedSpinLockHolder lockHolder(&lockOnlyOneToInvokeStart);
-        
+
     // To provide the complete semantic of Start/Stop in context of a given host, we check m_fStarted and let
     // them invoke the Start only if they have not already. Likewise, they can invoke the Stop method
     // only if they have invoked Start prior to that.
@@ -163,7 +138,7 @@ STDMETHODIMP CorHost2::Start()
         // choice. Now, CorBindToRuntimeEx results in CorHost2::CreateObject being invoked
         // that will set runtime hosted flag "g_fHostConfig |= CLRHOSTED".
         //
-        // For the case when managed code started without CLR hosting and MC++ does a 
+        // For the case when managed code started without CLR hosting and MC++ does a
         // CorBindToRuntimeEx, setting the CLR hosted flag is incorrect.
         //
         // Thus, before we attempt to start the runtime, we save the status of it being
@@ -185,7 +160,7 @@ STDMETHODIMP CorHost2::Start()
             // to repeatedly invoke Stop method (without corresponding Start method invocations).
             // This is to support scenarios like that of Office where they need to bring down
             // the CLR at any cost.
-            // 
+            //
             // So, if you want to do that, just make sure you are the first host to load the
             // specific version of CLR in memory AND start it.
             m_fFirstToLoadCLR = TRUE;
@@ -296,15 +271,11 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    // We use CanRunManagedCode() instead of IsRuntimeActive() because this allows us
-    // to specify test using the form that does not trigger a GC.
-    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None))
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
-    }   
-    
+    }
+
     HRESULT hr = S_OK;
 
     BEGIN_ENTRYPOINT_NOTHROW;
@@ -322,7 +293,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
         }
         else
         {
-            *pdwAppDomainId = SystemDomain::GetCurrentDomain()->GetId().m_dwId;
+            *pdwAppDomainId = DefaultADID;
         }
     }
 
@@ -364,10 +335,8 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     }
     CONTRACTL_END;
 
-    // Send the command line to EventPipe.
-#ifdef FEATURE_PERFTRACING
-    EventPipe::SaveCommandLine(pwzAssemblyPath, argc, argv);
-#endif // FEATURE_PERFTRACING
+    // Record the command line.
+    SaveManagedCommandLine(pwzAssemblyPath, argc, argv);
 
     // Send the command line to System.Environment.
     struct _gc
@@ -417,11 +386,11 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         return HOST_E_INVALIDOPERATION;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive() || !m_fStarted)
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
-    }   
-   
+    }
+
     if(!pwzAssemblyPath)
         return E_POINTER;
 
@@ -447,11 +416,6 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         {
             goto ErrExit;
         }
-    }
-
-    if(pCurDomain->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
     }
 
     INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
@@ -481,14 +445,26 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
             arguments->SetAt(i, argument);
         }
 
-        DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
-        if (pReturnValue)
+        if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Corhost_Swallow_Uncaught_Exceptions))
         {
-            *pReturnValue = retval;
+            EX_TRY
+                DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
+                if (pReturnValue)
+                {
+                    *pReturnValue = retval;
+                }
+            EX_CATCH_HRESULT (hr)
+        }
+        else
+        {
+            DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
+            if (pReturnValue)
+            {
+                *pReturnValue = retval;
+            }
         }
 
         GCPROTECT_END();
-
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
@@ -513,31 +489,96 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
-    }   
-   
-    
-    // Ensure that code is not loaded in the Default AppDomain
-    return HOST_E_INVALIDOPERATION;
+    }
+
+    if(! (pwzAssemblyPath && pwzTypeName && pwzMethodName) )
+        return E_POINTER;
+
+    HRESULT hr = S_OK;
+
+    BEGIN_ENTRYPOINT_NOTHROW;
+
+    Thread *pThread = GetThread();
+    if (pThread == NULL)
+    {
+        pThread = SetupThreadNoThrow(&hr);
+        if (pThread == NULL)
+        {
+            goto ErrExit;
+        }
+    }
+
+    _ASSERTE (!pThread->PreemptiveGCDisabled());
+
+    INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+    INSTALL_UNWIND_AND_CONTINUE_HANDLER;
+
+    EX_TRY
+    {
+        Assembly *pAssembly = AssemblySpec::LoadAssembly(pwzAssemblyPath);
+
+        SString szTypeName(pwzTypeName);
+        StackScratchBuffer buff1;
+        const char* szTypeNameUTF8 = szTypeName.GetUTF8(buff1);
+        MethodTable *pMT = ClassLoader::LoadTypeByNameThrowing(pAssembly,
+                                                            NULL,
+                                                            szTypeNameUTF8).AsMethodTable();
+
+        SString szMethodName(pwzMethodName);
+        StackScratchBuffer buff;
+        const char* szMethodNameUTF8 = szMethodName.GetUTF8(buff);
+        MethodDesc *pMethodMD = MemberLoader::FindMethod(pMT, szMethodNameUTF8, &gsig_SM_Str_RetInt);
+
+        if (!pMethodMD)
+        {
+            hr = COR_E_MISSINGMETHOD;
+        }
+        else
+        {
+            GCX_COOP();
+
+            MethodDescCallSite method(pMethodMD);
+
+            STRINGREF sref = NULL;
+            GCPROTECT_BEGIN(sref);
+
+            if (pwzArgument)
+                sref = StringObject::NewString(pwzArgument);
+
+            ARG_SLOT MethodArgs[] =
+            {
+                ObjToArgSlot(sref)
+            };
+            DWORD retval = method.Call_RetI4(MethodArgs);
+            if (pReturnValue)
+            {
+                *pReturnValue = retval;
+            }
+
+            GCPROTECT_END();
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+
+    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+
+ErrExit:
+
+    END_ENTRYPOINT_NOTHROW;
+
+    return hr;
 }
 
 HRESULT ExecuteInAppDomainHelper(FExecuteInAppDomainCallback pCallback,
                                  void * cookie)
 {
     STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
-    HRESULT hr = S_OK;
-
-    BEGIN_SO_TOLERANT_CODE(GetThread());
-    hr = pCallback(cookie);
-    END_SO_TOLERANT_CODE;
-
-    return hr;
+    return pCallback(cookie);
 }
 
 HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
@@ -546,17 +587,19 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
 {
 
     // No point going further if the runtime is not running...
-    if (!IsRuntimeActive()
-        || !m_fStarted
-    )
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
-    }       
+    }
 
     // Moved this here since no point validating the pointer
     // if the basic checks [above] fail
     if( pCallback == NULL)
         return E_POINTER;
+
+    // This is currently supported in default domain only
+    if (dwAppDomainId != DefaultADID)
+        return HOST_E_INVALIDOPERATION;
 
     CONTRACTL
     {
@@ -571,14 +614,13 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     BEGIN_ENTRYPOINT_NOTHROW;
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
     GCX_COOP_THREAD_EXISTS(GET_THREAD());
-    ENTER_DOMAIN_ID(ADID(dwAppDomainId))
+
+    // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
+    // The thread should be in preemptive mode.
     {
-        // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
-        // The thread should be in preemptive mode, and SO_Tolerant.
         GCX_PREEMP();
         hr=ExecuteInAppDomainHelper (pCallback, cookie);
     }
-    END_DOMAIN_TRANSITION;
     END_EXTERNAL_ENTRYPOINT;
     END_ENTRYPOINT_NOTHROW;
 
@@ -590,10 +632,10 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
 HRESULT CorHost2::_CreateAppDomain(
     LPCWSTR wszFriendlyName,
     DWORD  dwFlags,
-    LPCWSTR wszAppDomainManagerAssemblyName, 
-    LPCWSTR wszAppDomainManagerTypeName, 
-    int nProperties, 
-    LPCWSTR* pPropertyNames, 
+    LPCWSTR wszAppDomainManagerAssemblyName,
+    LPCWSTR wszAppDomainManagerTypeName,
+    int nProperties,
+    LPCWSTR* pPropertyNames,
     LPCWSTR* pPropertyValues,
     DWORD* pAppDomainID)
 {
@@ -618,111 +660,144 @@ HRESULT CorHost2::_CreateAppDomain(
     EMPTY_STRING_TO_NULL(wszAppDomainManagerAssemblyName);
     EMPTY_STRING_TO_NULL(wszAppDomainManagerTypeName);
 
-    if(pAppDomainID==NULL)
+    if (pAppDomainID==NULL)
         return E_POINTER;
 
     if (!m_fStarted)
         return HOST_E_INVALIDOPERATION;
 
-    if(wszFriendlyName == NULL)
+    if (wszFriendlyName == NULL)
         return E_INVALIDARG;
 
-    if((wszAppDomainManagerAssemblyName == NULL) != (wszAppDomainManagerTypeName == NULL))
+    if ((wszAppDomainManagerAssemblyName != NULL) || (wszAppDomainManagerTypeName != NULL))
         return E_INVALIDARG;
 
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
-    GCX_COOP_THREAD_EXISTS(GET_THREAD());
 
-    AppDomainCreationHolder<AppDomain> pDomain;
+    AppDomain* pDomain = SystemDomain::System()->DefaultDomain();
 
-    pDomain.Assign(SystemDomain::System()->DefaultDomain());
+    pDomain->SetFriendlyName(wszFriendlyName);
 
     ETW::LoaderLog::DomainLoad(pDomain, (LPWSTR)wszFriendlyName);
 
     if (dwFlags & APPDOMAIN_IGNORE_UNHANDLED_EXCEPTIONS)
-    {
         pDomain->SetIgnoreUnhandledExceptions();
-    }
-
-    if (dwFlags & APPDOMAIN_SECURITY_FORBID_CROSSAD_REVERSE_PINVOKE)
-        pDomain->SetReversePInvokeCannotEnter();
 
     if (dwFlags & APPDOMAIN_FORCE_TRIVIAL_WAIT_OPERATIONS)
         pDomain->SetForceTrivialWaitOperations();
 
+    pDomain->CreateFusionContext();
+
     {
         GCX_COOP();
-    
-        struct 
-        {
-            STRINGREF friendlyName;
-            PTRARRAYREF propertyNames;
-            PTRARRAYREF propertyValues;
-            OBJECTREF setupInfo;
-            OBJECTREF adSetup;
-        } _gc;
 
-        ZeroMemory(&_gc,sizeof(_gc));
+        MethodDescCallSite setup(METHOD__APPCONTEXT__SETUP);
 
-        GCPROTECT_BEGIN(_gc)
-        _gc.friendlyName=StringObject::NewString(wszFriendlyName);
-        
-        if(nProperties>0)
-        {
-            _gc.propertyNames = (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            _gc.propertyValues= (PTRARRAYREF) AllocateObjectArray(nProperties, g_pStringClass);
-            for (int i=0;i< nProperties;i++)
-            {
-                STRINGREF obj = StringObject::NewString(pPropertyNames[i]);
-                _gc.propertyNames->SetAt(i, obj);
-                
-                obj = StringObject::NewString(pPropertyValues[i]);
-                _gc.propertyValues->SetAt(i, obj);
-            }
-        }
+        ARG_SLOT args[3];
+        args[0] = PtrToArgSlot(pPropertyNames);
+        args[1] = PtrToArgSlot(pPropertyValues);
+        args[2] = PtrToArgSlot(nProperties);
 
-        MethodDescCallSite prepareDataForSetup(METHOD__APP_DOMAIN__PREPARE_DATA_FOR_SETUP);
-
-        ARG_SLOT args[4];
-        args[0]=ObjToArgSlot(_gc.friendlyName);
-        args[1]=ObjToArgSlot(NULL);
-        args[2]=ObjToArgSlot(_gc.propertyNames);
-        args[3]=ObjToArgSlot(_gc.propertyValues);
-
-        _gc.setupInfo=prepareDataForSetup.Call_RetOBJECTREF(args);
-
-        //
-        // Get the new flag values and set it to the domain
-        //
-        PTRARRAYREF handleArrayObj = (PTRARRAYREF) ObjectToOBJECTREF(_gc.setupInfo);
-        _gc.adSetup = ObjectToOBJECTREF(handleArrayObj->GetAt(1));
-
-
-        pDomain->DoSetup(&_gc.setupInfo);
-        
-        GCPROTECT_END();
-
-        *pAppDomainID=pDomain->GetId().m_dwId;
-
-        m_fAppDomainCreated = TRUE;
+        setup.Call(args);
     }
-    // DoneCreating releases ownership of AppDomain.  After this call, there should be no access to pDomain.
-    pDomain.DoneCreating();
+
+    LPCWSTR pwzNativeDllSearchDirectories = NULL;
+    LPCWSTR pwzTrustedPlatformAssemblies = NULL;
+    LPCWSTR pwzPlatformResourceRoots = NULL;
+    LPCWSTR pwzAppPaths = NULL;
+    LPCWSTR pwzAppNiPaths = NULL;
+#ifdef FEATURE_COMINTEROP
+    LPCWSTR pwzAppLocalWinMD = NULL;
+#endif
+
+    for (int i = 0; i < nProperties; i++)
+    {
+        if (wcscmp(pPropertyNames[i], W("NATIVE_DLL_SEARCH_DIRECTORIES")) == 0)
+        {
+            pwzNativeDllSearchDirectories = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("TRUSTED_PLATFORM_ASSEMBLIES")) == 0)
+        {
+            pwzTrustedPlatformAssemblies = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("PLATFORM_RESOURCE_ROOTS")) == 0)
+        {
+            pwzPlatformResourceRoots = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_PATHS")) == 0)
+        {
+            pwzAppPaths = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_NI_PATHS")) == 0)
+        {
+            pwzAppNiPaths = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("DEFAULT_STACK_SIZE")) == 0)
+        {
+            extern void ParseDefaultStackSize(LPCWSTR value);
+            ParseDefaultStackSize(pPropertyValues[i]);
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("USE_ENTRYPOINT_FILTER")) == 0)
+        {
+            extern void ParseUseEntryPointFilter(LPCWSTR value);
+            ParseUseEntryPointFilter(pPropertyValues[i]);
+        }
+#ifdef FEATURE_COMINTEROP
+        else
+        if (wcscmp(pPropertyNames[i], W("APP_LOCAL_WINMETADATA")) == 0)
+        {
+            pwzAppLocalWinMD = pPropertyValues[i];
+        }
+#endif
+    }
+
+    pDomain->SetNativeDllSearchDirectories(pwzNativeDllSearchDirectories);
+
+    {
+        SString sTrustedPlatformAssemblies(pwzTrustedPlatformAssemblies);
+        SString sPlatformResourceRoots(pwzPlatformResourceRoots);
+        SString sAppPaths(pwzAppPaths);
+        SString sAppNiPaths(pwzAppNiPaths);
+
+        CLRPrivBinderCoreCLR *pBinder = pDomain->GetTPABinderContext();
+        _ASSERTE(pBinder != NULL);
+        IfFailThrow(pBinder->SetupBindingPaths(
+            sTrustedPlatformAssemblies,
+            sPlatformResourceRoots,
+            sAppPaths,
+            sAppNiPaths));
+    }
+
+#ifdef FEATURE_COMINTEROP
+    if (WinRTSupported())
+    {
+        pDomain->SetWinrtApplicationContext(pwzAppLocalWinMD);
+    }
+#endif
+
+    *pAppDomainID=DefaultADID;
+
+    m_fAppDomainCreated = TRUE;
 
     END_EXTERNAL_ENTRYPOINT;
 
     END_ENTRYPOINT_NOTHROW;
 
     return hr;
-
-};
+}
 
 HRESULT CorHost2::_CreateDelegate(
     DWORD appDomainID,
-    LPCWSTR wszAssemblyName,     
-    LPCWSTR wszClassName,     
+    LPCWSTR wszAssemblyName,
+    LPCWSTR wszClassName,
     LPCWSTR wszMethodName,
     INT_PTR* fnPtr)
 {
@@ -747,14 +822,15 @@ HRESULT CorHost2::_CreateDelegate(
 
     if(wszAssemblyName == NULL)
         return E_INVALIDARG;
-    
+
     if(wszClassName == NULL)
         return E_INVALIDARG;
 
     if(wszMethodName == NULL)
         return E_INVALIDARG;
-    
-    if (!m_fStarted)
+
+    // This is currently supported in default domain only
+    if (appDomainID != DefaultADID)
         return HOST_E_INVALIDOPERATION;
 
     BEGIN_ENTRYPOINT_NOTHROW;
@@ -766,42 +842,37 @@ HRESULT CorHost2::_CreateDelegate(
     MAKE_UTF8PTR_FROMWIDE(szClassName, wszClassName);
     MAKE_UTF8PTR_FROMWIDE(szMethodName, wszMethodName);
 
-    ADID id;
-    id.m_dwId=appDomainID;
-
-    ENTER_DOMAIN_ID(id)
-
-    GCX_PREEMP();
-
-    AssemblySpec spec;
-    spec.Init(szAssemblyName);
-    Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
-
-    TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
-    MethodDesc* pMD=NULL;
-    
-    if (!th.IsTypeDesc()) 
     {
-        pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
-        if (pMD == NULL)
+        GCX_PREEMP();
+
+        AssemblySpec spec;
+        spec.Init(szAssemblyName);
+        Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
+
+        TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
+        MethodDesc* pMD=NULL;
+
+        if (!th.IsTypeDesc())
         {
-            // try again without the FM_Unique flag (error path)
-            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
-            if (pMD != NULL)
+            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
+            if (pMD == NULL)
             {
-                // the method exists but is overloaded
-                ThrowHR(COR_E_AMBIGUOUSMATCH);
+                // try again without the FM_Unique flag (error path)
+                pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
+                if (pMD != NULL)
+                {
+                    // the method exists but is overloaded
+                    ThrowHR(COR_E_AMBIGUOUSMATCH);
+                }
             }
         }
+
+        if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables())
+            ThrowHR(COR_E_MISSINGMETHOD);
+
+        UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+        *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
     }
-
-    if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
-        ThrowHR(COR_E_MISSINGMETHOD);
-
-    UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
-    *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
-
-    END_DOMAIN_TRANSITION;
 
     END_EXTERNAL_ENTRYPOINT;
 
@@ -813,11 +884,11 @@ HRESULT CorHost2::_CreateDelegate(
 HRESULT CorHost2::CreateAppDomainWithManager(
     LPCWSTR wszFriendlyName,
     DWORD  dwFlags,
-    LPCWSTR wszAppDomainManagerAssemblyName, 
-    LPCWSTR wszAppDomainManagerTypeName, 
-    int nProperties, 
-    LPCWSTR* pPropertyNames, 
-    LPCWSTR* pPropertyValues, 
+    LPCWSTR wszAppDomainManagerAssemblyName,
+    LPCWSTR wszAppDomainManagerTypeName,
+    int nProperties,
+    LPCWSTR* pPropertyNames,
+    LPCWSTR* pPropertyValues,
     DWORD* pAppDomainID)
 {
     WRAPPER_NO_CONTRACT;
@@ -825,18 +896,18 @@ HRESULT CorHost2::CreateAppDomainWithManager(
     return _CreateAppDomain(
         wszFriendlyName,
         dwFlags,
-        wszAppDomainManagerAssemblyName, 
-        wszAppDomainManagerTypeName, 
-        nProperties, 
-        pPropertyNames, 
+        wszAppDomainManagerAssemblyName,
+        wszAppDomainManagerTypeName,
+        nProperties,
+        pPropertyNames,
         pPropertyValues,
         pAppDomainID);
 }
 
 HRESULT CorHost2::CreateDelegate(
     DWORD appDomainID,
-    LPCWSTR wszAssemblyName,     
-    LPCWSTR wszClassName,     
+    LPCWSTR wszAssemblyName,
+    LPCWSTR wszClassName,
     LPCWSTR wszMethodName,
     INT_PTR* fnPtr)
 {
@@ -892,149 +963,6 @@ HRESULT CorHost2::SetStartupFlags(STARTUP_FLAGS flag)
     return S_OK;
 }
 
-
-
-HRESULT SuspendEEForPause()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        MODE_PREEMPTIVE;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-    // In CoreCLR, we always resume from the same thread that paused.  So we can simply suspend the EE from this thread,
-    // knowing we'll restart from the same thread.
-    ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
-
-    return hr;
-}
-
-HRESULT RestartEEFromPauseAndSetResumeEvent()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        MODE_PREEMPTIVE;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    // see comments in SuspendEEFromPause
-    ThreadSuspend::RestartEE(FALSE, TRUE);
-
-    _ASSERTE(g_ClrResumeEvent.IsValid());
-    g_ClrResumeEvent.Set();
-
-    return S_OK;
-}
-    
-
-
-CorExecutionManager::CorExecutionManager()
-    : m_dwFlags(0), m_pauseStartTime(0)
-{
-    LIMITED_METHOD_CONTRACT;
-    g_IsPaused = FALSE;
-    g_PauseTime = 0;
-}
-
-HRESULT CorExecutionManager::Pause(DWORD dwAppDomainId, DWORD dwFlags)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        ENTRY_POINT;  // This is called by a host.
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-
-    if(g_IsPaused)
-        return E_FAIL;
-
-    EX_TRY
-    {
-        if(!g_ClrResumeEvent.IsValid())
-            g_ClrResumeEvent.CreateManualEvent(FALSE);
-        else
-            g_ClrResumeEvent.Reset();
-
-    }
-    EX_CATCH_HRESULT(hr);
-    
-    if (FAILED(hr))
-        return hr;
-    
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    m_dwFlags = dwFlags;
-
-
-    if (SUCCEEDED(hr))
-    {
-        g_IsPaused = TRUE;
-
-        hr = SuspendEEForPause();
-
-        // Even though this is named with TickCount, it returns milliseconds
-        m_pauseStartTime = (INT64)CLRGetTickCount64(); 
-    }
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-
-HRESULT CorExecutionManager::Resume(DWORD dwAppDomainId)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        ENTRY_POINT;  // This is called by a host.
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-
-    if(!g_IsPaused)
-        return E_FAIL;
-
-    // GCThread is the thread that did the Pause. Resume should also happen on that same thread
-    Thread *pThread = GetThread();
-    if(pThread != ThreadSuspend::GetSuspensionThread())
-    {
-        _ASSERTE(!"HOST BUG: The same thread that did Pause should do the Resume");
-        return E_FAIL;
-    }
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    // Even though this is named with TickCount, it returns milliseconds
-    INT64 currTime = (INT64)CLRGetTickCount64(); 
-    _ASSERTE(currTime >= m_pauseStartTime);
-    _ASSERTE(m_pauseStartTime != 0);
-
-    g_PauseTime += (currTime - m_pauseStartTime);
-    g_IsPaused = FALSE;
-
-    hr = RestartEEFromPauseAndSetResumeEvent();
-
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-
 #endif //!DACCESS_COMPILE
 
 #ifndef DACCESS_COMPILE
@@ -1051,49 +979,8 @@ STARTUP_FLAGS CorHost2::GetStartupFlags()
 #ifndef DACCESS_COMPILE
 
 
-#ifdef FEATURE_COMINTEROP
-
-// Enumerate currently existing domains.
-HRESULT CorRuntimeHostBase::EnumDomains(HDOMAINENUM *hEnum)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        MODE_PREEMPTIVE;
-        WRAPPER(GC_TRIGGERS);
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    if(hEnum == NULL) return E_POINTER;
-
-    // Thread setup happens in BEGIN_EXTERNAL_ENTRYPOINT below.
-    // If the runtime has not started, we have nothing to do.
-    if (!g_fEEStarted)
-    {
-        return HOST_E_CLRNOTAVAILABLE;
-    }
-
-    HRESULT hr = E_OUTOFMEMORY;
-    *hEnum = NULL;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-
-    AppDomainIterator *pEnum = new (nothrow) AppDomainIterator(FALSE);
-    if(pEnum) {
-        *hEnum = (HDOMAINENUM) pEnum;
-        hr = S_OK;
-    }
-    END_EXTERNAL_ENTRYPOINT;
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-#endif // FEATURE_COMINTEROP
-
 extern "C"
+DLLEXPORT
 HRESULT  GetCLRRuntimeHost(REFIID riid, IUnknown **ppUnk)
 {
     WRAPPER_NO_CONTRACT;
@@ -1110,7 +997,6 @@ STDMETHODIMP CorHost2::UnloadAppDomain(DWORD dwDomainId, BOOL fWaitUntilDone)
 STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, int *pLatchedExitCode)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     if (!m_fStarted)
         return HOST_E_INVALIDOPERATION;
@@ -1127,7 +1013,7 @@ STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, i
 
     HRESULT hr=S_OK;
     BEGIN_ENTRYPOINT_NOTHROW;
-    
+
     if (!m_fFirstToLoadCLR)
     {
         _ASSERTE(!"Not reachable");
@@ -1144,7 +1030,6 @@ STDMETHODIMP CorHost2::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDone, i
         if (1 == refCount)
         {
             // Stop coreclr on unload.
-            m_fStarted = FALSE;
             EEShutDown(FALSE);
         }
         else
@@ -1184,40 +1069,6 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDo
 }
 
 //*****************************************************************************
-// Fiber Methods
-//*****************************************************************************
-
-HRESULT CorRuntimeHostBase::LocksHeldByLogicalThread(DWORD *pCount)
-{
-    if (!pCount)
-        return E_POINTER;
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    Thread* pThread = GetThread();
-    if (pThread == NULL)
-        *pCount = 0;
-    else
-        *pCount = pThread->m_dwLockCount;
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return S_OK;
-}
-
-//*****************************************************************************
-// ICorConfiguration
-//*****************************************************************************
-
-//*****************************************************************************
 // IUnknown
 //*****************************************************************************
 
@@ -1227,7 +1078,6 @@ ULONG CorRuntimeHostBase::AddRef()
     {
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     return InterlockedIncrement(&m_cRef);
@@ -1257,7 +1107,6 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;    // no global state updates that need guarding.
     }
     CONTRACTL_END;
 
@@ -1271,7 +1120,13 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
     // Deliberately do NOT hand out ICorConfiguration.  They must explicitly call
     // GetConfiguration to obtain that interface.
     if (riid == IID_IUnknown)
+    {
         *ppUnk = static_cast<IUnknown *>(static_cast<ICLRRuntimeHost *>(this));
+    }
+    else if (riid == IID_ICLRRuntimeHost)
+    {
+        *ppUnk = static_cast<ICLRRuntimeHost *>(this);
+    }
     else if (riid == IID_ICLRRuntimeHost2)
     {
         ULONG version = 2;
@@ -1287,14 +1142,6 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
             FastInterlockCompareExchange((LONG*)&m_Version, version, 0);
 
         *ppUnk = static_cast<ICLRRuntimeHost4 *>(this);
-    }
-    else if (riid == IID_ICLRExecutionManager)
-    {
-        ULONG version = 2;
-        if (m_Version == 0)
-            FastInterlockCompareExchange((LONG*)&m_Version, version, 0);
-
-        *ppUnk = static_cast<ICLRExecutionManager *>(this);
     }
 #ifndef FEATURE_PAL
     else if (riid == IID_IPrivateManagedExceptionReporting)
@@ -1316,7 +1163,6 @@ HRESULT CorHost2::GetBucketParametersForCurrentException(BucketParameters *pPara
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1341,13 +1187,11 @@ HRESULT CorHost2::CreateObject(REFIID riid, void **ppUnk)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW; );
     CorHost2 *pCorHost = new (nothrow) CorHost2();
     if (!pCorHost)
     {
@@ -1359,7 +1203,6 @@ HRESULT CorHost2::CreateObject(REFIID riid, void **ppUnk)
     if (FAILED(hr))
         delete pCorHost;
     }
-    END_SO_INTOLERANT_CODE;
     return (hr);
 }
 
@@ -1397,41 +1240,7 @@ static PEImage *MapFileHelper(HANDLE hFile)
     return pImage.Extract();
 }
 
-HRESULT CorRuntimeHostBase::MapFile(HANDLE hFile, HMODULE* phHandle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-    {
-        *phHandle = (HMODULE) (MapFileHelper(hFile)->GetLoadedLayout()->GetBase());
-    }
-    END_EXTERNAL_ENTRYPOINT;
-    END_ENTRYPOINT_NOTHROW;
-
-
-    return hr;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// IDebuggerInfo::IsDebuggerAttached
-
 LONG CorHost2::m_RefCount = 0;
-
-IHostControl *CorHost2::m_HostControl = NULL;
-
-#ifdef _DEBUG
-extern void ValidateHostInterface();
-#endif
 
 static Volatile<BOOL> fOneOnly = 0;
 
@@ -1440,1110 +1249,15 @@ static Volatile<BOOL> fOneOnly = 0;
 ///////////////////////////////////////////////////////////////////////////////
 HRESULT CorHost2::SetHostControl(IHostControl* pHostControl)
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-    if (m_Version < 2)
-        // CLR is hosted with v1 hosting interface.  Some part of v2 hosting API are disabled.
-        return HOST_E_INVALIDOPERATION;
-
-    if (pHostControl == 0)
-        return E_INVALIDARG;
-
-    // If Runtime has been started, do not allow setting HostMemoryManager
-    if (g_fEEStarted)
-        return E_ACCESSDENIED;
-
-    HRESULT hr = S_OK;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-    
-    DWORD dwSwitchCount = 0;
-
-    while (FastInterlockExchange((LONG*)&fOneOnly, 1) == 1)
-    {
-             __SwitchToThread(0, ++dwSwitchCount);
-    }
-    
-
-    if (m_HostControl == NULL)
-    {
-        m_HostControl = pHostControl;
-        m_HostControl->AddRef();
-    }
-
-    goto ErrExit;
-
-ErrExit:
-    fOneOnly = 0;
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
+    return E_NOTIMPL;
 }
-
-class CCLRPolicyManager: public ICLRPolicyManager
-{
-public:
-    virtual HRESULT STDMETHODCALLTYPE SetDefaultAction(EClrOperation operation,
-                                                       EPolicyAction action)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return E_NOTIMPL;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetTimeout(EClrOperation operation,
-                                                 DWORD dwMilliseconds)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return E_NOTIMPL;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetActionOnTimeout(EClrOperation operation,
-                                                         EPolicyAction action)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return E_NOTIMPL;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetTimeoutAndAction(EClrOperation operation, DWORD dwMilliseconds,
-                                                          EPolicyAction action)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return E_NOTIMPL;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetActionOnFailure(EClrFailure failure,
-                                                         EPolicyAction action)
-    {
-        // This is enabled for CoreCLR since a host can use this to 
-        // specify action for handling AV.
-        STATIC_CONTRACT_ENTRY_POINT;
-        LIMITED_METHOD_CONTRACT;
-        HRESULT hr;
-        // For CoreCLR, this method just supports FAIL_AccessViolation as a valid
-        // failure input arg. The validation of the specified action for the failure
-        // will be done in EEPolicy::IsValidActionForFailure.
-        if (failure != FAIL_AccessViolation)
-        {
-            return E_INVALIDARG;
-        }
-        BEGIN_ENTRYPOINT_NOTHROW;
-        hr = GetEEPolicy()->SetActionOnFailure(failure,action);
-        END_ENTRYPOINT_NOTHROW;
-        return hr;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetUnhandledExceptionPolicy(EClrUnhandledException policy)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return E_NOTIMPL;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE AddRef(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
-        return 1;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE Release(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
-        return 1;
-    }
-
-    BEGIN_INTERFACE HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                             void **ppvObject)
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
-        if (riid != IID_ICLRPolicyManager && riid != IID_IUnknown)
-            return (E_NOINTERFACE);
-
-        // Ensure that the out going pointer is not null
-        if (ppvObject == NULL)
-            return E_POINTER;
-
-        *ppvObject = this;
-        return S_OK;
-    }
-};
-
-static CCLRPolicyManager s_PolicyManager;
-
-
-
-void ProcessEventForHost(EClrEvent event, void *data)
-{
-}
-
-// We do not call ProcessEventForHost for stack overflow, since we have limit stack
-// and we should avoid calling GCX_PREEMPT
-void ProcessSOEventForHost(EXCEPTION_POINTERS *pExceptionInfo, BOOL fInSoTolerant)
-{
-}
-
-BOOL IsHostRegisteredForEvent(EClrEvent event)
-{
-    WRAPPER_NO_CONTRACT;
-    return FALSE;
-}
-
-inline size_t SizeInKBytes(size_t cbSize)
-{
-    LIMITED_METHOD_CONTRACT;
-    size_t cb = (cbSize % 1024) ? 1 : 0;
-    return ((cbSize / 1024) + cb);
-}
-
-SIZE_T Host_SegmentSize = 0;
-SIZE_T Host_MaxGen0Size = 0;
-BOOL  Host_fSegmentSizeSet = FALSE;
-BOOL  Host_fMaxGen0SizeSet = FALSE;
-
-void UpdateGCSettingFromHost ()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE (g_pConfig);
-    if (Host_fSegmentSizeSet)
-    {
-        g_pConfig->SetSegmentSize(Host_SegmentSize);
-    }
-    if (Host_fMaxGen0SizeSet)
-    {
-        g_pConfig->SetGCgen0size(Host_MaxGen0Size);
-    }
-}
-
-#if defined(FEATURE_WINDOWSPHONE)
-class CCLRGCManager: public ICLRGCManager2
-{
-public:
-    virtual HRESULT STDMETHODCALLTYPE Collect(LONG Generation)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_TRIGGERS;
-            ENTRY_POINT;
-        }
-        CONTRACTL_END;
-
-        HRESULT     hr = S_OK;
-
-        if (Generation > (int) GCHeapUtilities::GetGCHeap()->GetMaxGeneration())
-            hr = E_INVALIDARG;
-
-        if (SUCCEEDED(hr))
-        {
-            // Set up a Thread object if this is called on a native thread.
-            Thread *pThread;
-            pThread = GetThread();
-            if (pThread == NULL)
-                pThread = SetupThreadNoThrow(&hr);
-            if (pThread != NULL)
-            {
-                BEGIN_ENTRYPOINT_NOTHROW_WITH_THREAD(pThread);
-                GCX_COOP();
-
-                EX_TRY
-                {
-                    STRESS_LOG0(LF_GC, LL_INFO100, "Host triggers GC\n");
-                    hr = GCHeapUtilities::GetGCHeap()->GarbageCollect(Generation);
-                }
-                EX_CATCH
-                {
-                    hr = GET_EXCEPTION()->GetHR();
-                }
-                EX_END_CATCH(SwallowAllExceptions);
-
-                END_ENTRYPOINT_NOTHROW_WITH_THREAD;
-            }
-        }
-
-        return (hr);
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE GetStats(COR_GC_STATS *pStats)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            ENTRY_POINT;
-        }
-        CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-    #if defined(ENABLE_PERF_COUNTERS)
-
-        Perf_GC     *pgc = &GetPerfCounters().m_GC;
-
-        if (!pStats)
-            IfFailGo(E_INVALIDARG);
-
-        if (pStats->Flags & COR_GC_COUNTS)
-        {
-            pStats->ExplicitGCCount = pgc->cInducedGCs;
-
-            for (int idx=0; idx<3; idx++)
-                pStats->GenCollectionsTaken[idx] = pgc->cGenCollections[idx];
-        }
-
-        if (pStats->Flags & COR_GC_MEMORYUSAGE)
-        {
-            pStats->CommittedKBytes = SizeInKBytes(pgc->cTotalCommittedBytes);
-            pStats->ReservedKBytes = SizeInKBytes(pgc->cTotalReservedBytes);
-            pStats->Gen0HeapSizeKBytes = SizeInKBytes(pgc->cGenHeapSize[0]);
-            pStats->Gen1HeapSizeKBytes = SizeInKBytes(pgc->cGenHeapSize[1]);
-            pStats->Gen2HeapSizeKBytes = SizeInKBytes(pgc->cGenHeapSize[2]);
-            pStats->LargeObjectHeapSizeKBytes = SizeInKBytes(pgc->cLrgObjSize);
-            pStats->KBytesPromotedFromGen0 = SizeInKBytes(pgc->cbPromotedMem[0]);
-            pStats->KBytesPromotedFromGen1 = SizeInKBytes(pgc->cbPromotedMem[1]);
-        }
-        hr = S_OK;
-ErrExit:
-    #else
-        hr = E_NOTIMPL;
-    #endif // ENABLE_PERF_COUNTERS
-
-        END_ENTRYPOINT_NOTHROW;
-        return hr;
-    }
-    virtual HRESULT STDMETHODCALLTYPE SetGCStartupLimits(
-        DWORD SegmentSize,
-        DWORD MaxGen0Size)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            ENTRY_POINT;
-
-        }
-        CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-        // Set default overrides if specified by caller.
-        if (SegmentSize != (DWORD) ~0 && SegmentSize > 0)
-        {
-            hr = _SetGCSegmentSize(SegmentSize);
-        }
-
-        if (SUCCEEDED(hr) && MaxGen0Size != (DWORD) ~0 && MaxGen0Size > 0)
-        {
-            hr = _SetGCMaxGen0Size(MaxGen0Size);
-        }
-
-        END_ENTRYPOINT_NOTHROW;
-
-        return (hr);
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetGCStartupLimitsEx(
-        SIZE_T SegmentSize,
-        SIZE_T MaxGen0Size)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            ENTRY_POINT;
-
-        }
-        CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-        // Set default overrides if specified by caller.
-        if (SegmentSize != (SIZE_T) ~0 && SegmentSize > 0)
-        {
-            hr = _SetGCSegmentSize(SegmentSize);
-        }
-
-        if (SUCCEEDED(hr) && MaxGen0Size != (SIZE_T) ~0 && MaxGen0Size > 0)
-        {
-            hr = _SetGCMaxGen0Size(MaxGen0Size);
-        }
-
-        END_ENTRYPOINT_NOTHROW;
-
-        return (hr);
-    }
-
-    virtual ULONG STDMETHODCALLTYPE AddRef(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, OUT PVOID *ppUnk)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (riid != IID_ICLRGCManager && riid != IID_ICLRGCManager2 && riid != IID_IUnknown)
-            return (E_NOINTERFACE);
-        *ppUnk = this;
-        return S_OK;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE Release(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-private:
-    HRESULT _SetGCSegmentSize(SIZE_T SegmentSize);
-    HRESULT _SetGCMaxGen0Size(SIZE_T MaxGen0Size);
-};
-
-
-HRESULT CCLRGCManager::_SetGCSegmentSize(SIZE_T SegmentSize)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-    // Sanity check the value, it must be a power of two and big enough.
-    if (!GCHeapUtilities::GetGCHeap()->IsValidSegmentSize(SegmentSize))
-    {
-        hr = E_INVALIDARG;
-    }
-    else
-    {
-        Host_SegmentSize = SegmentSize;
-        Host_fSegmentSizeSet = TRUE;
-    }
-
-    return (hr);
-}
-
-HRESULT CCLRGCManager::_SetGCMaxGen0Size(SIZE_T MaxGen0Size)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-    // Sanity check the value is at least large enough.
-    if (!GCHeapUtilities::GetGCHeap()->IsValidGen0MaxSize(MaxGen0Size))
-    {
-        hr = E_INVALIDARG;
-    }
-    else
-    {
-        Host_MaxGen0Size = MaxGen0Size;
-        Host_fMaxGen0SizeSet = TRUE;
-    }
-
-    return (hr);
-}
-
-static CCLRGCManager s_GCManager;
-#endif //FEATURE_WINDOWSPHONE
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-class CCLRAppDomainResourceMonitor : public ICLRAppDomainResourceMonitor
-{
-public:
-    virtual HRESULT STDMETHODCALLTYPE GetCurrentAllocated(DWORD dwAppDomainId, 
-                                                          ULONGLONG* pBytesAllocated)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            ENTRY_POINT;
-        }
-        CONTRACTL_END;
-
-        HRESULT     hr = S_OK;
-
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-        SystemDomain::LockHolder lh;
-
-        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);        
-        if (pBytesAllocated)
-        {
-            *pBytesAllocated = pAppDomain->GetAllocBytes();
-        }
-
-        END_ENTRYPOINT_NOTHROW;
-
-        return (hr);
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE GetCurrentSurvived(DWORD dwAppDomainId, 
-                                                         ULONGLONG* pAppDomainBytesSurvived, 
-                                                         ULONGLONG* pTotalBytesSurvived)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            ENTRY_POINT;
-        }
-        CONTRACTL_END;
-
-        HRESULT     hr = S_OK;
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-        SystemDomain::LockHolder lh;
-
-        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
-        if (pAppDomainBytesSurvived)
-        {
-            *pAppDomainBytesSurvived = pAppDomain->GetSurvivedBytes();
-        }
-        if (pTotalBytesSurvived)
-        {
-            *pTotalBytesSurvived = SystemDomain::GetTotalSurvivedBytes();
-        }
-
-        END_ENTRYPOINT_NOTHROW;
-
-        return (hr);
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE GetCurrentCpuTime(DWORD dwAppDomainId, 
-                                                        ULONGLONG* pMilliseconds)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_TRIGGERS;
-            ENTRY_POINT;
-        }
-        CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-
-        BEGIN_ENTRYPOINT_NOTHROW;
-
-        {
-            SystemDomain::LockHolder lh;
-    
-            AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
-            if (pMilliseconds)
-            {
-                *pMilliseconds = pAppDomain->QueryProcessorUsage() / 10000;
-            }
-        }
-
-        END_ENTRYPOINT_NOTHROW;
-
-        return hr;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE AddRef(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, OUT PVOID *ppUnk)
-    {
-        LIMITED_METHOD_CONTRACT;
-        *ppUnk = NULL;
-        if (riid == IID_IUnknown)
-            *ppUnk = (IUnknown*)this;
-        else if (riid == IID_ICLRAppDomainResourceMonitor)
-            *ppUnk = (ICLRAppDomainResourceMonitor*)this;
-        else
-            return E_NOINTERFACE;
-        return S_OK;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE Release(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-};
-static CCLRAppDomainResourceMonitor s_Arm;
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-
-BOOL g_CLRPolicyRequested = FALSE;
-
-class CCorCLRControl: public ICLRControl
-{
-public:
-    virtual HRESULT STDMETHODCALLTYPE GetCLRManager(REFIID riid, void **ppObject)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;    // no global state updates
-        }
-        CONTRACTL_END;
-
-        // Sanity check.
-        if (ppObject == NULL)
-            return E_INVALIDARG;
-
-#if defined(FEATURE_WINDOWSPHONE)
-        if (riid == IID_ICLRErrorReportingManager2)
-        {
-            *ppObject = &g_CLRErrorReportingManager;
-            return S_OK;
-        }
-        else
-#endif //defined(FEATURE_WINDOWSPHONE)
-        if (g_fEEStarted && !m_fFullAccess)
-        {
-            // If runtime has been started, do not allow user to obtain CLR managers.
-            return HOST_E_INVALIDOPERATION;
-        }
-
-        // CoreCLR supports ICLRPolicyManager since it allows the host
-        // to specify the policy for AccessViolation.  
-        else if (riid == IID_ICLRPolicyManager) {
-            *ppObject = &s_PolicyManager;
-            FastInterlockExchange((LONG*)&g_CLRPolicyRequested, TRUE);
-            return S_OK;
-        }
-
-#if defined(FEATURE_WINDOWSPHONE)
-        else if ((riid == IID_ICLRGCManager) || (riid == IID_ICLRGCManager2))
-        {
-            *ppObject = &s_GCManager;
-            return S_OK;
-        }
-#endif //FEATURE_WINDOWSPHONE
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        else if (riid == IID_ICLRAppDomainResourceMonitor)
-        {
-            EnableARM();
-            *ppObject = &s_Arm;
-            return S_OK;
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        else
-            return (E_NOINTERFACE);
-    }
-
-    virtual HRESULT STDMETHODCALLTYPE SetAppDomainManagerType(
-        LPCWSTR pwzAppDomainManagerAssembly,
-        LPCWSTR pwzAppDomainManagerType)
-    {
-        
-        // CoreCLR does not support this method
-        return E_NOTIMPL;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE AddRef(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-
-    virtual ULONG STDMETHODCALLTYPE Release(void)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return 1;
-    }
-
-    BEGIN_INTERFACE HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
-                                                             void **ppvObject)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (riid != IID_ICLRControl && riid != IID_IUnknown)
-            return (E_NOINTERFACE);
-
-        // Ensure that the out going pointer is not null
-        if (ppvObject == NULL)
-            return E_POINTER;
-
-        *ppvObject = this;
-        return S_OK;
-    }
-
-    // This is to avoid having ctor.  We have static objects, and it is
-    // difficult to support ctor on certain platform.
-    void SetAccess(BOOL fFullAccess)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_fFullAccess = fFullAccess;
-    }
-private:
-    BOOL m_fFullAccess;
-};
-
-// Before CLR starts, we give out s_CorCLRControl which has full access to all managers.
-// After CLR starts, we give out s_CorCLRControlLimited which allows limited access to managers.
-static CCorCLRControl s_CorCLRControl;
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // ICLRRuntimeHost::GetCLRControl
 HRESULT CorHost2::GetCLRControl(ICLRControl** pCLRControl)
 {
-    LIMITED_METHOD_CONTRACT;
-    
-    // Ensure that we have a valid pointer
-    if (pCLRControl == NULL)
-    {
-        return E_POINTER;
-    }
-
-    HRESULT hr = S_OK;
-    
-    STATIC_CONTRACT_ENTRY_POINT;
-    BEGIN_ENTRYPOINT_NOTHROW;
-    if (!g_fEEStarted && m_Version >= 2)
-    {
-        s_CorCLRControl.SetAccess(TRUE);
-        *pCLRControl = &s_CorCLRControl;
-    }
-    else
-    {
-        // If :
-        // 1) request comes for interface other than ICLRControl*, OR
-        // 2) runtime has already started, OR
-        // 3) version is not 2
-        //
-        // we will return failure and set the out pointer to NULL
-        *pCLRControl = NULL;
-        if (g_fEEStarted)
-        {
-            // Return HOST_E_INVALIDOPERATION as per MSDN if runtime has already started
-            hr = HOST_E_INVALIDOPERATION;
-        }
-        else
-        {
-            hr = E_NOTIMPL;
-        }
-    }
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
+    return E_NOTIMPL;
 }
-
-// static
-EInitializeNewDomainFlags CorHost2::GetAppDomainManagerInitializeNewDomainFlags()
-{
-    LIMITED_METHOD_CONTRACT;
-    return eInitializeNewDomainFlags_None;
-}
-
-
-#endif // !DAC
-
-
-#ifdef DACCESS_COMPILE
-
-
-#endif //DACCESS_COMPILE
-
-#ifndef DACCESS_COMPILE
-
-
-#if defined(FEATURE_WINDOWSPHONE)
-
-HRESULT CCLRErrorReportingManager::QueryInterface(REFIID riid, void** ppUnk)
-{
-    if (!ppUnk)
-        return E_POINTER;
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    
-    if (ppUnk == NULL)
-    {
-        return E_POINTER;
-    }
-
-    *ppUnk = 0;
-
-    // Deliberately do NOT hand out ICorConfiguration.  They must explicitly call
-    // GetConfiguration to obtain that interface.
-    if (riid == IID_IUnknown)
-    {
-        *ppUnk = (IUnknown *) this;
-    }
-    else if (riid == IID_ICLRErrorReportingManager)
-    {
-        *ppUnk = (ICLRErrorReportingManager *) this;
-    }
-#ifdef FEATURE_WINDOWSPHONE
-    else if (riid == IID_ICLRErrorReportingManager2)
-    {
-        *ppUnk = (ICLRErrorReportingManager2 *) this;
-    }
-#endif // FEATURE_WINDOWSPHONE
-    else
-    {
-        hr = E_NOINTERFACE;
-    }
-
-    return hr;
-
-} // HRESULT CCLRErrorReportingManager::QueryInterface()
-
-ULONG CCLRErrorReportingManager::AddRef()
-{
-    LIMITED_METHOD_CONTRACT;
-    return 1;
-} // HRESULT CCLRErrorReportingManager::AddRef()
-
-ULONG CCLRErrorReportingManager::Release()
-{
-    LIMITED_METHOD_CONTRACT;
-    return 1;
-} // HRESULT CCLRErrorReportingManager::Release()
-
-// Get Watson bucket parameters for "current" exception (on calling thread).
-HRESULT CCLRErrorReportingManager::GetBucketParametersForCurrentException(
-    BucketParameters *pParams)
-{
-    CONTRACTL
-    {
-        WRAPPER(THROWS);
-        WRAPPER(GC_TRIGGERS);
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    // To avoid confusion, clear the buckets.
-    memset(pParams, 0, sizeof(BucketParameters));
-
-#ifndef FEATURE_PAL   
-    // Defer to Watson helper.
-    hr = ::GetBucketParametersForCurrentException(pParams);
- #else
-    // Watson doesn't exist on non-windows platforms
-    hr = E_NOTIMPL;
-#endif // !FEATURE_PAL
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-
-} // HRESULT CCLRErrorReportingManager::GetBucketParametersForCurrentException()
-
-//
-// The BeginCustomDump function configures the custom dump support
-//
-// Parameters -
-// dwFlavor     - The flavor of the dump
-// dwNumItems   - The number of items in the CustomDumpItem array.
-//                  Should always be zero today, since no custom items are defined
-// items        - Array of CustomDumpItem structs specifying items to be added to the dump.
-//                  Should always be NULL today, since no custom items are defined.
-// dwReserved   - reserved for future use. Must be zero today
-//
-HRESULT CCLRErrorReportingManager::BeginCustomDump( ECustomDumpFlavor dwFlavor,
-                                        DWORD dwNumItems,
-                                        CustomDumpItem items[],
-                                        DWORD dwReserved)
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-    HRESULT hr = S_OK;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    if (dwNumItems != 0 ||  items != NULL || dwReserved != 0)
-    {
-        IfFailGo(E_INVALIDARG);
-    }
-    if (g_ECustomDumpFlavor != DUMP_FLAVOR_Default)
-    {
-        // BeginCustomDump is called without matching EndCustomDump
-        IfFailGo(E_INVALIDARG);
-    }
-    g_ECustomDumpFlavor = dwFlavor;
-
-ErrExit:
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-//
-// EndCustomDump clears the custom dump configuration
-//
-HRESULT CCLRErrorReportingManager::EndCustomDump()
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-    // NOT IMPLEMENTED YET
-    BEGIN_ENTRYPOINT_NOTHROW;
-    g_ECustomDumpFlavor = DUMP_FLAVOR_Default;
-    END_ENTRYPOINT_NOTHROW;
-
-    return S_OK;
-}
-
-#ifdef FEATURE_WINDOWSPHONE
-HRESULT CopyStringWorker(_Out_ WCHAR** pTarget, WCHAR const* pSource)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (pTarget == NULL || pSource == NULL)
-        return E_INVALIDARG;
-
-    if (*pTarget)
-        delete[] (*pTarget);
-
-    // allocate space for the data plus one wchar for NULL
-    size_t sourceLen = wcslen(pSource);
-    *pTarget = new (nothrow) WCHAR[sourceLen + 1];
-    
-    if (!(*pTarget))
-        return E_OUTOFMEMORY;
-
-    errno_t result = wcsncpy_s(*pTarget, sourceLen + 1, pSource, sourceLen);
-    _ASSERTE(result == 0);
-    
-    if (result != 0)
-    {
-        delete[] (*pTarget);
-        *pTarget = NULL;
-
-        return E_FAIL;
-    }
-
-    return S_OK;
-}
-
-CCLRErrorReportingManager::BucketParamsCache::BucketParamsCache(DWORD maxNumParams) : m_pParams(NULL), m_cMaxParams(maxNumParams)
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-CCLRErrorReportingManager::BucketParamsCache::~BucketParamsCache()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (m_pParams)
-    {
-        for (DWORD i = 0; i < m_cMaxParams; ++i)
-            if (m_pParams[i]) delete[] m_pParams[i];
-    }
-}
-
-WCHAR const* CCLRErrorReportingManager::BucketParamsCache::GetAt(BucketParameterIndex index)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (index >= InvalidBucketParamIndex)
-    {
-        _ASSERTE(!"bad bucket parameter index");
-        return NULL;
-    }
-
-    if (!m_pParams)
-        return NULL;
-
-    return m_pParams[index];
-}
-
-HRESULT CCLRErrorReportingManager::BucketParamsCache::SetAt(BucketParameterIndex index, WCHAR const* val)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (index < 0 || index >= InvalidBucketParamIndex)
-    {
-        _ASSERTE(!"bad bucket parameter index");
-        return E_INVALIDARG;
-    }
-
-    if (!val)
-        return E_INVALIDARG;
-
-    if (!m_pParams)
-    {
-        m_pParams = new (nothrow) WCHAR*[m_cMaxParams];
-        if (!m_pParams)
-            return E_OUTOFMEMORY;
-
-        for (DWORD i = 0; i < m_cMaxParams; ++i)
-            m_pParams[i] = NULL;
-    }
-
-    return CopyStringWorker(&m_pParams[index], val);
-}
-
-HRESULT CCLRErrorReportingManager::CopyToDataCache(_Out_ WCHAR** pTarget, WCHAR const* pSource)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return CopyStringWorker(pTarget, pSource);
-}
-
-HRESULT CCLRErrorReportingManager::SetApplicationData(ApplicationDataKey key, WCHAR const* pValue)
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    if(g_fEEStarted)
-        return HOST_E_INVALIDOPERATION;
-
-    if (pValue == NULL || wcslen(pValue) > MAX_LONGPATH)
-        return E_INVALIDARG;
-
-    HRESULT hr = S_OK;
-
-    switch (key)
-    {
-    case ApplicationID:
-        hr = CopyToDataCache(&m_pApplicationId, pValue);
-        break;
-
-    case InstanceID:
-        hr = CopyToDataCache(&m_pInstanceId, pValue);
-        break;
-
-    default:
-        hr = E_INVALIDARG;
-    }
-    
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-HRESULT CCLRErrorReportingManager::SetBucketParametersForUnhandledException(BucketParameters const* pBucketParams, DWORD* pCountParams)
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    if(g_fEEStarted)
-        return HOST_E_INVALIDOPERATION;
-
-    if (pBucketParams == NULL || pCountParams == NULL || pBucketParams->fInited != TRUE)
-        return E_INVALIDARG;
-
-    *pCountParams = 0;
-
-    if (!m_pBucketParamsCache)
-    {
-        m_pBucketParamsCache = new (nothrow) BucketParamsCache(InvalidBucketParamIndex);
-        if (!m_pBucketParamsCache)
-            return E_OUTOFMEMORY;
-    }
-
-    HRESULT hr = S_OK;
-    bool hasOverride = false;
-
-    for (DWORD i = 0; i < InvalidBucketParamIndex; ++i)
-    {
-        if (pBucketParams->pszParams[i][0] != W('\0'))
-        {
-            hasOverride = true;
-            hr = m_pBucketParamsCache->SetAt(static_cast<BucketParameterIndex>(i), pBucketParams->pszParams[i]);
-            if (SUCCEEDED(hr))
-                *pCountParams += 1;
-            else
-                break;
-        }
-    }
-    
-    if (!hasOverride)
-        return E_INVALIDARG;
-    
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-WCHAR const* CCLRErrorReportingManager::GetApplicationData(ApplicationDataKey key)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    WCHAR* pValue = NULL;
-
-    switch (key)
-    {
-    case ApplicationID:
-        pValue = m_pApplicationId;
-        break;
-
-    case InstanceID:
-        pValue = m_pInstanceId;
-        break;
-
-    default:
-        _ASSERTE(!"invalid key specified");
-    }
-
-    return pValue;
-}
-
-WCHAR const* CCLRErrorReportingManager::GetBucketParamOverride(BucketParameterIndex bucketParamId)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (!m_pBucketParamsCache)
-        return NULL;
-
-    return m_pBucketParamsCache->GetAt(bucketParamId);
-}
-
-#endif // FEATURE_WINDOWSPHONE
-
-CCLRErrorReportingManager::CCLRErrorReportingManager()
-{
-    LIMITED_METHOD_CONTRACT;
-#ifdef FEATURE_WINDOWSPHONE
-    m_pApplicationId = NULL;
-    m_pInstanceId = NULL;
-    m_pBucketParamsCache = NULL;
-#endif
-}
-
-CCLRErrorReportingManager::~CCLRErrorReportingManager()
-{
-    LIMITED_METHOD_CONTRACT;
-#ifdef FEATURE_WINDOWSPHONE
-    if (m_pApplicationId)
-        delete[] m_pApplicationId;
-
-    if (m_pInstanceId)
-        delete[] m_pInstanceId;
-
-    if (m_pBucketParamsCache)
-        delete m_pBucketParamsCache;
-#endif
-}
-
-#endif // defined(FEATURE_WINDOWSPHONE)
 
 void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX)
 {
@@ -2600,7 +1314,6 @@ extern "C" IExecutionEngine * __stdcall IEE()
 HRESULT STDMETHODCALLTYPE CExecutionEngine::QueryInterface(REFIID id, void **pInterface)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     if (!pInterface)
         return E_POINTER;
@@ -2637,64 +1350,9 @@ ULONG STDMETHODCALLTYPE CExecutionEngine::Release()
 struct ClrTlsInfo
 {
     void* data[MAX_PREDEFINED_TLS_SLOT];
-    // When hosted, we may not be able to delete memory in DLL_THREAD_DETACH.
-    // We will chain this into a side list, and free these on Finalizer thread.
-    ClrTlsInfo *next;
 };
 
-#define DataToClrTlsInfo(a) (a)?(ClrTlsInfo*)((BYTE*)a - offsetof(ClrTlsInfo, data)):NULL
-
-
-#ifdef HAS_FLS_SUPPORT
-
-static BOOL fHasFlsSupport = FALSE;
-
-typedef DWORD (*Func_FlsAlloc)(PFLS_CALLBACK_FUNCTION lpCallback);
-typedef BOOL (*Func_FlsFree)(DWORD dwFlsIndex);
-typedef BOOL (*Func_FlsSetValue)(DWORD dwFlsIndex,PVOID lpFlsData);
-typedef PVOID (*Func_FlsGetValue)(DWORD dwFlsIndex);
-
-static DWORD FlsIndex = FLS_OUT_OF_INDEXES;
-static Func_FlsAlloc pFlsAlloc;
-static Func_FlsSetValue pFlsSetValue;
-static Func_FlsFree pFlsFree;
-static Func_FlsGetValue pFlsGetValue;
-static Volatile<BOOL> fFlsSetupDone = FALSE;
-
-VOID WINAPI FlsCallback(
-  PVOID lpFlsData
-)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE (pFlsGetValue);
-    if (pFlsGetValue(FlsIndex) != lpFlsData)
-    {
-        // The current running fiber is being destroyed.  We can not destroy the memory yet,
-        // because our DllMain function may still need the memory.
-        CExecutionEngine::ThreadDetaching((void **)lpFlsData);        
-    }
-    else
-    {
-        // The thread is being wound down.
-        // In hosting scenarios the host will have already called ICLRTask::ExitTask, which 
-        // ends up calling CExecutionEngine::SwitchOut, which will have reset the TLS at TlsIndex.
-        // 
-        // Unfortunately different OSes have different ordering of destroying FLS data and sending
-        // the DLL_THREAD_DETACH notification (pre-Vista FlsCallback is called after DllMain, while 
-        // in Vista and up, FlsCallback is called before DllMain).  Additionally, starting with 
-        // Vista SP1 and Win2k8, the OS will set the FLS slot to 0 after the call to FlsCallback, 
-        // effectively removing our last reference to this data. Since in EEDllMain we need to be 
-        // able to access the FLS data, we save lpFlsData in the TLS slot at TlsIndex, if needed.
-        if (CExecutionEngine::GetTlsData() == NULL)
-        {
-            CExecutionEngine::SetTlsData((void **)lpFlsData);
-        }
-    }
-}
-
-#endif // HAS_FLS_SUPPORT
-
+#define DataToClrTlsInfo(a) ((ClrTlsInfo*)a)
 
 void** CExecutionEngine::GetTlsData()
 {
@@ -2737,11 +1395,6 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // !!! This function is called during Thread::SwitchIn and SwitchOut
-    // !!! It is extremely important that while executing this function, we will not
-    // !!! cause fiber switch.  This means we can not allocate memory, lock, etc...
 
     //<TODO> @TODO: Decide on an exception strategy for all the DLLs of the CLR, and then
     // enable all the exceptions out of this method.</TODO>
@@ -2751,67 +1404,8 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
 //    if (slot >= MAX_PREDEFINED_TLS_SLOT)
 //        COMPlusThrow(kArgumentOutOfRangeException);
 
-#ifdef HAS_FLS_SUPPORT
-    if (!fFlsSetupDone)
-    {
-        // Contract depends on Fls support.  Don't use contract here.
-        HMODULE hmod = GetModuleHandleA(WINDOWS_KERNEL32_DLLNAME_A);
-        if (hmod)
-        {
-            pFlsSetValue = (Func_FlsSetValue) GetProcAddress(hmod, "FlsSetValue");
-            pFlsGetValue = (Func_FlsGetValue) GetProcAddress(hmod, "FlsGetValue");
-            pFlsAlloc = (Func_FlsAlloc) GetProcAddress(hmod, "FlsAlloc");
-            pFlsFree = (Func_FlsFree) GetProcAddress(hmod, "FlsFree");
-
-            if (pFlsSetValue && pFlsGetValue && pFlsAlloc && pFlsFree )
-            {
-                fHasFlsSupport = TRUE;
-            }
-            else
-            {
-                // Since we didn't find them all, we shouldn't have found any
-                _ASSERTE( pFlsSetValue == NULL && pFlsGetValue == NULL && pFlsAlloc == NULL && pFlsFree == NULL);
-            }
-            fFlsSetupDone = TRUE;
-        }
-    }
-
-    if (fHasFlsSupport && FlsIndex == FLS_OUT_OF_INDEXES)
-    {
-        // PREFIX_ASSUME needs TLS.  If we use it here, we will loop forever
-#if defined(_PREFAST_) || defined(_PREFIX_) 
-        if (pFlsAlloc == NULL) __UNREACHABLE();
-#else
-        _ASSERTE(pFlsAlloc != NULL);
-#endif // _PREFAST_ || _PREFIX_
-
-        DWORD tryFlsIndex = pFlsAlloc(FlsCallback);
-        if (tryFlsIndex != FLS_OUT_OF_INDEXES)
-        {
-            if (FastInterlockCompareExchange((LONG*)&FlsIndex, tryFlsIndex, FLS_OUT_OF_INDEXES) != FLS_OUT_OF_INDEXES)
-            {
-                pFlsFree(tryFlsIndex);
-            }
-        }
-        if (FlsIndex == FLS_OUT_OF_INDEXES)
-        {
-            COMPlusThrowOM();
-        }
-    }
-#endif // HAS_FLS_SUPPORT
-
     void** pTlsData = CExecutionEngine::GetTlsData();
     BOOL fInTls = (pTlsData != NULL);
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        if (pTlsData == NULL)
-        {
-            pTlsData = (void **)pFlsGetValue(FlsIndex);
-        }
-    }
-#endif
 
     ClrTlsInfo *pTlsInfo = DataToClrTlsInfo(pTlsData);
     if (pTlsInfo == 0 && force)
@@ -2828,44 +1422,14 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
             goto LError;
         }
         memset (pTlsInfo, 0, sizeof(ClrTlsInfo));
-#ifdef HAS_FLS_SUPPORT
-        if (fHasFlsSupport && !pFlsSetValue(FlsIndex, pTlsInfo))
-        {
-            goto LError;
-        }
-#endif
-        // We save the last intolerant marker on stack in this slot.  
-        // -1 is the larget unsigned number, and therefore our marker is always smaller than it.
-        pTlsInfo->data[TlsIdx_SOIntolerantTransitionHandler] = (void*)(-1);
     }
 
     if (!fInTls && pTlsInfo)
     {
-#ifdef HAS_FLS_SUPPORT
-        // If we have a thread object or are on a non-fiber thread, we are safe for fiber switching.
-        if (!fHasFlsSupport ||
-            GetThread() ||
-            (g_fEEStarted || g_fEEInit) ||
-            (((size_t)pTlsInfo->data[TlsIdx_ThreadType]) & (ThreadType_GC | ThreadType_Gate | ThreadType_Timer | ThreadType_DbgHelper)))
-        {
-#ifdef _DEBUG
-            Thread *pThread = GetThread();
-            if (pThread)
-            {
-                pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-            }
-#endif
-            if (!CExecutionEngine::SetTlsData(pTlsInfo->data) && !fHasFlsSupport)
-            {
-                goto LError;
-            }
-        }
-#else
         if (!CExecutionEngine::SetTlsData(pTlsInfo->data))
         {
             goto LError;
         }
-#endif
     }
 
     return pTlsInfo?pTlsInfo->data:NULL;
@@ -2881,7 +1445,7 @@ LError:
     }
     // If this is for the stack probe, and we failed to allocate memory for it, we won't
     // put in a guard page.
-    if (slot == TlsIdx_ClrDebugState || slot == TlsIdx_StackProbe)
+    if (slot == TlsIdx_ClrDebugState)
         return NULL;
 
     ThrowOutOfMemory();
@@ -2897,7 +1461,6 @@ void **CExecutionEngine::CheckThreadStateNoCreate(DWORD slot
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // !!! This function is called during Thread::SwitchIn and SwitchOut
     // !!! It is extremely important that while executing this function, we will not
@@ -2909,35 +1472,20 @@ void **CExecutionEngine::CheckThreadStateNoCreate(DWORD slot
 
     void **pTlsData = CExecutionEngine::GetTlsData();
 
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        if (pTlsData == NULL)
-        {
-            pTlsData = (void **)pFlsGetValue(FlsIndex);
-        }
-    }
-#endif
-
     ClrTlsInfo *pTlsInfo = DataToClrTlsInfo(pTlsData);
 
     return pTlsInfo?pTlsInfo->data:NULL;
 }
 
-// Note: Sampling profilers also use this function to initialize TLS for a unmanaged 
-// sampling thread so that initialization can be done in advance to avoid deadlocks. 
+// Note: Sampling profilers also use this function to initialize TLS for a unmanaged
+// sampling thread so that initialization can be done in advance to avoid deadlocks.
 // See ProfToEEInterfaceImpl::InitializeCurrentThread for more details.
 void CExecutionEngine::SetupTLSForThread(Thread *pThread)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_ANY;
 
-#ifdef _DEBUG
-    if (pThread)
-        pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-#endif
 #ifdef STRESS_LOG
     if (StressLog::StressLogOn(~0u, 0))
     {
@@ -2955,59 +1503,8 @@ void CExecutionEngine::SetupTLSForThread(Thread *pThread)
     ClrDebugState *pDebugState = ::GetClrDebugState();
 
     if (pThread)
-        pThread->m_pClrDebugState = pDebugState; 
+        pThread->m_pClrDebugState = pDebugState;
 #endif
-}
-
-void CExecutionEngine::SwitchIn()
-{
-    // No real contracts here.  This function is called by Thread::SwitchIn.
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    // @TODO - doesn't look like we can probe here....
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport)
-    {
-        void **pTlsData = (void **)pFlsGetValue(FlsIndex);
-
-        BOOL fResult = CExecutionEngine::SetTlsData(pTlsData);
-        if (fResult)
-        {
-#ifdef STRESS_LOG
-            // We are in task transition period.  We can not call into host to create stress log.
-            if (ClrTlsGetValue(TlsIdx_StressLog) != NULL)
-            {
-                STRESS_LOG1(LF_SYNC, LL_INFO100, ThreadStressLog::TaskSwitchMsg(), ::GetCurrentThreadId());
-            }
-#endif
-        }
-        // It is OK for UnsafeTlsSetValue to fail here, since we can always go back to Fls to get value.
-    }
-#endif
-}
-
-void CExecutionEngine::SwitchOut()
-{
-    // No real contracts here.  This function is called by Thread::SwitchOut
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-#ifdef HAS_FLS_SUPPORT
-    // @TODO - doesn't look like we can probe here.
-    if (fHasFlsSupport && pFlsGetValue != NULL  && (void **)pFlsGetValue(FlsIndex) != NULL)
-    {
-        // Clear out TLS unless we're in the process of ThreadDetach 
-        // We establish that we're in ThreadDetach because fHasFlsSupport will
-        // be TRUE, but the FLS will not exist.
-        CExecutionEngine::SetTlsData(NULL);
-    }
-#endif // HAS_FLS_SUPPORT
 }
 
 static void ThreadDetachingHelper(PTLS_CALLBACK_FUNCTION callback, void* pData)
@@ -3017,8 +1514,8 @@ static void ThreadDetachingHelper(PTLS_CALLBACK_FUNCTION callback, void* pData)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
 
-        callback(pData);
-    }
+    callback(pData);
+}
 
 // Called here from a thread detach or from destruction of a Thread object.  In
 // the detach case, we get our info from TLS.  In the destruct case, it comes from
@@ -3096,14 +1593,6 @@ void CExecutionEngine::DeleteTLS(void ** pTlsData)
         ThreadDetachingHelper(Callbacks[TlsIdx_ClrDebugState], pData);
     }
 
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    if (pThread)
-    {
-        pThread->AddFiberInfo(Thread::ThreadTrackInfo_Lifetime);
-    }
-#endif
-
     // NULL TLS and FLS entry so that we don't double free.
     // We may get two callback here on thread death
     // 1. From EEDllMain
@@ -3112,13 +1601,6 @@ void CExecutionEngine::DeleteTLS(void ** pTlsData)
     {
         CExecutionEngine::SetTlsData(0);
     }
-
-#ifdef HAS_FLS_SUPPORT
-    if (fHasFlsSupport && pFlsGetValue(FlsIndex) == pTlsData)
-    {
-        pFlsSetValue(FlsIndex, NULL);
-    }
-#endif
 
 #undef HeapFree
 #undef GetProcessHeap
@@ -3136,7 +1618,6 @@ void FreeClrDebugState(LPVOID pTlsData);
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_AssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     CheckThreadState(slot);
 
@@ -3166,7 +1647,6 @@ LPVOID* STDMETHODCALLTYPE CExecutionEngine::TLS_GetDataBlock()
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return CExecutionEngine::GetTlsData();
 }
@@ -3174,21 +1654,18 @@ LPVOID* STDMETHODCALLTYPE CExecutionEngine::TLS_GetDataBlock()
 LPVOID STDMETHODCALLTYPE CExecutionEngine::TLS_GetValue(DWORD slot)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EETlsGetValue(slot);
 }
 
 BOOL STDMETHODCALLTYPE CExecutionEngine::TLS_CheckValue(DWORD slot, LPVOID * pValue)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EETlsCheckValue(slot, pValue);
 }
 
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_SetValue(DWORD slot, LPVOID pData)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     EETlsSetValue(slot,pData);
 }
 
@@ -3196,7 +1673,6 @@ VOID STDMETHODCALLTYPE CExecutionEngine::TLS_SetValue(DWORD slot, LPVOID pData)
 VOID STDMETHODCALLTYPE CExecutionEngine::TLS_ThreadDetaching()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     CExecutionEngine::ThreadDetaching(NULL);
 }
 
@@ -3222,26 +1698,19 @@ CRITSEC_COOKIE STDMETHODCALLTYPE CExecutionEngine::CreateLock(LPCSTR szTag, LPCS
 void STDMETHODCALLTYPE CExecutionEngine::DestroyLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     ::EEDeleteCriticalSection(cookie);
 }
 
 void STDMETHODCALLTYPE CExecutionEngine::AcquireLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     ::EEEnterCriticalSection(cookie);
-    END_SO_INTOLERANT_CODE;
 }
 
 void STDMETHODCALLTYPE CExecutionEngine::ReleaseLock(CRITSEC_COOKIE cookie)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     ::EELeaveCriticalSection(cookie);
-    END_SO_INTOLERANT_CODE;
 }
 
 // Locking routines supplied by the EE to the other DLLs of the CLR.  In a _DEBUG
@@ -3323,7 +1792,6 @@ EVENT_COOKIE STDMETHODCALLTYPE CExecutionEngine::CreateManualEvent(BOOL bInitial
 void STDMETHODCALLTYPE CExecutionEngine::CloseEvent(EVENT_COOKIE event)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     if (event) {
         CLREvent *pEvent = CookieToCLREvent(event);
         pEvent->CloseEvent();
@@ -3337,7 +1805,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrSetEvent(EVENT_COOKIE event)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3354,7 +1821,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrResetEvent(EVENT_COOKIE event)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3370,7 +1836,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::WaitForEvent(EVENT_COOKIE event,
                                                        BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     if (event) {
         CLREvent *pEvent = CookieToCLREvent(event);
         return pEvent->Wait(dwMilliseconds,bAlertable);
@@ -3385,14 +1850,12 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::WaitForSingleObject(HANDLE handle,
                                                               DWORD dwMilliseconds)
 {
     STATIC_CONTRACT_WRAPPER;
-    STATIC_CONTRACT_SO_TOLERANT;
     return ::WaitForSingleObject(handle,dwMilliseconds);
 }
 
 static inline SEMAPHORE_COOKIE CLRSemaphoreToCookie(CLRSemaphore * pSemaphore)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE((((uintptr_t) pSemaphore) & POISON_BITS) == 0);
 #ifdef _DEBUG
@@ -3423,7 +1886,6 @@ SEMAPHORE_COOKIE STDMETHODCALLTYPE CExecutionEngine::ClrCreateSemaphore(DWORD dw
         THROWS;
         MODE_ANY;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3440,7 +1902,6 @@ void STDMETHODCALLTYPE CExecutionEngine::ClrCloseSemaphore(SEMAPHORE_COOKIE sema
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3457,7 +1918,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrReleaseSemaphore(SEMAPHORE_COOKIE se
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3470,7 +1930,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForSemaphore(SEMAPHORE_COOKIE s
                                                               BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     CLRSemaphore *pSemaphore = CookieToCLRSemaphore(semaphore);
     return pSemaphore->Wait(dwMilliseconds,bAlertable);
 }
@@ -3508,7 +1967,6 @@ MUTEX_COOKIE STDMETHODCALLTYPE CExecutionEngine::ClrCreateMutex(LPSECURITY_ATTRI
         NOTHROW;
         MODE_ANY;
         GC_NOTRIGGER;
-        SO_TOLERANT;    // we catch any erros and free the allocated memory
     }
     CONTRACTL_END;
 
@@ -3537,7 +1995,6 @@ void STDMETHODCALLTYPE CExecutionEngine::ClrCloseMutex(MUTEX_COOKIE mutex)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3552,7 +2009,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrReleaseMutex(MUTEX_COOKIE mutex)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3568,7 +2024,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForMutex(MUTEX_COOKIE mutex,
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3580,8 +2035,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrWaitForMutex(MUTEX_COOKIE mutex,
 DWORD STDMETHODCALLTYPE CExecutionEngine::ClrSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
     return EESleepEx(dwMilliseconds,bAlertable);
 }
 #define ClrSleepEx EESleepEx
@@ -3590,7 +2043,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::ClrSleepEx(DWORD dwMilliseconds, BOOL 
 BOOL STDMETHODCALLTYPE CExecutionEngine::ClrAllocationDisallowed()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEAllocationDisallowed();
 }
 #define ClrAllocationDisallowed EEAllocationDisallowed
@@ -3602,7 +2054,6 @@ LPVOID STDMETHODCALLTYPE CExecutionEngine::ClrVirtualAlloc(LPVOID lpAddress,
                                                            DWORD flProtect)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
 }
 #define ClrVirtualAlloc EEVirtualAlloc
@@ -3613,7 +2064,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualFree(LPVOID lpAddress,
                                                         DWORD dwFreeType)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualFree(lpAddress, dwSize, dwFreeType);
 }
 #define ClrVirtualFree EEVirtualFree
@@ -3624,7 +2074,6 @@ SIZE_T STDMETHODCALLTYPE CExecutionEngine::ClrVirtualQuery(LPCVOID lpAddress,
                                                            SIZE_T dwLength)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEVirtualQuery(lpAddress, lpBuffer, dwLength);
 }
 #define ClrVirtualQuery EEVirtualQuery
@@ -3643,29 +2092,28 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
                                                            PDWORD lpflOldProtect)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
    // Get the UEF installation details - we will use these to validate
    // that the calls to ClrVirtualProtect are not going to affect the UEF.
-   // 
-   // The OS UEF invocation mechanism was updated. When a UEF is setup,the OS captures 
+   //
+   // The OS UEF invocation mechanism was updated. When a UEF is setup,the OS captures
    // the following details about it:
    //  1) Protection of the pages in which the UEF lives
    //  2) The size of the region in which the UEF lives
    //  3) The region's Allocation Base
    //
-   //  The OS verifies details surrounding the UEF before invocation.  For security reasons 
+   //  The OS verifies details surrounding the UEF before invocation.  For security reasons
    //  the page protection cannot change between SetUnhandledExceptionFilter and invocation.
    //
    // Prior to this change, the UEF lived in a common section of code_Seg, along with
    // JIT_PatchedCode. Thus, their pages have the same protection, they live
    //  in the same region (and thus, its size is the same).
    //
-   // In EEStartupHelper, when we setup the UEF and then invoke InitJitHelpers1 and InitJitHelpers2, 
+   // In EEStartupHelper, when we setup the UEF and then invoke InitJitHelpers1 and InitJitHelpers2,
    // they perform some optimizations that result in the memory page protection being changed. When
    // the UEF is to be invoked, the OS does the check on the UEF's cached details against the current
    // memory pages. This check used to fail when on 64bit retail builds when JIT_PatchedCode was
-   // aligned after the UEF with a different memory page protection (post the optimizations by InitJitHelpers). 
+   // aligned after the UEF with a different memory page protection (post the optimizations by InitJitHelpers).
    // Thus, the UEF was never invoked.
    //
    // To circumvent this, we put the UEF in its own section in the code segment so that any modifications
@@ -3673,8 +2121,8 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
    // using the "#pragma code_seg" directives.
    //
    // Below, we double check that:
-   // 
-   // 1) the address being protected does not lie in the region of of the UEF. 
+   //
+   // 1) the address being protected does not lie in the region of of the UEF.
    // 2) the section after UEF is not having the same memory protection as UEF section.
    //
    // We assert if either of the two conditions above are true.
@@ -3712,18 +2160,18 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
                 DWORD dwUEFSectionPageCount = ((pUEFSection->Misc.VirtualSize + GetOsPageSize() - 1)/GetOsPageSize());
 
                 BYTE* pAddressOfFollowingSection = pStartOfUEFSection + (GetOsPageSize() * dwUEFSectionPageCount);
-                
+
                 // Ensure that the section following us is having different memory protection
                 MEMORY_BASIC_INFORMATION nextSectionInfo;
                 _ASSERTE(ClrVirtualQuery(pAddressOfFollowingSection, &nextSectionInfo, sizeof(nextSectionInfo)) != 0);
                 _ASSERTE(nextSectionInfo.Protect != uefInfo.Protect);
-                
+
                 // save the memory protection details
                 s_dwProtection = uefInfo.Protect;
 
                 // Get the end of the UEF section
                 BYTE* pEndOfUEFSectionBoundary = pAddressOfFollowingSection - 1;
-                
+
                 // Set the end of UEF section boundary
                 FastInterlockExchangePointer(s_pEndOfUEFSectionBoundary.GetPointer(), pEndOfUEFSectionBoundary);
             }
@@ -3745,7 +2193,7 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
 
             void* pEndOfRangeAddr = static_cast<BYTE*>(lpAddress)+dwSize-1;
 
-            _ASSERTE_MSG(((pEndOfRangeAddr < s_pStartOfUEFSection.Load()) || (lpAddress > s_pEndOfUEFSectionBoundary.Load())), 
+            _ASSERTE_MSG(((pEndOfRangeAddr < s_pStartOfUEFSection.Load()) || (lpAddress > s_pEndOfUEFSectionBoundary.Load())),
                 "Do not virtual protect the section in which UEF lives!");
         }
     }
@@ -3759,7 +2207,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrVirtualProtect(LPVOID lpAddress,
 HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessHeap()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEGetProcessHeap();
 }
 #define ClrGetProcessHeap EEGetProcessHeap
@@ -3768,7 +2215,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessHeap()
 HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrGetProcessExecutableHeap()
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEGetProcessExecutableHeap();
 }
 #define ClrGetProcessExecutableHeap EEGetProcessExecutableHeap
@@ -3780,7 +2226,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrHeapCreate(DWORD flOptions,
                                                          SIZE_T dwMaximumSize)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapCreate(flOptions, dwInitialSize, dwMaximumSize);
 }
 #define ClrHeapCreate EEHeapCreate
@@ -3789,7 +2234,6 @@ HANDLE STDMETHODCALLTYPE CExecutionEngine::ClrHeapCreate(DWORD flOptions,
 BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapDestroy(HANDLE hHeap)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapDestroy(hHeap);
 }
 #define ClrHeapDestroy EEHeapDestroy
@@ -3800,13 +2244,6 @@ LPVOID STDMETHODCALLTYPE CExecutionEngine::ClrHeapAlloc(HANDLE hHeap,
                                                         SIZE_T dwBytes)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // We need to guarentee a very small stack consumption in allocating.  And we can't allow
-    // an SO to happen while calling into the host.  This will force a hard SO which is OK because
-    // we shouldn't ever get this close inside the EE in SO-intolerant code, so this should
-    // only fail if we call directly in from outside the EE, such as the JIT.
-    MINIMAL_STACK_PROBE_CHECK_THREAD(GetThread());
 
     return EEHeapAlloc(hHeap, dwFlags, dwBytes);
 }
@@ -3818,7 +2255,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapFree(HANDLE hHeap,
                                                      LPVOID lpMem)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapFree(hHeap, dwFlags, lpMem);
 }
 #define ClrHeapFree EEHeapFree
@@ -3829,7 +2265,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapValidate(HANDLE hHeap,
                                                          LPCVOID lpMem)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return EEHeapValidate(hHeap, dwFlags, lpMem);
 }
 #define ClrHeapValidate EEHeapValidate
@@ -3842,7 +2277,6 @@ BOOL STDMETHODCALLTYPE CExecutionEngine::ClrHeapValidate(HANDLE hHeap,
 void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvException)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     // Cast to our real type.
     Exception **ppException = reinterpret_cast<Exception**>(ppvException);
@@ -3851,12 +2285,6 @@ void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvExceptio
     GetLastThrownObjectExceptionFromThread_Internal(ppException);
 
 } // HRESULT CExecutionEngine::GetLastThrownObjectExceptionFromThread()
-
-
-LocaleID RuntimeGetFileSystemLocale()
-{
-    return PEImage::GetFileSystemLocale();
-};
 
 HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName, IActivationFactory ** factory)
 {
@@ -3877,11 +2305,6 @@ HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName
         }
     }
 
-    if(SystemDomain::GetCurrentDomain()->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
-    }
-
     return DllGetActivationFactoryImpl(NULL, wszTypeName, NULL, factory);
 #else
     return E_NOTIMPL;
@@ -3891,8 +2314,8 @@ HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName
 
 #ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 
-HRESULT STDMETHODCALLTYPE DllGetActivationFactoryImpl(LPCWSTR wszAssemblyName, 
-                                                      LPCWSTR wszTypeName, 
+HRESULT STDMETHODCALLTYPE DllGetActivationFactoryImpl(LPCWSTR wszAssemblyName,
+                                                      LPCWSTR wszTypeName,
                                                       LPCWSTR wszCodeBase,
                                                       IActivationFactory ** factory)
 {
@@ -3917,7 +2340,7 @@ HRESULT STDMETHODCALLTYPE DllGetActivationFactoryImpl(LPCWSTR wszAssemblyName,
         GCX_COOP();
 
         bool bIsPrimitive;
-        TypeHandle typeHandle = WinRTTypeNameConverter::GetManagedTypeFromWinRTTypeName(wszTypeName, &bIsPrimitive);
+        TypeHandle typeHandle = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(wszTypeName, /* pLoadBinder */ nullptr, &bIsPrimitive);
         if (!bIsPrimitive && !typeHandle.IsNull() && !typeHandle.IsTypeDesc() && typeHandle.AsMethodTable()->IsExportedToWinRT())
         {
             struct _gc {

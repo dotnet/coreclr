@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "ClientTests.h"
+#include <platformdefines.h>
 #include <vector>
 #include <sstream>
 
@@ -188,7 +189,7 @@ namespace
     };
 
     // BSTR string
-    using BStr = AnyStr<OLECHAR, &CoreClrBstrAlloc, &CoreClrBstrFree>;
+    using BStr = AnyStr<OLECHAR, &CoreClrBStrAlloc, &CoreClrBStrFree>;
 
     // Wide string
     using WStr = AnyStr<WCHAR, &CoreClrAlloc, &CoreClrFree>;
@@ -249,7 +250,7 @@ namespace
 
             LPSTR tmp;
             NStr expected{ p.first, p.second };
-            THROW_IF_FAILED(stringTesting->raw_Add_LPStr(p.first, p.second, &tmp));
+            THROW_IF_FAILED(stringTesting->Add_LPStr(p.first, p.second, &tmp));
 
             NStr actual;
             actual.Attach(tmp);
@@ -272,28 +273,28 @@ namespace
             NStr expected;
             THROW_IF_FAILED(r.Reverse(expected));
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPStr(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPStr(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPStr_Ref(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPStr_Ref(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
             local = r;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPStr_InRef(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPStr_InRef(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPStr_Out(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPStr_Out(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
             actual = local;
             tmp = actual;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPStr_OutAttr(local, tmp)); // No-op for strings
+            THROW_IF_FAILED(stringTesting->Reverse_LPStr_OutAttr(local, tmp)); // No-op for strings
             THROW_FAIL_IF_FALSE(local == actual);
         }
     }
@@ -309,7 +310,7 @@ namespace
         {
             LPWSTR tmp;
             WStr expected{ p.first, p.second };
-            THROW_IF_FAILED(stringTesting->raw_Add_LPWStr(p.first, p.second, &tmp));
+            THROW_IF_FAILED(stringTesting->Add_LPWStr(p.first, p.second, &tmp));
 
             WStr actual;
             actual.Attach(tmp);
@@ -326,28 +327,28 @@ namespace
             WStr expected;
             THROW_IF_FAILED(r.Reverse(expected));
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPWStr(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPWStr(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPWStr_Ref(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPWStr_Ref(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
             local = r;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPWStr_InRef(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPWStr_InRef(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPWStr_Out(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_LPWStr_Out(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
             actual = local;
             tmp = actual;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_LPWStr_OutAttr(local, tmp)); // No-op for strings
+            THROW_IF_FAILED(stringTesting->Reverse_LPWStr_OutAttr(local, tmp)); // No-op for strings
             THROW_FAIL_IF_FALSE(local == actual);
         }
     }
@@ -363,7 +364,7 @@ namespace
         {
             BSTR tmp;
             BStr expected{ p.first, p.second };
-            THROW_IF_FAILED(stringTesting->raw_Add_BStr(p.first, p.second, &tmp));
+            THROW_IF_FAILED(stringTesting->Add_BStr(p.first, p.second, &tmp));
 
             BStr actual;
             actual.Attach(tmp);
@@ -380,30 +381,56 @@ namespace
             BStr expected;
             THROW_IF_FAILED(r.Reverse(expected));
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_BStr(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_BStr(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_BStr_Ref(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_BStr_Ref(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
             local = r;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_BStr_InRef(&local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_BStr_InRef(&local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
             THROW_FAIL_IF_FALSE(r == local); // Local should not be changed
 
-            THROW_IF_FAILED(stringTesting->raw_Reverse_BStr_Out(local, &tmp));
+            THROW_IF_FAILED(stringTesting->Reverse_BStr_Out(local, &tmp));
             actual.Attach(tmp);
             THROW_FAIL_IF_FALSE(expected == actual);
 
             actual = local;
             tmp = actual;
-            THROW_IF_FAILED(stringTesting->raw_Reverse_BStr_OutAttr(local, tmp)); // No-op for strings
+            THROW_IF_FAILED(stringTesting->Reverse_BStr_OutAttr(local, tmp)); // No-op for strings
             THROW_FAIL_IF_FALSE(local == actual);
         }
+    }
+
+    void Marshal_LCID(_In_ IStringTesting* stringTesting)
+    {
+        ::printf("Marshal LCIDs\n");
+
+        HRESULT hr;
+
+        LCID lcid = MAKELCID(MAKELANGID(LANG_SPANISH, SUBLANG_SPANISH_CHILE), SORT_DEFAULT);
+
+        WStr r = GetReversableStrings<WStr>()[0];
+        WStr local{ r };
+
+        WStr actual;
+        WStr expected;
+        THROW_IF_FAILED(r.Reverse(expected));
+
+        LPWSTR tmp;
+        THROW_IF_FAILED(stringTesting->Reverse_LPWSTR_With_LCID(local, lcid, &tmp));
+        actual.Attach(tmp);
+        THROW_FAIL_IF_FALSE(expected == actual);
+
+        LCID actualLcid;
+
+        THROW_IF_FAILED(stringTesting->Pass_Through_LCID(lcid, &actualLcid));
+        THROW_FAIL_IF_FALSE(lcid == actualLcid);
     }
 }
 
@@ -411,7 +438,7 @@ void Run_StringTests()
 {
     HRESULT hr;
 
-    CoreShimComActivation csact{ W("NETServer.dll"), W("StringTesting") };
+    CoreShimComActivation csact{ W("NETServer"), W("StringTesting") };
 
     ComSmartPtr<IStringTesting> stringTesting;
     THROW_IF_FAILED(::CoCreateInstance(CLSID_StringTesting, nullptr, CLSCTX_INPROC, IID_IStringTesting, (void**)&stringTesting));
@@ -419,4 +446,5 @@ void Run_StringTests()
     Marshal_LPString(stringTesting);
     Marshal_LPWString(stringTesting);
     Marshal_BStrString(stringTesting);
+    Marshal_LCID(stringTesting);
 }

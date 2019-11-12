@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -25,7 +24,7 @@ namespace System.Threading
             }
             catch (Exception ex)
             {   // BindHandle throws ApplicationException on full CLR and Exception on CoreCLR.
-                // We do not let either of these leak and convert them to ArgumentException to 
+                // We do not let either of these leak and convert them to ArgumentException to
                 // indicate that the specified handles are invalid.
 
                 if (ex.HResult == HResults.E_HANDLE)         // Bad handle

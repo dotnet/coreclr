@@ -6,7 +6,7 @@
 //
 
 #ifndef __ExState_h__
-#define __ExState_h__ 
+#define __ExState_h__
 
 class ExceptionFlags;
 class DebuggerExState;
@@ -14,10 +14,10 @@ class EHClauseInfo;
 
 #include "exceptionhandling.h"
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 // ExInfo contains definitions for 32bit
 #include "exinfo.h"
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 #if !defined(DACCESS_COMPILE)
 #define PRESERVE_WATSON_ACROSS_CONTEXTS 1
@@ -27,7 +27,7 @@ extern StackWalkAction COMPlusUnwindCallback(CrawlFrame *pCf, ThrowCallbackType 
 
 //
 // This class serves as a forwarding and abstraction layer for the EH subsystem.
-// Since we have two different implementations, this class is needed to unify 
+// Since we have two different implementations, this class is needed to unify
 // the EE's view of EH.  Ideally, this is just a step along the way to a unified
 // EH subsystem.
 //
@@ -46,19 +46,19 @@ class ThreadExceptionState
     // ExceptionTracker or the ExInfo as appropriate for the platform
     friend class ProfToEEInterfaceImpl;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     friend class ExceptionTracker;
 #else
     friend class ExInfo;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 public:
-    
+
     void FreeAllStackTraces();
     void ClearThrowablesForUnload(IGCHandleStore* handleStore);
 
 #ifdef _DEBUG
-    typedef enum 
+    typedef enum
     {
         STEC_All,
         STEC_CurrentTrackerEqualNullOkHackForFatalStackOverflow,
@@ -84,12 +84,12 @@ public:
     ThreadExceptionState();
     ~ThreadExceptionState();
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
       void              SetExceptionPointers(EXCEPTION_POINTERS *pExceptionPointers);
 #endif
 
 
-#ifdef DEBUGGING_SUPPORTED    
+#ifdef DEBUGGING_SUPPORTED
     // DebuggerExState stores information necessary for intercepting an exception
     DebuggerExState*    GetDebuggerState();
 
@@ -102,7 +102,7 @@ public:
 #ifdef DACCESS_COMPILE
     void EnumChainMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif // DACCESS_COMPILE
-    
+
     // After unwinding from an SO, there may be stale exception state.
     void ClearExceptionStateAfterSO(void* pStackFrameSP);
 
@@ -110,7 +110,7 @@ public:
     {
         TEF_None                          = 0x00000000,
 
-        // Right now this flag is only used on WIN64.  We set this flag near the end of the second pass when we pop 
+        // Right now this flag is only used on WIN64.  We set this flag near the end of the second pass when we pop
         // the ExceptionTracker for the current exception but before we actually resume execution.  It is unsafe
         // to start a funclet-skipping stackwalk in this time window.
         TEF_InconsistentExceptionState    = 0x00000001,
@@ -147,7 +147,7 @@ public:
 private:
     Thread* GetMyThread();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker    m_pCurrentTracker;
     ExceptionTracker        m_OOMTracker;
 public:
@@ -188,7 +188,7 @@ public:
         m_LastActiveExceptionCorruptionSeverity = severityToSet;
     }
 
-    // Returns a bool indicating if the last active exception's corruption severity should 
+    // Returns a bool indicating if the last active exception's corruption severity should
     // be used when exception is reraised (e.g. Reflection Invocation, AD transition, etc)
     inline BOOL ShouldLastActiveExceptionCorruptionSeverityBeReused()
     {
@@ -216,10 +216,10 @@ public:
     }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-private:   
+private:
     ThreadExceptionFlag      m_flag;
 
-#ifndef FEATURE_PAL        
+#ifndef FEATURE_PAL
 private:
     EHWatsonBucketTracker    m_UEWatsonBucketTracker;
 public:
@@ -228,12 +228,12 @@ public:
         LIMITED_METHOD_CONTRACT;
         return PTR_EHWatsonBucketTracker(PTR_HOST_MEMBER_TADDR(ThreadExceptionState, this, m_UEWatsonBucketTracker));
     }
-#endif // !FEATURE_PAL        
+#endif // !FEATURE_PAL
 
 private:
 
-#ifndef WIN64EXCEPTIONS
-    
+#ifndef FEATURE_EH_FUNCLETS
+
     //
     // @NICE: Ideally, these friends shouldn't all be enumerated like this.  If they were all part of the same
     // class, that would be nice.  I'm trying to avoid adding x86-specific accessors to this class as well as
@@ -264,7 +264,7 @@ private:
                        EXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
                        CONTEXT *pContext,
                        void *pDispatcherContext);
-    
+
     friend void CPFH_UnwindFrames1(Thread* pThread,
                                    EXCEPTION_REGISTRATION_RECORD* pEstablisherFrame,
                                    DWORD exceptionCode);
@@ -278,9 +278,9 @@ private:
     friend StackWalkAction COMPlusUnwindCallback(CrawlFrame *pCf, ThrowCallbackType *pData);
 
 #if defined(_TARGET_X86_)
-    friend void ResumeAtJitEH(CrawlFrame* pCf, BYTE* startPC, EE_ILEXCEPTION_CLAUSE *EHClausePtr, 
+    friend void ResumeAtJitEH(CrawlFrame* pCf, BYTE* startPC, EE_ILEXCEPTION_CLAUSE *EHClausePtr,
                                    DWORD nestingLevel, Thread *pThread, BOOL unwindStack);
-#endif // _TARGET_X86_                                   
+#endif // _TARGET_X86_
 
     friend _EXCEPTION_HANDLER_DECL(COMPlusNestedExceptionHandler);
 
@@ -298,7 +298,7 @@ private:
     // friend StackWalkAction Thread::StackWalkFramesEx(PREGDISPLAY pRD, PSTACKWALKFRAMESCALLBACK pCallback,
     //                 VOID *pData, unsigned flags, Frame *pStartFrame);
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 };
 
@@ -358,7 +358,7 @@ extern BOOL IsWatsonEnabled();
             {                                                                                                                               \
                 SetupWatsonBucketsForNonPreallocatedExceptions(throwable);                                                                  \
             }                                                                                                                               \
-        }                                                                   
+        }
 #else // !FEATURE_PAL
 #define CAPTURE_BUCKETS_AT_TRANSITION(pThread, oThrowable)
 #endif // FEATURE_PAL

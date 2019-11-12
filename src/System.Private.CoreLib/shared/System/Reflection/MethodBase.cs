@@ -4,6 +4,8 @@
 
 using System.Globalization;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace System.Reflection
 {
@@ -15,20 +17,15 @@ namespace System.Reflection
         public abstract MethodAttributes Attributes { get; }
         public virtual MethodImplAttributes MethodImplementationFlags => GetMethodImplementationFlags();
         public abstract MethodImplAttributes GetMethodImplementationFlags();
-        public virtual MethodBody GetMethodBody() { throw new InvalidOperationException(); }
+        public virtual MethodBody? GetMethodBody() { throw new InvalidOperationException(); }
         public virtual CallingConventions CallingConvention => CallingConventions.Standard;
 
         public bool IsAbstract => (Attributes & MethodAttributes.Abstract) != 0;
-        public bool IsConstructor
-        {
-            get
-            {
-                // To be backward compatible we only return true for instance RTSpecialName ctors.
-                return (this is ConstructorInfo &&
-                        !IsStatic &&
-                        ((Attributes & MethodAttributes.RTSpecialName) == MethodAttributes.RTSpecialName));
-            }
-        }
+        public bool IsConstructor =>
+            // To be backward compatible we only return true for instance RTSpecialName ctors.
+            this is ConstructorInfo &&
+            !IsStatic &&
+            (Attributes & MethodAttributes.RTSpecialName) == MethodAttributes.RTSpecialName;
         public bool IsFinal => (Attributes & MethodAttributes.Final) != 0;
         public bool IsHideBySig => (Attributes & MethodAttributes.HideBySig) != 0;
         public bool IsSpecialName => (Attributes & MethodAttributes.SpecialName) != 0;
@@ -50,37 +47,75 @@ namespace System.Reflection
 
         [DebuggerHidden]
         [DebuggerStepThrough]
-        public object Invoke(object obj, object[] parameters) => Invoke(obj, BindingFlags.Default, binder: null, parameters: parameters, culture: null);
-        public abstract object Invoke(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture);
+        public object? Invoke(object? obj, object?[]? parameters) => Invoke(obj, BindingFlags.Default, binder: null, parameters: parameters, culture: null);
+        public abstract object? Invoke(object? obj, BindingFlags invokeAttr, Binder? binder, object?[]? parameters, CultureInfo? culture);
 
         public abstract RuntimeMethodHandle MethodHandle { get; }
 
-        public virtual bool IsSecurityCritical { get { throw NotImplemented.ByDesign; } }
-        public virtual bool IsSecuritySafeCritical { get { throw NotImplemented.ByDesign; } }
-        public virtual bool IsSecurityTransparent { get { throw NotImplemented.ByDesign; } }
+        public virtual bool IsSecurityCritical => throw NotImplemented.ByDesign;
+        public virtual bool IsSecuritySafeCritical => throw NotImplemented.ByDesign;
+        public virtual bool IsSecurityTransparent => throw NotImplemented.ByDesign;
 
-        public override bool Equals(object obj) => base.Equals(obj);
+        public override bool Equals(object? obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(MethodBase left, MethodBase right)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(MethodBase? left, MethodBase? right)
         {
-            if (object.ReferenceEquals(left, right))
+            // Test "right" first to allow branch elimination when inlined for null checks (== null)
+            // so it can become a simple test
+            if (right is null)
+            {
+                // return true/false not the test result https://github.com/dotnet/coreclr/issues/914
+                return (left is null) ? true : false;
+            }
+
+            // Try fast reference equality and opposite null check prior to calling the slower virtual Equals
+            if ((object?)left == (object)right)
+            {
                 return true;
+            }
 
-            if ((object)left == null || (object)right == null)
-                return false;
-
-            MethodInfo method1, method2;
-            ConstructorInfo constructor1, constructor2;
-
-            if ((method1 = left as MethodInfo) != null && (method2 = right as MethodInfo) != null)
-                return method1 == method2;
-            else if ((constructor1 = left as ConstructorInfo) != null && (constructor2 = right as ConstructorInfo) != null)
-                return constructor1 == constructor2;
-
-            return false;
+            return (left is null) ? false : left.Equals(right);
         }
 
-        public static bool operator !=(MethodBase left, MethodBase right) => !(left == right);
+        public static bool operator !=(MethodBase? left, MethodBase? right) => !(left == right);
+
+        internal const int MethodNameBufferSize = 100;
+
+        internal static void AppendParameters(ref ValueStringBuilder sbParamList, Type[] parameterTypes, CallingConventions callingConvention)
+        {
+            string comma = "";
+
+            for (int i = 0; i < parameterTypes.Length; i++)
+            {
+                Type t = parameterTypes[i];
+
+                sbParamList.Append(comma);
+
+                string typeName = t.FormatTypeName();
+
+                // Legacy: Why use "ByRef" for by ref parameters? What language is this?
+                // VB uses "ByRef" but it should precede (not follow) the parameter name.
+                // Why don't we just use "&"?
+                if (t.IsByRef)
+                {
+                    sbParamList.Append(typeName.AsSpan().TrimEnd('&'));
+                    sbParamList.Append(" ByRef");
+                }
+                else
+                {
+                    sbParamList.Append(typeName);
+                }
+
+                comma = ", ";
+            }
+
+            if ((callingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
+            {
+                sbParamList.Append(comma);
+                sbParamList.Append("...");
+            }
+        }
     }
 }

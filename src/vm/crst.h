@@ -1,11 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // CRST.H
 //
 
-// 
+//
 // Debug-instrumented hierarchical critical sections.
 //
 //
@@ -136,7 +136,7 @@ friend class Crst;
     friend class DbgTransportLock;
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
-    // PendingTypeLoadEntry acquires the lock during construction before anybody has a chance to see it to avoid 
+    // PendingTypeLoadEntry acquires the lock during construction before anybody has a chance to see it to avoid
     // level violations.
     friend class PendingTypeLoadEntry;
 
@@ -150,19 +150,19 @@ public:
 #endif
 
 private:
-    // Some Crsts have a "shutdown" mode. 
-    // A Crst in shutdown mode can only be taken / released by special 
+    // Some Crsts have a "shutdown" mode.
+    // A Crst in shutdown mode can only be taken / released by special
     // (the helper / finalizer / shutdown) threads. Any other thread that tries to take
     // the a "shutdown" crst will immediately release the Crst and instead just block forever.
     //
-    // This prevents random threads from blocking the special threads from doing finalization on shutdown. 
-    // 
+    // This prevents random threads from blocking the special threads from doing finalization on shutdown.
+    //
     // Unfortunately, each Crst needs its own "shutdown" flag because we can't convert all the locks
     // into shutdown locks at once. For eg, the TSL needs to suspend the runtime before
-    // converting to a shutdown lock. But it can't suspend the runtime while holding 
+    // converting to a shutdown lock. But it can't suspend the runtime while holding
     // a UNSAFE_ANYMODE lock (such as the debugger-lock). So at least the debugger-lock
     // and TSL need to be set separately.
-    // 
+    //
     // So for such Crsts, it's the caller's responsibility to detect if the crst is in
     // shutdown mode, and if so, call this function after enter.
     void ReleaseAndBlockForShutdownIfNotSpecialThread();
@@ -183,36 +183,36 @@ private:
     void SpinEnter();
 
 #ifndef DACCESS_COMPILE
-    DEBUG_NOINLINE static void AcquireLock(CrstBase *c) PUB {
+    DEBUG_NOINLINE static void AcquireLock(CrstBase *c) {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
-        c->Enter(); 
+        c->Enter();
     }
 
-    DEBUG_NOINLINE static void ReleaseLock(CrstBase *c) PUB { 
+    DEBUG_NOINLINE static void ReleaseLock(CrstBase *c) {
         WRAPPER_NO_CONTRACT;
         ANNOTATION_SPECIAL_HOLDER_CALLER_NEEDS_DYNAMIC_CONTRACT;
-        c->Leave(); 
+        c->Leave();
     }
 
 #else // DACCESS_COMPILE
 
     // in DAC builds, we don't actually acquire the lock, we just determine whether the LS
-    // already holds it. If so, we assume the data is inconsistent and throw an exception. 
-    // Argument: 
-    //     input: c - the lock to be checked. 
+    // already holds it. If so, we assume the data is inconsistent and throw an exception.
+    // Argument:
+    //     input: c - the lock to be checked.
     // Note: Throws
-    static void AcquireLock(CrstBase * c) PUB
-    { 
+    static void AcquireLock(CrstBase * c)
+    {
         SUPPORTS_DAC;
-        if (c->GetEnterCount() != 0) 
+        if (c->GetEnterCount() != 0)
         {
-            ThrowHR(CORDBG_E_PROCESS_NOT_SYNCHRONIZED); 
+            ThrowHR(CORDBG_E_PROCESS_NOT_SYNCHRONIZED);
         }
     };
 
-    static void ReleaseLock(CrstBase *c) PUB
-    { 
+    static void ReleaseLock(CrstBase *c)
+    {
         SUPPORTS_DAC;
     };
 #endif // DACCESS_COMPILE
@@ -248,7 +248,7 @@ public:
             _ASSERTE(m_cannotLeave);
             FastInterlockDecrement(&m_cannotLeave);
         }
-    };    
+    };
     //-----------------------------------------------------------------
     // Is the current thread the owner?
     //-----------------------------------------------------------------
@@ -261,18 +261,18 @@ public:
         return m_holderthreadid.IsCurrentThread();
 #endif
     }
-    
+
     CrstBase *GetThreadsOwnedCrsts();
     void SetThreadsOwnedCrsts(CrstBase *pCrst);
 
-    __declspec(noinline) EEThreadId GetHolderThreadId()
+    NOINLINE EEThreadId GetHolderThreadId()
     {
         LIMITED_METHOD_CONTRACT;
         return m_holderthreadid;
     }
 
 #endif //_DEBUG
-    
+
     //-----------------------------------------------------------------
     // For clients who want to assert whether they are in or out of the
     // region.
@@ -287,7 +287,7 @@ public:
 #endif //_DEBUG
     }
 
-protected:    
+protected:
 
     VOID InitWorker(INDEBUG_COMMA(CrstType crstType) CrstFlags flags);
 
@@ -319,16 +319,16 @@ protected:
     EEThreadId          m_holderthreadid;   // current holder (or NULL)
     CrstBase           *m_next;             // link for global linked list
     CrstBase           *m_prev;             // link for global linked list
-    Volatile<LONG>      m_cannotLeave; 
+    Volatile<LONG>      m_cannotLeave;
 
     // Check for dead lock situation.
     ULONG               m_countNoTriggerGC;
-    
+
     void                PostEnter ();
     void                PreEnter ();
     void                PreLeave  ();
 #endif //_DEBUG
-    
+
 private:
 
     void SetOSCritSec ()
@@ -372,7 +372,7 @@ private:
     // ------------------------------- Holders ------------------------------
  public:
      //
-     // CrstHolder is optimized for the common use that takes the lock in constructor 
+     // CrstHolder is optimized for the common use that takes the lock in constructor
      // and releases it in destructor. Users that require all Holder features
      // can use CrstHolderWithState.
      //
@@ -391,21 +391,19 @@ private:
         inline ~CrstHolder()
         {
             WRAPPER_NO_CONTRACT;
-
-            VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(HSV_ValidateMinimumStackReq);
             ReleaseLock(m_pCrst);
         }
     };
 
-    // Note that the holders for CRSTs are used in extremely low stack conditions. Because of this, they 
+    // Note that the holders for CRSTs are used in extremely low stack conditions. Because of this, they
     // aren't allowed to use more than HOLDER_CODE_MINIMUM_STACK_LIMIT pages of stack.
-    typedef DacHolder<CrstBase *, CrstBase::AcquireLock, CrstBase::ReleaseLock, 0, CompareDefault, HSV_ValidateMinimumStackReq> CrstHolderWithState;
+    typedef DacHolder<CrstBase *, CrstBase::AcquireLock, CrstBase::ReleaseLock, 0, CompareDefault> CrstHolderWithState;
 
     // We have some situations where we're already holding a lock, and we need to release and reacquire the lock across a window.
     // This is a dangerous construct because the backout code can block.
     // Generally, it's better to use a regular CrstHolder, and then use the Release() / Acquire() methods on it.
     // This just exists to convert legacy OS Critical Section patterns over to holders.
-    typedef DacHolder<CrstBase *, CrstBase::ReleaseLock, CrstBase::AcquireLock, 0, CompareDefault, HSV_ValidateMinimumStackReq> UnsafeCrstInverseHolder;
+    typedef DacHolder<CrstBase *, CrstBase::ReleaseLock, CrstBase::AcquireLock, 0, CompareDefault> UnsafeCrstInverseHolder;
 };
 
 typedef CrstBase::CrstHolder CrstHolder;
@@ -467,7 +465,7 @@ public:
 
 typedef DPTR(Crst) PTR_Crst;
 
-/* to be used as static variable - no constructor/destructor, assumes zero 
+/* to be used as static variable - no constructor/destructor, assumes zero
    initialized memory */
 class CrstStatic : public CrstBase
 {
@@ -486,7 +484,7 @@ public:
     {
         CONTRACTL {
             NOTHROW;
-        } CONTRACTL_END;    
+        } CONTRACTL_END;
 
         _ASSERTE((flags & CRST_INITIALIZED) == 0);
 
@@ -518,7 +516,7 @@ public:
 #ifndef DACCESS_COMPILE
         Destroy();
 #endif
-    }   
+    }
 };
 
 __inline BOOL IsOwnerOfCrst(LPVOID lock)
@@ -535,9 +533,7 @@ __inline BOOL IsOwnerOfCrst(LPVOID lock)
 }
 
 #ifdef TEST_DATA_CONSISTENCY
-// used for test purposes. Determines if a crst is held. 
+// used for test purposes. Determines if a crst is held.
 void DebugTryCrst(CrstBase * pLock);
 #endif
 #endif // __crst_h__
-
-

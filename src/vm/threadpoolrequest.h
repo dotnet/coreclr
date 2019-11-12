@@ -10,9 +10,9 @@
 
 //
 // This file contains definitions of classes needed to mainain per-appdomain
-// thread pool work requests. This is needed as unmanaged and managed work 
+// thread pool work requests. This is needed as unmanaged and managed work
 // requests are allocted, managed and dispatched in drastically different ways.
-// However, the scheduler need be aware of these differences, and it should 
+// However, the scheduler need be aware of these differences, and it should
 // simply talk to a common interface for managing work request counts.
 //
 //=========================================================================
@@ -26,48 +26,43 @@
 #define UNUSED_THREADPOOL_INDEX (DWORD)-1
 
 //--------------------------------------------------------------------------
-//IPerAppDomainTPCount is an interface for implementing per-appdomain thread 
+//IPerAppDomainTPCount is an interface for implementing per-appdomain thread
 //pool state. It's implementation should include logic to maintain work-counts,
-//notify thread pool class when work arrives or no work is left. Finally 
+//notify thread pool class when work arrives or no work is left. Finally
 //there is logic to dipatch work items correctly in the right domain.
 //
 //Notes:
 //This class was designed to support both the managed and unmanaged uses
-//of thread pool. The unmananged part may directly be used through com 
-//interfaces. The differences between the actual management of counts and 
-//dispatching of work is quite different between the two. This interface 
+//of thread pool. The unmananged part may directly be used through com
+//interfaces. The differences between the actual management of counts and
+//dispatching of work is quite different between the two. This interface
 //hides these differences to the thread scheduler implemented by the thread pool
 //class.
 //
 
-class IPerAppDomainTPCount{  
+class IPerAppDomainTPCount{
 public:
     virtual void ResetState() = 0;
     virtual BOOL IsRequestPending() = 0;
 
-	//This functions marks the begining of requests queued for the domain. 
+	//This functions marks the begining of requests queued for the domain.
     //It needs to notify the scheduler of work-arrival among other things.
     virtual void SetAppDomainRequestsActive() = 0;
 
     //This functions marks the end of requests queued for this domain.
-    virtual void ClearAppDomainRequestsActive(BOOL bADU = FALSE) = 0;
+    virtual void ClearAppDomainRequestsActive() = 0;
 
     //Clears the "active" flag if it was set, and returns whether it was set.
     virtual bool TakeActiveRequest() = 0;
 
     //Takes care of dispatching requests in the right domain.
     virtual void DispatchWorkItem(bool* foundWork, bool* wasNotRecalled) = 0;
-    virtual void SetAppDomainId(ADID id) = 0;
     virtual void SetTPIndexUnused() = 0;
     virtual BOOL IsTPIndexUnused() = 0;
-    virtual void SetTPIndex(TPIndex index) = 0; 
-    virtual void SetAppDomainUnloading() = 0;
-    virtual void ClearAppDomainUnloading() = 0;
+    virtual void SetTPIndex(TPIndex index) = 0;
 };
 
 typedef DPTR(IPerAppDomainTPCount) PTR_IPerAppDomainTPCount;
-
-static const LONG ADUnloading = -1;
 
 #ifdef _MSC_VER
 // Disable this warning - we intentionally want __declspec(align()) to insert padding for us
@@ -75,14 +70,14 @@ static const LONG ADUnloading = -1;
 #endif
 
 //--------------------------------------------------------------------------
-//ManagedPerAppDomainTPCount maintains per-appdomain thread pool state. 
+//ManagedPerAppDomainTPCount maintains per-appdomain thread pool state.
 //This class maintains the count of per-appdomain work-items queued by
 //ThreadPool.QueueUserWorkItem. It also dispatches threads in the appdomain
 //correctly by setting up the right exception handling frames etc.
 //
 //Note: The counts are not accurate, and neither do they need to be. The
 //actual work queue is in managed (implemented in threadpool.cs). This class
-//just provides heuristics to the thread pool scheduler, along with 
+//just provides heuristics to the thread pool scheduler, along with
 //synchronization to indicate start/end of requests to the scheduler.
 class ManagedPerAppDomainTPCount : public IPerAppDomainTPCount {
 public:
@@ -93,60 +88,37 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         VolatileStore(&m_numRequestsPending, (LONG)0);
-        m_id.m_dwId = 0;
     }
-    
+
     inline BOOL IsRequestPending()
     {
         LIMITED_METHOD_CONTRACT;
 
         LONG count = VolatileLoad(&m_numRequestsPending);
-        return count != ADUnloading && count > 0;
+        return count > 0;
     }
 
     void SetAppDomainRequestsActive();
-    void ClearAppDomainRequestsActive(BOOL bADU);
+    void ClearAppDomainRequestsActive();
     bool TakeActiveRequest();
 
-    inline void SetAppDomainId(ADID id)
+    inline void SetTPIndex(TPIndex index)
     {
         LIMITED_METHOD_CONTRACT;
         //This function should be called during appdomain creation when no managed code
         //has started running yet. That implies, no requests should be pending
         //or dispatched to this structure yet.
 
-        _ASSERTE(VolatileLoad(&m_numRequestsPending) != ADUnloading);
-        _ASSERTE(m_id.m_dwId == 0);
-
-        m_id = id;
-    }
-
-    inline void SetTPIndex(TPIndex index) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        //This function should be called during appdomain creation when no managed code
-        //has started running yet. That implies, no requests should be pending
-        //or dispatched to this structure yet.
-
-        _ASSERTE(VolatileLoad(&m_numRequestsPending) != ADUnloading);
-        _ASSERTE(m_id.m_dwId == 0);
         _ASSERTE(m_index.m_dwIndex == UNUSED_THREADPOOL_INDEX);
 
         m_index = index;
     }
-    
+
     inline BOOL IsTPIndexUnused()
     {
         LIMITED_METHOD_CONTRACT;
         if (m_index.m_dwIndex == UNUSED_THREADPOOL_INDEX)
         {
-            //This function is called during appdomain creation, and no new appdomains can be
-            //added removed at this time. So, make sure that the per-appdomain structures that 
-            //have been cleared(reclaimed) don't have any pending requests to them.
-
-            _ASSERTE(VolatileLoad(&m_numRequestsPending) != ADUnloading);
-            _ASSERTE(m_id.m_dwId == 0);
-
             return TRUE;
         }
 
@@ -156,34 +128,14 @@ public:
     inline void SetTPIndexUnused()
     {
         WRAPPER_NO_CONTRACT;
-        //This function should be called during appdomain unload when all threads have
-        //succesfully exited the appdomain. That implies, no requests should be pending
-        //or dispatched to this structure.
-
-        _ASSERTE(m_id.m_dwId == 0);
-
         m_index.m_dwIndex = UNUSED_THREADPOOL_INDEX;
-    }
-
-    inline void SetAppDomainUnloading()
-    {
-        LIMITED_METHOD_CONTRACT;
-        VolatileStore(&m_numRequestsPending, ADUnloading);
-    }
-
-    inline void ClearAppDomainUnloading();
-
-    inline BOOL IsAppDomainUnloading()
-    {
-        return VolatileLoad(&m_numRequestsPending) == ADUnloading;
     }
 
     void DispatchWorkItem(bool* foundWork, bool* wasNotRecalled);
 
 private:
-    ADID m_id;
     TPIndex m_index;
-    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) struct {
+    struct DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) {
         BYTE m_padding1[MAX_CACHE_LINE_SIZE - sizeof(LONG)];
         // Only use with VolatileLoad+VolatileStore+FastInterlockCompareExchange
         LONG m_numRequestsPending;
@@ -192,14 +144,14 @@ private:
 };
 
 //--------------------------------------------------------------------------
-//UnManagedPerAppDomainTPCount maintains the thread pool state/counts for 
-//unmanaged work requests. From thread pool point of view we treat unmanaged 
+//UnManagedPerAppDomainTPCount maintains the thread pool state/counts for
+//unmanaged work requests. From thread pool point of view we treat unmanaged
 //requests as a special "appdomain". This helps in scheduling policies, and
 //follow same fairness policies as requests in other appdomains.
 class UnManagedPerAppDomainTPCount : public IPerAppDomainTPCount {
 public:
 
-    UnManagedPerAppDomainTPCount() 
+    UnManagedPerAppDomainTPCount()
     {
         LIMITED_METHOD_CONTRACT;
         ResetState();
@@ -216,11 +168,11 @@ public:
         }
         CONTRACTL_END;
 
-    }    
+    }
 
     inline void CleanupResources()
     {
-    }    
+    }
 
     inline void ResetState()
     {
@@ -236,8 +188,8 @@ public:
     }
 
     void SetAppDomainRequestsActive();
-    
-    inline void ClearAppDomainRequestsActive(BOOL bADU)
+
+    inline void ClearAppDomainRequestsActive()
     {
         LIMITED_METHOD_CONTRACT;
         VolatileStore(&m_outstandingThreadRequestCount, (LONG)0);
@@ -245,17 +197,13 @@ public:
 
     bool TakeActiveRequest();
 
-    inline void SetAppDomainId(ADID id)
-    {
-    }
-
     void QueueUnmanagedWorkRequest(LPTHREAD_START_ROUTINE  function, PVOID context);
     PVOID DeQueueUnManagedWorkRequest(bool* lastOne);
 
     void DispatchWorkItem(bool* foundWork, bool* wasNotRecalled);
 
     inline void SetTPIndexUnused()
-    {        
+    {
         WRAPPER_NO_CONTRACT;
 	_ASSERT(FALSE);
     }
@@ -264,31 +212,25 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 	_ASSERT(FALSE);
-        return FALSE; 
+        return FALSE;
     }
 
-    inline void SetTPIndex(TPIndex index) 
+    inline void SetTPIndex(TPIndex index)
     {
         WRAPPER_NO_CONTRACT;
-	_ASSERT(FALSE); 
-    }   
-
-    inline void SetAppDomainUnloading()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERT(FALSE);        
+	_ASSERT(FALSE);
     }
 
-    inline void ClearAppDomainUnloading()
+    inline ULONG GetNumRequests()
     {
-        WRAPPER_NO_CONTRACT;
-        _ASSERT(FALSE);        
+        LIMITED_METHOD_CONTRACT;
+        return VolatileLoad(&m_NumRequests);
     }
 
 private:
     SpinLock m_lock;
     ULONG m_NumRequests;
-    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) struct {
+    struct DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) {
         BYTE m_padding1[MAX_CACHE_LINE_SIZE - sizeof(LONG)];
         // Only use with VolatileLoad+VolatileStore+FastInterlockCompareExchange
         LONG m_outstandingThreadRequestCount;
@@ -301,45 +243,26 @@ private:
 #endif
 
 //--------------------------------------------------------------------------
-//PerAppDomainTPCountList maintains the collection of per-appdomain thread 
+//PerAppDomainTPCountList maintains the collection of per-appdomain thread
 //pool states. Per appdomain counts are added to the list during appdomain
 //creation inside the sdomain lock. The counts are reset during appdomain
-//unload after all the threads have  
+//unload after all the threads have
 //This class maintains the count of per-appdomain work-items queued by
 //ThreadPool.QueueUserWorkItem. It also dispatches threads in the appdomain
 //correctly by setting up the right exception handling frames etc.
 //
 //Note: The counts are not accurate, and neither do they need to be. The
 //actual work queue is in managed (implemented in threadpool.cs). This class
-//just provides heuristics to the thread pool scheduler, along with 
+//just provides heuristics to the thread pool scheduler, along with
 //synchronization to indicate start/end of requests to the scheduler.
 class PerAppDomainTPCountList{
 public:
-    static void InitAppDomainIndexList();    
+    static void InitAppDomainIndexList();
     static void ResetAppDomainIndex(TPIndex index);
-    static void ResetAppDomainTPCounts(TPIndex index);
     static bool AreRequestsPendingInAnyAppDomains();
     static LONG GetAppDomainIndexForThreadpoolDispatch();
-    static void SetAppDomainId(TPIndex index, ADID id);
     static TPIndex AddNewTPIndex();
-    static void SetAppDomainUnloading(TPIndex index)
-    {
-        WRAPPER_NO_CONTRACT;
-        IPerAppDomainTPCount * pAdCount = dac_cast<PTR_IPerAppDomainTPCount> (s_appDomainIndexList.Get(index.m_dwIndex-1));
-        _ASSERTE(pAdCount);
-        pAdCount->SetAppDomainUnloading();
-    }
 
-    static void ClearAppDomainUnloading(TPIndex index)
-    {
-        WRAPPER_NO_CONTRACT;
-        IPerAppDomainTPCount * pAdCount = dac_cast<PTR_IPerAppDomainTPCount> (s_appDomainIndexList.Get(index.m_dwIndex-1));
-        _ASSERTE(pAdCount);
-        pAdCount->ClearAppDomainUnloading();
-    }
-
-    typedef Holder<TPIndex, SetAppDomainUnloading, ClearAppDomainUnloading> AppDomainUnloadingHolder;
- 
     inline static IPerAppDomainTPCount* GetPerAppdomainCount(TPIndex index)
     {
         return dac_cast<PTR_IPerAppDomainTPCount>(s_appDomainIndexList.Get(index.m_dwIndex-1));

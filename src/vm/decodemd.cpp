@@ -8,7 +8,7 @@
 #include "decodemd.h"
 
 /*
-encoding patterns:  
+encoding patterns:
     0   10x     110xxx      1110xxxxxxx    11110xxxxxxxxxxxxxxx    111110xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     0   1,2     3-10        11-138         139-32905               32906-big
 */
@@ -63,23 +63,23 @@ const BYTE decoded_8[2] = {8, END_DECODED };
 const BYTE decoded_9[2] = {9, END_DECODED };
 const BYTE decoded_10[2] = {10, END_DECODED };
 
-#define INBITS(s) (s > MAX_HEADER)
-#define INHEADER(s) (s <= MAX_HEADER)
-#define PARTIALBITS(s) ((s>>8)&0xFF)
+#define INBITS(s) ((s) > MAX_HEADER)
+#define INHEADER(s) ((s) <= MAX_HEADER)
+#define PARTIALBITS(s) (((s)>>8)&0xFF)
 #define NUMBERGOTTEN(s) (((s)>>16)&0xFF)
-#define HEADER(s) ((s>>24)&0xFF)
+#define HEADER(s) (((s)>>24)&0xFF)
 #define DECODING_HEADER(n) n
 #define DOING_BITS (MAX_HEADER+1)
-#define DECODING_BITS(partial, got, header) (DOING_BITS+(partial<<8)+(got<<16)+(header<<24))
+#define DECODING_BITS(partial, got, header) (DOING_BITS+((partial)<<8)+((got)<<16)+((header)<<24))
 #define DECODING_ERROR ((unsigned) -1)
-#define MASK(len) (~(~0u <<len))
-#define MASK64(len) ((~((~((unsigned __int64)0))<<len)))
+#define MASK(len) (~(~0u <<(len)))
+#define MASK64(len) ((~((~((unsigned __int64)0))<<(len))))
 #define BITS_PER_BYTE (sizeof(BYTE)*8)
 
 const Decoder::Decode emptyDecode = {decoded_end, DECODING_HEADER(0)};
 
 const Decoder::Decode transition[6][16] =
-{ 
+{
     //header(0)
   {
     { decoded_0_0_0_0, DECODING_HEADER(0) },    // 0000
@@ -90,7 +90,7 @@ const Decoder::Decode transition[6][16] =
     { decoded_0_2, DECODING_HEADER(0) },        // 0101
     { decoded_0, DECODING_BITS(0,0,2) },        // 0110
     { decoded_0, DECODING_HEADER(3) },          // 0111
-    { decoded_1_0, DECODING_HEADER(0) },        // 1000 
+    { decoded_1_0, DECODING_HEADER(0) },        // 1000
     { decoded_1, DECODING_HEADER(1) },          // 1001
     { decoded_2_0, DECODING_HEADER(0) },        // 1010
     { decoded_2, DECODING_HEADER(1) },          // 1011
@@ -244,10 +244,10 @@ unsigned Decoder::Nibbles::Bits(unsigned number)
 
     unsigned n = number;
     unsigned result = 0;
-    while (n >= 4 ) 
+    while (n >= 4 )
     {
         result = (result<<4) | Next();
-        n -= 4;    
+        n -= 4;
     }
     if (n > 0)
     {
@@ -255,7 +255,7 @@ unsigned Decoder::Nibbles::Bits(unsigned number)
         result = (result<<n) | (last>>(4-n));
         nibbles[next] &= (0xF>>n);
     }
-    return result;        
+    return result;
 }
 
 // --------------------------------------------------------
@@ -295,7 +295,7 @@ unsigned Decoder::Next()
 
 tryagain:
     unsigned result = *state.decoded;
-    if (result != END_DECODED) 
+    if (result != END_DECODED)
     {
         state.decoded++;
         return result;
@@ -303,7 +303,7 @@ tryagain:
     if (INHEADER(state.next))
     {
         state = transition[state.next][data.Next()];
-        goto tryagain; 
+        goto tryagain;
     }
     //must be getting bits
     _ASSERTE(INBITS(state.next));
@@ -325,7 +325,7 @@ tryagain:
 #endif
         state.decoded += skip;
     }
-    return result; 
+    return result;
 }
 
 // --------------------------------------------------------
@@ -372,7 +372,7 @@ void Encoder::EncodeSigned(signed value)
     STATIC_CONTRACT_FORBID_FAULT;
 
 
-    if (!signedNumbers) 
+    if (!signedNumbers)
     {
         _ASSERTE(value>=0);
         Encode(value);
@@ -389,8 +389,8 @@ void Encoder::Encode(unsigned value)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
 
-    
-    if (value < BASE_1) 
+
+    if (value < BASE_1)
     {
         Add(0, 1);
         return;
@@ -459,7 +459,7 @@ void Encoder::Add(unsigned value, unsigned length)
         unusedBits = BITS_PER_BYTE;
     }
     encoding = (encoding<<length)+static_cast<BYTE>(value);
-    unusedBits -= length;       
+    unusedBits -= length;
 }
 
 // --------------------------------------------------------
@@ -481,7 +481,7 @@ void Encoder::Add64(unsigned __int64 value, unsigned length)
         unusedBits = BITS_PER_BYTE;
     }
     encoding = (encoding<<length)+(BYTE)value;
-    unusedBits -= length;       
+    unusedBits -= length;
 }
 
 // --------------------------------------------------------

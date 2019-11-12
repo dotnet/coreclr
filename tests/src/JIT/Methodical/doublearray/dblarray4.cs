@@ -14,27 +14,37 @@
 // Test DoubleArrayToLargeObjectHeap - need to set the key to <= 100
 
 using System;
+using System.Runtime.InteropServices;
 
 internal class DblArray4
 {
     private static int s_LOH_GEN = 0;
     public static int Main()
     {
-        if (Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") == "x86")
+        if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
         {
             s_LOH_GEN = 2;
         }
 
         Console.WriteLine("DoubleArrayToLargeObjectHeap is {0}", Environment.GetEnvironmentVariable("complus_DoubleArrayToLargeObjectHeap"));
 
-        double[] arr = new double[101];
-        if (GC.GetGeneration(arr) != s_LOH_GEN)
+        try
         {
-            Console.WriteLine("Generation {0}", GC.GetGeneration(arr));
-            Console.WriteLine("FAILED");
-            return 1;
+            GC.TryStartNoGCRegion(500_000);
+            double[] arr = new double[101];
+            if (GC.GetGeneration(arr) != s_LOH_GEN)
+            {
+                Console.WriteLine("Generation {0}", GC.GetGeneration(arr));
+                Console.WriteLine("FAILED");
+                return 1;
+            }
+
+            Console.WriteLine("PASSED");
+            return 100;
         }
-        Console.WriteLine("PASSED");
-        return 100;
+        finally
+        {
+            GC.EndNoGCRegion();
+        }
     }
 }

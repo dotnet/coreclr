@@ -13,11 +13,11 @@ namespace System.Collections
     public struct DictionaryEntry
     {
         private object _key; // Do not rename (binary serialization)
-        private object _value; // Do not rename (binary serialization)
+        private object? _value; // Do not rename (binary serialization)
 
         // Constructs a new DictionaryEnumerator by setting the Key
         // and Value fields appropriately.
-        public DictionaryEntry(object key, object value)
+        public DictionaryEntry(object key, object? value)
         {
             _key = key;
             _value = value;
@@ -25,32 +25,18 @@ namespace System.Collections
 
         public object Key
         {
-            get
-            {
-                return _key;
-            }
-
-            set
-            {
-                _key = value;
-            }
+            get => _key;
+            set => _key = value;
         }
 
-        public object Value
+        public object? Value
         {
-            get
-            {
-                return _value;
-            }
-
-            set
-            {
-                _value = value;
-            }
+            get => _value;
+            set => _value = value;
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public void Deconstruct(out object key, out object value)
+        public void Deconstruct(out object key, out object? value)
         {
             key = Key;
             value = Value;

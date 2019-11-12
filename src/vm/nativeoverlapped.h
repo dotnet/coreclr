@@ -10,7 +10,7 @@
 ** Purpose: Native methods for allocating and freeing NativeOverlapped
 **
 
-** 
+**
 ===========================================================*/
 
 #ifndef _OVERLAPPED_H
@@ -44,8 +44,7 @@ public:
     static OverlappedDataObject* GetOverlapped(LPOVERLAPPED nativeOverlapped)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
-        
+
         _ASSERTE (nativeOverlapped != NULL);
         return (OverlappedDataObject*)OBJECTREFToObject(ObjectFromHandle(((NATIVEOVERLAPPED_AND_HANDLE*)nativeOverlapped)->m_handle));
     }
@@ -54,7 +53,6 @@ public:
     static OverlappedDataObject* GetOverlappedForTracing(LPOVERLAPPED nativeOverlapped)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
 
         _ASSERTE(nativeOverlapped != NULL);
         return *(OverlappedDataObject**)(((NATIVEOVERLAPPED_AND_HANDLE*)nativeOverlapped)->m_handle);

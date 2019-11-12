@@ -110,7 +110,13 @@ namespace Utility
     /// <summary>
     /// Get the supplied environment variable.
     /// </summary>
-    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::string &envVar);
+    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::wstring &envVar);
+
+    /// <summary>
+    /// Get the CoreShim directory.
+    /// </summary>
+    HRESULT GetCoreShimDirectory(_Inout_ std::string &dir);
+    HRESULT GetCoreShimDirectory(_Inout_ std::wstring &dir);
 }
 
 // CoreShim environment variables used to indicate what assembly/type tuple
@@ -168,6 +174,7 @@ public:
 private:
     AutoModule _hmod;
 
+    bool _attached;
     void *_clrInst;
     uint32_t _appDomainId;
 

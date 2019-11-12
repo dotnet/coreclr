@@ -32,6 +32,14 @@ namespace R2RDump
     };
 
     /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportFlags
+    /// </summary>
+    public enum CORCOMPILE_FIXUP_BLOB_KIND
+    {
+        ENCODE_MODULE_OVERRIDE = 0x80,     /* When the high bit is set, override of the module immediately follows */
+    }
+
+    /// <summary>
     /// Constants for method and field encoding
     /// </summary>
     [Flags]
@@ -112,6 +120,9 @@ namespace R2RDump
 
         READYTORUN_FIXUP_DelegateCtor = 0x2C, /* optimized delegate ctor */
         READYTORUN_FIXUP_DeclaringTypeHandle = 0x2D,
+
+        READYTORUN_FIXUP_IndirectPInvokeTarget = 0x2E, /* Target (indirect) of an inlined pinvoke */
+        READYTORUN_FIXUP_PInvokeTarget = 0x2F, /* Target of an inlined pinvoke */
     }
 
     //
@@ -162,6 +173,11 @@ namespace R2RDump
 
         READYTORUN_HELPER_MemSet = 0x40,
         READYTORUN_HELPER_MemCpy = 0x41,
+
+        // PInvoke helpers
+        READYTORUN_HELPER_PInvokeBegin = 0x42,
+        READYTORUN_HELPER_PInvokeEnd = 0x43,
+        READYTORUN_HELPER_GCPoll = 0x44,
 
         // Get string handle lazily
         READYTORUN_HELPER_GetString = 0x50,
@@ -232,6 +248,10 @@ namespace R2RDump
         READYTORUN_HELPER_PersonalityRoutine = 0xF0,
         READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
 
+        // Synchronized methods
+        READYTORUN_HELPER_MonitorEnter = 0xF8,
+        READYTORUN_HELPER_MonitorExit = 0xF9,
+
         //
         // Deprecated/legacy
         //
@@ -253,8 +273,7 @@ namespace R2RDump
         // JIT32 x86-specific exception handling
         READYTORUN_HELPER_EndCatch = 0x110,
 
-        // A flag to indicate that a helper call uses VSD
-        READYTORUN_HELPER_FLAG_VSD = 0x10000000,
+        READYTORUN_HELPER_StackProbe = 0x111,
     }
 
     public enum CorElementType : byte
@@ -305,7 +324,7 @@ namespace R2RDump
         // ELEMENT_TYPE_INTERNAL followed by ParamTypeDesc with ELEMENT_TYPE_VALUETYPE element
         // type. It acts like a modifier to the underlying structure making it look like its
         // unmanaged view (size determined by unmanaged layout, blittable, no GC pointers).
-        // 
+        //
         // ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG is used when encoding such types to NGEN images.
         // The signature looks like this: ET_NATIVE_VALUETYPE_ZAPSIG ET_VALUETYPE <token>.
         // See code:ZapSig.GetSignatureForTypeHandle and code:SigPointer.GetTypeHandleThrowing
@@ -350,5 +369,5 @@ namespace R2RDump
         mdtString = 0x70000000,
         mdtName = 0x71000000,
         mdtBaseType = 0x72000000,
-    }     
+    }
 }

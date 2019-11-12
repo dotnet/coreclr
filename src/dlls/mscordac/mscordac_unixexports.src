@@ -30,6 +30,8 @@ nativeStringResourceTable_mscorrc_debug
 #PAL__flushall
 #PAL_free
 #PAL_fwprintf
+#PAL_GetLogicalCpuCountFromOS
+#PAL_GetNumaProcessorNode
 #PAL_GetPALDirectoryW
 #PAL_GetResourceString
 #PAL_get_stdout
@@ -44,17 +46,14 @@ nativeStringResourceTable_mscorrc_debug
 #PAL_IsDebuggerPresent
 #PAL_ProbeMemory
 #PAL_Random
-#PAL_iswspace
 #PAL_memcpy
 #PAL_malloc
 #PAL_realloc
 #PAL_printf
 #PAL_qsort
-#PAL_Reenter
 #PAL_fprintf
 #PAL__wcstoui64
 #PAL_wcstoul
-#PAL_iswprint
 #PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange
 #PAL_VirtualUnwindOutOfProc
 #PAL_wcslen
@@ -65,6 +64,9 @@ nativeStringResourceTable_mscorrc_debug
 #PAL_wcscspn
 #PAL_wcscat
 #PAL_wcsstr
+#PAL__open
+#PAL__pread
+#PAL__close
 
 #_wcsicmp
 #_stricmp
@@ -122,8 +124,8 @@ nativeStringResourceTable_mscorrc_debug
 #GetLastError
 #GetLongPathNameW
 #GetModuleFileNameW
+#GetNumaHighestNodeNumber
 #GetProcAddress
-#GetProcessAffinityMask
 #GetProcessHeap
 #GetShortPathNameW
 #GetStdHandle
@@ -131,6 +133,7 @@ nativeStringResourceTable_mscorrc_debug
 #GetSystemTime
 #GetSystemTimeAsFileTime
 #GetTempFileNameW
+#GetTempPathA
 #GetTempPathW
 #HeapAlloc
 #HeapFree
@@ -167,17 +170,15 @@ nativeStringResourceTable_mscorrc_debug
 #SetFilePointer
 #SetLastError
 #SetErrorMode
+#SetThreadDescription
 #Sleep
 #SleepEx
 #SwitchToThread
 #SysAllocStringLen
 #SysFreeString
 #TerminateProcess
-#TlsAlloc
-#TlsFree
-#TlsGetValue
-#TlsSetValue
 #VirtualAlloc
+#VirtualAllocExNuma
 #VirtualFree
 #VirtualProtect
 #VirtualQuery

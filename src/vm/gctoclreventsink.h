@@ -45,6 +45,7 @@ public:
     void FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind);
     void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress);
     void FirePinObjectAtGCTime(void* object, uint8_t** ppObject);
+    void FirePinPlugAtGCTime(uint8_t* plug_start, uint8_t* plug_end, uint8_t* gapBeforeSize);
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
                                  void *endOfSegAllocated,
@@ -64,6 +65,7 @@ public:
     void FireBGCBegin();
     void FireBGC1stNonConEnd();
     void FireBGC1stConEnd();
+    void FireBGC1stSweepEnd(uint32_t genNumber);
     void FireBGC2ndNonConBegin();
     void FireBGC2ndNonConEnd();
     void FireBGC2ndConBegin();
@@ -74,8 +76,8 @@ public:
     void FireBGCAllocWaitBegin(uint32_t reason);
     void FireBGCAllocWaitEnd(uint32_t reason);
     void FireGCFullNotify_V1(uint32_t genNumber, uint32_t isAlloc);
-    void FireSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID);
-    void FirePrvSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID);
+    void FireSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation);
+    void FirePrvSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation);
     void FireDestroyGCHandle(void *handleID);
     void FirePrvDestroyGCHandle(void *handleID);
 };

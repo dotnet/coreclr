@@ -73,8 +73,8 @@ namespace System.Buffers
                 return Array.Empty<T>();
             }
 
-            var log = ArrayPoolEventSource.Log;
-            T[] buffer = null;
+            ArrayPoolEventSource log = ArrayPoolEventSource.Log;
+            T[]? buffer;
 
             int index = Utilities.SelectBucketIndex(minimumLength);
             if (index < _buckets.Length)
@@ -152,7 +152,7 @@ namespace System.Buffers
             }
 
             // Log that the buffer was returned
-            var log = ArrayPoolEventSource.Log;
+            ArrayPoolEventSource log = ArrayPoolEventSource.Log;
             if (log.IsEnabled())
             {
                 log.BufferReturned(array.GetHashCode(), array.Length, Id);
@@ -163,7 +163,7 @@ namespace System.Buffers
         private sealed class Bucket
         {
             internal readonly int _bufferLength;
-            private readonly T[][] _buffers;
+            private readonly T[]?[] _buffers;
             private readonly int _poolId;
 
             private SpinLock _lock; // do not make this readonly; it's a mutable struct
@@ -184,10 +184,10 @@ namespace System.Buffers
             internal int Id => GetHashCode();
 
             /// <summary>Takes an array from the bucket.  If the bucket is empty, returns null.</summary>
-            internal T[] Rent()
+            internal T[]? Rent()
             {
-                T[][] buffers = _buffers;
-                T[] buffer = null;
+                T[]?[] buffers = _buffers;
+                T[]? buffer = null;
 
                 // While holding the lock, grab whatever is at the next available index and
                 // update the index.  We do as little work as possible while holding the spin
@@ -217,7 +217,7 @@ namespace System.Buffers
                 {
                     buffer = new T[_bufferLength];
 
-                    var log = ArrayPoolEventSource.Log;
+                    ArrayPoolEventSource log = ArrayPoolEventSource.Log;
                     if (log.IsEnabled())
                     {
                         log.BufferAllocated(buffer.GetHashCode(), _bufferLength, _poolId, Id,

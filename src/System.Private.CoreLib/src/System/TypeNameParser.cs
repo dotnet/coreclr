@@ -2,16 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Text;
 using System.Threading;
-using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 
 namespace System
@@ -19,7 +17,7 @@ namespace System
     internal class SafeTypeNameParserHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         #region QCalls
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _ReleaseTypeNameParser(IntPtr pTypeNameParser);
         #endregion
 
@@ -39,27 +37,27 @@ namespace System
     internal sealed class TypeNameParser : IDisposable
     {
         #region QCalls
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _CreateTypeNameParser(string typeName, ObjectHandleOnStack retHandle, bool throwOnError);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _GetNames(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _GetTypeArguments(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _GetModifiers(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _GetAssemblyName(SafeTypeNameParserHandle pTypeNameParser, StringHandleOnStack retString);
         #endregion
 
         #region Static Members
-        internal static Type GetType(
+        internal static Type? GetType(
             string typeName,
-            Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver,
+            Func<AssemblyName, Assembly?>? assemblyResolver,
+            Func<Assembly?, string, bool, Type?>? typeResolver,
             bool throwOnError,
             bool ignoreCase,
             ref StackCrawlMark stackMark)
@@ -69,9 +67,9 @@ namespace System
             if (typeName.Length > 0 && typeName[0] == '\0')
                 throw new ArgumentException(SR.Format_StringZeroLength);
 
-            Type ret = null;
+            Type? ret = null;
 
-            SafeTypeNameParserHandle handle = CreateTypeNameParser(typeName, throwOnError);
+            SafeTypeNameParserHandle? handle = CreateTypeNameParser(typeName, throwOnError);
 
             if (handle != null)
             {
@@ -88,7 +86,7 @@ namespace System
         #endregion
 
         #region Private Data Members
-        private SafeTypeNameParserHandle m_NativeParser;
+        private readonly SafeTypeNameParserHandle m_NativeParser;
         private static readonly char[] SPECIAL_CHARS = { ',', '[', ']', '&', '*', '+', '\\' }; /* see typeparse.h */
         #endregion
 
@@ -105,15 +103,15 @@ namespace System
         #endregion
 
         #region private Members
-        private unsafe Type ConstructType(
-            Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver,
+        private unsafe Type? ConstructType(
+            Func<AssemblyName, Assembly?>? assemblyResolver,
+            Func<Assembly?, string, bool, Type?>? typeResolver,
             bool throwOnError,
             bool ignoreCase,
             ref StackCrawlMark stackMark)
         {
             // assembly name
-            Assembly assembly = null;
+            Assembly? assembly = null;
             string asmName = GetAssemblyName();
 
             // GetAssemblyName never returns null
@@ -130,7 +128,7 @@ namespace System
                 }
             }
 
-            string[] names = GetNames();
+            string[]? names = GetNames();
             if (names == null)
             {
                 // This can only happen if the type name is an empty string or if the first char is '\0'
@@ -140,18 +138,18 @@ namespace System
                 return null;
             }
 
-            Type baseType = ResolveType(assembly, names, typeResolver, throwOnError, ignoreCase, ref stackMark);
+            Type? baseType = ResolveType(assembly, names, typeResolver, throwOnError, ignoreCase, ref stackMark);
 
             if (baseType == null)
             {
                 // Cannot resolve the type. If throwOnError is true we should have already thrown.
-                Debug.Assert(throwOnError == false);
+                Debug.Assert(!throwOnError);
                 return null;
             }
 
-            SafeTypeNameParserHandle[] typeArguments = GetTypeArguments();
+            SafeTypeNameParserHandle[]? typeArguments = GetTypeArguments();
 
-            Type[] types = null;
+            Type?[]? types = null;
             if (typeArguments != null)
             {
                 types = new Type[typeArguments.Length];
@@ -167,32 +165,32 @@ namespace System
                     if (types[i] == null)
                     {
                         // If throwOnError is true argParser.ConstructType should have already thrown.
-                        Debug.Assert(throwOnError == false);
+                        Debug.Assert(!throwOnError);
                         return null;
                     }
                 }
             }
 
-            int[] modifiers = GetModifiers();
+            int[]? modifiers = GetModifiers();
 
             fixed (int* ptr = modifiers)
             {
                 IntPtr intPtr = new IntPtr(ptr);
-                return RuntimeTypeHandle.GetTypeHelper(baseType, types, intPtr, modifiers == null ? 0 : modifiers.Length);
+                return RuntimeTypeHandle.GetTypeHelper(baseType, types!, intPtr, modifiers == null ? 0 : modifiers.Length);
             }
         }
 
-        private static Assembly ResolveAssembly(string asmName, Func<AssemblyName, Assembly> assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
+        private static Assembly? ResolveAssembly(string asmName, Func<AssemblyName, Assembly?>? assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
         {
-            Debug.Assert(asmName != null && asmName.Length > 0);
+            Debug.Assert(!string.IsNullOrEmpty(asmName));
 
-            Assembly assembly = null;
+            Assembly? assembly = null;
 
             if (assemblyResolver == null)
             {
                 if (throwOnError)
                 {
-                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark);
+                    assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                 }
                 else
                 {
@@ -200,7 +198,7 @@ namespace System
                     // Other exceptions like BadImangeFormatException should still fly.
                     try
                     {
-                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark);
+                        assembly = RuntimeAssembly.InternalLoad(asmName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
                     }
                     catch (FileNotFoundException)
                     {
@@ -220,11 +218,11 @@ namespace System
             return assembly;
         }
 
-        private static Type ResolveType(Assembly assembly, string[] names, Func<Assembly, string, bool, Type> typeResolver, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark)
+        private static Type? ResolveType(Assembly? assembly, string[] names, Func<Assembly?, string, bool, Type?>? typeResolver, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark)
         {
             Debug.Assert(names != null && names.Length > 0);
 
-            Type type = null;
+            Type? type = null;
 
             // both the customer provided and the default type resolvers accept escaped type names
             string OuterMostTypeName = EscapeTypeName(names[0]);
@@ -237,7 +235,7 @@ namespace System
                 if (type == null && throwOnError)
                 {
                     string errorString = assembly == null ?
-                        SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName):
+                        SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName) :
                         SR.Format(SR.TypeLoad_ResolveTypeFromAssembly, OuterMostTypeName, assembly.FullName);
 
                     throw new TypeLoadException(errorString);
@@ -284,7 +282,7 @@ namespace System
             if (name.IndexOfAny(SPECIAL_CHARS) < 0)
                 return name;
 
-            StringBuilder sb = StringBuilderCache.Acquire();
+            var sb = new ValueStringBuilder(stackalloc char[64]);
             foreach (char c in name)
             {
                 if (Array.IndexOf<char>(SPECIAL_CHARS, c) >= 0)
@@ -293,47 +291,47 @@ namespace System
                 sb.Append(c);
             }
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            return sb.ToString();
         }
 
-        private static SafeTypeNameParserHandle CreateTypeNameParser(string typeName, bool throwOnError)
+        private static SafeTypeNameParserHandle? CreateTypeNameParser(string typeName, bool throwOnError)
         {
-            SafeTypeNameParserHandle retHandle = null;
-            _CreateTypeNameParser(typeName, JitHelpers.GetObjectHandleOnStack(ref retHandle), throwOnError);
+            SafeTypeNameParserHandle? retHandle = null;
+            _CreateTypeNameParser(typeName, ObjectHandleOnStack.Create(ref retHandle), throwOnError);
 
             return retHandle;
         }
 
-        private string[] GetNames()
+        private string[]? GetNames()
         {
-            string[] names = null;
-            _GetNames(m_NativeParser, JitHelpers.GetObjectHandleOnStack(ref names));
+            string[]? names = null;
+            _GetNames(m_NativeParser, ObjectHandleOnStack.Create(ref names));
 
             return names;
         }
 
-        private SafeTypeNameParserHandle[] GetTypeArguments()
+        private SafeTypeNameParserHandle[]? GetTypeArguments()
         {
-            SafeTypeNameParserHandle[] arguments = null;
-            _GetTypeArguments(m_NativeParser, JitHelpers.GetObjectHandleOnStack(ref arguments));
+            SafeTypeNameParserHandle[]? arguments = null;
+            _GetTypeArguments(m_NativeParser, ObjectHandleOnStack.Create(ref arguments));
 
             return arguments;
         }
 
-        private int[] GetModifiers()
+        private int[]? GetModifiers()
         {
-            int[] modifiers = null;
-            _GetModifiers(m_NativeParser, JitHelpers.GetObjectHandleOnStack(ref modifiers));
+            int[]? modifiers = null;
+            _GetModifiers(m_NativeParser, ObjectHandleOnStack.Create(ref modifiers));
 
             return modifiers;
         }
 
         private string GetAssemblyName()
         {
-            string assemblyName = null;
-            _GetAssemblyName(m_NativeParser, JitHelpers.GetStringHandleOnStack(ref assemblyName));
+            string? assemblyName = null;
+            _GetAssemblyName(m_NativeParser, new StringHandleOnStack(ref assemblyName));
 
-            return assemblyName;
+            return assemblyName!;
         }
         #endregion
     }

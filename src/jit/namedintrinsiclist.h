@@ -9,26 +9,35 @@
 
 enum NamedIntrinsic : unsigned short
 {
-    NI_Illegal                                                 = 0,
-    NI_System_Enum_HasFlag                                     = 1,
-    NI_MathF_Round                                             = 2,
-    NI_Math_Round                                              = 3,
-    NI_System_Collections_Generic_EqualityComparer_get_Default = 4,
+    NI_Illegal = 0,
+
+    NI_System_Enum_HasFlag,
+    NI_System_Math_FusedMultiplyAdd,
+    NI_System_Math_Round,
+    NI_System_MathF_FusedMultiplyAdd,
+    NI_System_MathF_Round,
+    NI_System_Collections_Generic_EqualityComparer_get_Default,
+    NI_System_Buffers_Binary_BinaryPrimitives_ReverseEndianness,
+    NI_System_GC_KeepAlive,
+
 #ifdef FEATURE_HW_INTRINSICS
+    NI_IsSupported_True,
+    NI_IsSupported_False,
+    NI_Throw_PlatformNotSupportedException,
+
     NI_HW_INTRINSIC_START,
 #if defined(_TARGET_XARCH_)
 #define HARDWARE_INTRINSIC(id, name, isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag) \
     NI_##id,
 #include "hwintrinsiclistxarch.h"
 #elif defined(_TARGET_ARM64_)
-    NI_ARM64_IsSupported_False,
-    NI_ARM64_IsSupported_True,
-    NI_ARM64_PlatformNotSupported,
-#define HARDWARE_INTRINSIC(id, isa, name, form, ins0, ins1, ins2, flags) id,
-#include "hwintrinsiclistArm64.h"
+#define HARDWARE_INTRINSIC(isa, name, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag)     \
+    NI_##isa##_##name,
+#include "hwintrinsiclistarm64.h"
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
     NI_HW_INTRINSIC_END,
 #endif // FEATURE_HW_INTRINSICS
+
 };
 
 #endif // _NAMEDINTRINSICLIST_H_

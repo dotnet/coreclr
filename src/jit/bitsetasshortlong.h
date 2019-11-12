@@ -313,7 +313,10 @@ public:
     {
         if (IsShort(env))
         {
-            (size_t&)bs1 &= (size_t)bs2;
+            size_t val = (size_t)bs1;
+
+            val &= (size_t)bs2;
+            bs1 = (BitSetShortLongRep)val;
         }
         else
         {
@@ -409,12 +412,12 @@ public:
             char*    ptr             = res;
             if (sizeof(size_t) == sizeof(int64_t))
             {
-                sprintf_s(ptr, remaining, "%016llX", bits);
+                sprintf_s(ptr, remaining, "%016zX", bits);
             }
             else
             {
                 assert(sizeof(size_t) == sizeof(int));
-                sprintf_s(ptr, remaining, "%08X", bits);
+                sprintf_s(ptr, remaining, "%08zX", bits);
             }
             return res;
         }

@@ -30,7 +30,7 @@
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 TypeNameBuilder * QCALLTYPE TypeNameBuilder::_CreateTypeNameBuilder()
-{ 
+{
     QCALL_CONTRACT;
 
     TypeNameBuilder * retVal = NULL;
@@ -39,16 +39,16 @@ TypeNameBuilder * QCALLTYPE TypeNameBuilder::_CreateTypeNameBuilder()
     END_QCALL;
 
     return retVal;
-} 
+}
 
-void QCALLTYPE TypeNameBuilder::_ReleaseTypeNameBuilder(TypeNameBuilder * pTnb) 
+void QCALLTYPE TypeNameBuilder::_ReleaseTypeNameBuilder(TypeNameBuilder * pTnb)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
     delete pTnb;
     END_QCALL;
-} 
+}
 
 void QCALLTYPE TypeNameBuilder::_ToString(TypeNameBuilder * pTnb, QCall::StringHandleOnStack retString)
 {
@@ -57,115 +57,115 @@ void QCALLTYPE TypeNameBuilder::_ToString(TypeNameBuilder * pTnb, QCall::StringH
     BEGIN_QCALL;
     retString.Set(*pTnb->GetString());
     END_QCALL;
-} 
+}
 
-void QCALLTYPE TypeNameBuilder::_AddName(TypeNameBuilder * pTnb, LPCWSTR wszName) 
+void QCALLTYPE TypeNameBuilder::_AddName(TypeNameBuilder * pTnb, LPCWSTR wszName)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    pTnb->AddName(wszName); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_AddAssemblySpec(TypeNameBuilder * pTnb, LPCWSTR wszAssemblySpec) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->AddAssemblySpec(wszAssemblySpec); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_OpenGenericArguments(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->OpenGenericArguments(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_CloseGenericArguments(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->CloseGenericArguments(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_OpenGenericArgument(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->OpenGenericArgument(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_CloseGenericArgument(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->CloseGenericArgument(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_AddPointer(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->AddPointer(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_AddByRef(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->AddByRef(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_AddSzArray(TypeNameBuilder * pTnb) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->AddSzArray(); 
-    END_QCALL;
-} 
-
-void QCALLTYPE TypeNameBuilder::_AddArray(TypeNameBuilder * pTnb, DWORD dwRank) 
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    pTnb->AddArray(dwRank); 
+    pTnb->AddName(wszName);
     END_QCALL;
 }
-    
-void QCALLTYPE TypeNameBuilder::_Clear(TypeNameBuilder * pTnb) 
+
+void QCALLTYPE TypeNameBuilder::_AddAssemblySpec(TypeNameBuilder * pTnb, LPCWSTR wszAssemblySpec)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    pTnb->Clear(); 
+    pTnb->AddAssemblySpec(wszAssemblySpec);
     END_QCALL;
-} 
+}
+
+void QCALLTYPE TypeNameBuilder::_OpenGenericArguments(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->OpenGenericArguments();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_CloseGenericArguments(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->CloseGenericArguments();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_OpenGenericArgument(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->OpenGenericArgument();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_CloseGenericArgument(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->CloseGenericArgument();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_AddPointer(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->AddPointer();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_AddByRef(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->AddByRef();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_AddSzArray(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->AddSzArray();
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_AddArray(TypeNameBuilder * pTnb, DWORD dwRank)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->AddArray(dwRank);
+    END_QCALL;
+}
+
+void QCALLTYPE TypeNameBuilder::_Clear(TypeNameBuilder * pTnb)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+    pTnb->Clear();
+    END_QCALL;
+}
 
 #endif
 
 //
 // TypeNameBuilder
 //
-TypeNameBuilder::TypeNameBuilder(SString* pStr, ParseState parseState /*= ParseStateSTART*/) : 
+TypeNameBuilder::TypeNameBuilder(SString* pStr, ParseState parseState /*= ParseStateSTART*/) :
     m_pStr(NULL)
-{ 
+{
     CONTRACTL
     {
         THROWS;
@@ -173,9 +173,9 @@ TypeNameBuilder::TypeNameBuilder(SString* pStr, ParseState parseState /*= ParseS
         MODE_ANY;
     }
     CONTRACTL_END;
-    Clear(); 
+    Clear();
     m_pStr = pStr;
-    m_parseState = parseState; 
+    m_parseState = parseState;
 }
 
 void TypeNameBuilder::PushOpenGenericArgument()
@@ -196,10 +196,10 @@ void TypeNameBuilder::PopOpenGenericArgument()
     CONTRACTL_END;
 
     COUNT_T index = m_stack.Pop();
-        
+
     if (!m_bHasAssemblySpec)
         m_pStr->Delete(m_pStr->Begin() + index - 1, 1);
-    
+
     m_bHasAssemblySpec = FALSE;
 }
 
@@ -222,7 +222,7 @@ void TypeNameBuilder::EscapeName(LPCWSTR szName)
 
             if (IsTypeNameReservedChar(c))
                 Append(W('\\'));
-        
+
             Append(c);
         }
     }
@@ -234,7 +234,7 @@ void TypeNameBuilder::EscapeName(LPCWSTR szName)
 
 void TypeNameBuilder::EscapeAssemblyName(LPCWSTR szName)
 {
-    WRAPPER_NO_CONTRACT; 
+    WRAPPER_NO_CONTRACT;
 
     Append(szName);
 }
@@ -251,7 +251,7 @@ void TypeNameBuilder::EscapeEmbeddedAssemblyName(LPCWSTR szName)
 
     LPCWSTR itr = szName;
     bool bContainsReservedChar = false;
-    
+
     while (*itr)
     {
         if (W(']') == *itr++)
@@ -260,7 +260,7 @@ void TypeNameBuilder::EscapeEmbeddedAssemblyName(LPCWSTR szName)
             break;
         }
     }
-    
+
     if (bContainsReservedChar)
     {
         itr = szName;
@@ -279,8 +279,8 @@ void TypeNameBuilder::EscapeEmbeddedAssemblyName(LPCWSTR szName)
     }
 }
 
-HRESULT TypeNameBuilder::OpenGenericArgument() 
-{ 
+HRESULT TypeNameBuilder::OpenGenericArgument()
+{
     CONTRACTL
     {
         THROWS;
@@ -310,12 +310,12 @@ HRESULT TypeNameBuilder::OpenGenericArgument()
     else
         Append(W('['));
     PushOpenGenericArgument();
-    
+
     return hr;
 }
 
-HRESULT TypeNameBuilder::AddName(LPCWSTR szName) 
-{ 
+HRESULT TypeNameBuilder::AddName(LPCWSTR szName)
+{
     CONTRACTL
     {
         THROWS;
@@ -326,7 +326,7 @@ HRESULT TypeNameBuilder::AddName(LPCWSTR szName)
 
     if (!szName)
         return Fail();
-    
+
     if (!CheckParseState(ParseStateSTART | ParseStateNAME))
         return Fail();
 
@@ -335,17 +335,17 @@ HRESULT TypeNameBuilder::AddName(LPCWSTR szName)
     m_parseState = ParseStateNAME;
 
     if (m_bNestedName)
-        Append(W('+')); 
+        Append(W('+'));
 
     m_bNestedName = TRUE;
 
-    EscapeName(szName); 
+    EscapeName(szName);
 
     return hr;
 }
 
-HRESULT TypeNameBuilder::AddName(LPCWSTR szName, LPCWSTR szNamespace) 
-{ 
+HRESULT TypeNameBuilder::AddName(LPCWSTR szName, LPCWSTR szNamespace)
+{
     CONTRACTL
     {
         THROWS;
@@ -356,7 +356,7 @@ HRESULT TypeNameBuilder::AddName(LPCWSTR szName, LPCWSTR szNamespace)
 
     if (!szName)
         return Fail();
-    
+
     if (!CheckParseState(ParseStateSTART | ParseStateNAME))
         return Fail();
 
@@ -365,25 +365,25 @@ HRESULT TypeNameBuilder::AddName(LPCWSTR szName, LPCWSTR szNamespace)
     m_parseState = ParseStateNAME;
 
     if (m_bNestedName)
-        Append(W('+')); 
+        Append(W('+'));
 
     m_bNestedName = TRUE;
 
     if (szNamespace && *szNamespace)
     {
-        EscapeName(szNamespace); 
+        EscapeName(szNamespace);
         Append(W('.'));
     }
 
-    EscapeName(szName); 
+    EscapeName(szName);
 
     return hr;
 }
 
-HRESULT TypeNameBuilder::OpenGenericArguments() 
-{ 
-    WRAPPER_NO_CONTRACT; 
-    
+HRESULT TypeNameBuilder::OpenGenericArguments()
+{
+    WRAPPER_NO_CONTRACT;
+
     if (!CheckParseState(ParseStateNAME))
         return Fail();
 
@@ -401,8 +401,8 @@ HRESULT TypeNameBuilder::OpenGenericArguments()
     return hr;
 }
 
-HRESULT TypeNameBuilder::CloseGenericArguments() 
-{ 
+HRESULT TypeNameBuilder::CloseGenericArguments()
+{
     CONTRACTL
     {
         THROWS;
@@ -425,59 +425,59 @@ HRESULT TypeNameBuilder::CloseGenericArguments()
     if (m_bFirstInstArg)
     {
         m_pStr->Truncate(m_pStr->End() - 1);
-    }    
+    }
     else
     {
         if (m_bUseAngleBracketsForGenerics)
-            Append(W('>')); 
+            Append(W('>'));
         else
-            Append(W(']')); 
+            Append(W(']'));
     }
 
     return hr;
 }
 
-HRESULT TypeNameBuilder::AddPointer() 
-{ 
-    WRAPPER_NO_CONTRACT; 
-    
+HRESULT TypeNameBuilder::AddPointer()
+{
+    WRAPPER_NO_CONTRACT;
+
     if (!CheckParseState(ParseStateNAME | ParseStateGENARGS | ParseStatePTRARR))
         return Fail();
 
     m_parseState = ParseStatePTRARR;
-    
-    Append(W('*')); 
+
+    Append(W('*'));
 
     return S_OK;
 }
 
-HRESULT TypeNameBuilder::AddByRef() 
-{ 
+HRESULT TypeNameBuilder::AddByRef()
+{
     WRAPPER_NO_CONTRACT;
 
     if (!CheckParseState(ParseStateNAME | ParseStateGENARGS | ParseStatePTRARR))
         return Fail();
 
     m_parseState = ParseStateBYREF;
-    
+
     Append(W('&'));
 
     return S_OK;
 }
 
-HRESULT TypeNameBuilder::AddSzArray() 
-{ 
-    WRAPPER_NO_CONTRACT; 
-    
+HRESULT TypeNameBuilder::AddSzArray()
+{
+    WRAPPER_NO_CONTRACT;
+
     if (!CheckParseState(ParseStateNAME | ParseStateGENARGS | ParseStatePTRARR))
         return Fail();
 
     m_parseState = ParseStatePTRARR;
-    
-    Append(W("[]")); 
+
+    Append(W("[]"));
 
     return S_OK;
-} 
+}
 
 HRESULT TypeNameBuilder::AddArray(DWORD rank)
 {
@@ -488,12 +488,12 @@ HRESULT TypeNameBuilder::AddArray(DWORD rank)
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     if (!CheckParseState(ParseStateNAME | ParseStateGENARGS | ParseStatePTRARR))
         return Fail();
 
     m_parseState = ParseStatePTRARR;
-        
+
     if (rank <= 0)
         return E_INVALIDARG;
 
@@ -509,7 +509,7 @@ HRESULT TypeNameBuilder::AddArray(DWORD rank)
     else
     {
         WCHAR* wzDim = new (nothrow) WCHAR[rank+3];
-            
+
         if(wzDim == NULL) // allocation failed, do it the long way (each Append -> memory realloc)
         {
             Append(W('['));
@@ -541,21 +541,21 @@ HRESULT TypeNameBuilder::CloseGenericArgument()
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     if (!CheckParseState(ParseStateNAME | ParseStateGENARGS | ParseStatePTRARR | ParseStateBYREF | ParseStateASSEMSPEC))
         return Fail();
 
     if (m_instNesting == 0)
         return Fail();
-    
+
     m_parseState = ParseStateSTART;
-    
+
     if (m_bHasAssemblySpec)
     {
         if (m_bUseAngleBracketsForGenerics)
-            Append(W('>')); 
+            Append(W('>'));
         else
-            Append(W(']')); 
+            Append(W(']'));
     }
 
     PopOpenGenericArgument();
@@ -577,15 +577,13 @@ HRESULT TypeNameBuilder::AddAssemblySpec(LPCWSTR szAssemblySpec)
         return Fail();
 
     HRESULT hr = S_OK;
-    
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    
+
     m_parseState = ParseStateASSEMSPEC;
 
     if (szAssemblySpec && *szAssemblySpec)
     {
         Append(W(", "));
-        
+
         if (m_instNesting > 0)
         {
             EscapeEmbeddedAssemblyName(szAssemblySpec);
@@ -599,8 +597,6 @@ HRESULT TypeNameBuilder::AddAssemblySpec(LPCWSTR szAssemblySpec)
         hr = S_OK;
     }
 
-    END_SO_INTOLERANT_CODE;
-    
     return hr;
 }
 
@@ -629,10 +625,8 @@ HRESULT TypeNameBuilder::Clear()
     }
     CONTRACTL_END;
 
-    CONTRACT_VIOLATION(SOToleranceViolation);
-
     if (m_pStr)
-    {   
+    {
         m_pStr->Clear();
     }
     m_bNestedName = FALSE;
@@ -642,14 +636,14 @@ HRESULT TypeNameBuilder::Clear()
     m_bHasAssemblySpec = FALSE;
     m_bUseAngleBracketsForGenerics = FALSE;
     m_stack.Clear();
-    
+
     return S_OK;
 }
 
 
 
 // Append the name of the type td to the string
-// The following flags in the FormatFlags argument are significant: FormatNamespace 
+// The following flags in the FormatFlags argument are significant: FormatNamespace
 void TypeString::AppendTypeDef(SString& ss, IMDInternalImport *pImport, mdTypeDef td, DWORD format)
 {
     CONTRACT_VOID
@@ -660,18 +654,16 @@ void TypeString::AppendTypeDef(SString& ss, IMDInternalImport *pImport, mdTypeDe
     }
     CONTRACT_END
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
     {
         TypeNameBuilder tnb(&ss, TypeNameBuilder::ParseStateNAME);
-        AppendTypeDef(tnb, pImport, td, format);    
+        AppendTypeDef(tnb, pImport, td, format);
     }
-    END_SO_INTOLERANT_CODE;
 
     RETURN;
 }
 
 
-void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport, mdTypeDef td, DWORD format) 
+void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport, mdTypeDef td, DWORD format)
 {
     CONTRACT_VOID
     {
@@ -686,7 +678,7 @@ void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport,
     LPCUTF8 szName;
     LPCUTF8 szNameSpace;
     IfFailThrow(pImport->GetNameOfTypeDef(td, &szName, &szNameSpace));
-    
+
     const WCHAR *wszNameSpace = NULL;
 
     InlineSString<128> ssName(SString::Utf8, szName);
@@ -714,28 +706,28 @@ void TypeString::AppendNestedTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pI
         PRECONDITION(TypeFromToken(td) == mdtTypeDef);
     }
     CONTRACT_END
-    
+
     DWORD dwAttr;
     IfFailThrow(pImport->GetTypeDefProps(td, &dwAttr, NULL));
-    
+
     StackSArray<mdTypeDef> arNames;
     arNames.Append(td);
-    if (format & FormatNamespace && IsTdNested(dwAttr)) 
-    {   
-        while (SUCCEEDED(pImport->GetNestedClassProps(td, &td))) 
+    if (format & FormatNamespace && IsTdNested(dwAttr))
+    {
+        while (SUCCEEDED(pImport->GetNestedClassProps(td, &td)))
             arNames.Append(td);
-    }   
-    
+    }
+
     for(SCOUNT_T i = arNames.GetCount() - 1; i >= 0; i --)
         AppendTypeDef(tnb, pImport, arNames[i], format);
-    
+
     RETURN;
 }
 
 // Append a square-bracket-enclosed, comma-separated list of n type parameters in inst to the string s
 // and enclose each parameter in square brackets to disambiguate the commas
 // The following flags in the FormatFlags argument are significant: FormatNamespace FormatFullInst FormatAssembly FormatNoVersion
-void TypeString::AppendInst(SString& ss, Instantiation inst, DWORD format) 
+void TypeString::AppendInst(SString& ss, Instantiation inst, DWORD format)
 {
     CONTRACT_VOID
     {
@@ -745,19 +737,17 @@ void TypeString::AppendInst(SString& ss, Instantiation inst, DWORD format)
     }
     CONTRACT_END
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
     {
         TypeNameBuilder tnb(&ss, TypeNameBuilder::ParseStateNAME);
         if ((format & FormatAngleBrackets) != 0)
             tnb.SetUseAngleBracketsForGenerics(TRUE);
         AppendInst(tnb, inst, format);
     }
-    END_SO_INTOLERANT_CODE;
 
     RETURN;
 }
 
-void TypeString::AppendInst(TypeNameBuilder& tnb, Instantiation inst, DWORD format) 
+void TypeString::AppendInst(TypeNameBuilder& tnb, Instantiation inst, DWORD format)
 {
     CONTRACT_VOID
     {
@@ -770,13 +760,13 @@ void TypeString::AppendInst(TypeNameBuilder& tnb, Instantiation inst, DWORD form
 
     tnb.OpenGenericArguments();
 
-    for (DWORD i = 0; i < inst.GetNumArgs(); i++) 
+    for (DWORD i = 0; i < inst.GetNumArgs(); i++)
     {
         tnb.OpenGenericArgument();
 
         TypeHandle thArg = inst[i];
 
-        if ((format & FormatFullInst) != 0 && !thArg.IsGenericVariable()) 
+        if ((format & FormatFullInst) != 0 && !thArg.IsGenericVariable())
         {
             AppendType(tnb, thArg, Instantiation(), format | FormatNamespace | FormatAssembly);
         }
@@ -819,7 +809,7 @@ void TypeString::AppendParamTypeQualifier(TypeNameBuilder& tnb, CorElementType k
     case ELEMENT_TYPE_SZARRAY :
         tnb.AddSzArray();
         break;
-    case ELEMENT_TYPE_ARRAY :        
+    case ELEMENT_TYPE_ARRAY :
         tnb.AddArray(rank);
         break;
     default :
@@ -830,60 +820,56 @@ void TypeString::AppendParamTypeQualifier(TypeNameBuilder& tnb, CorElementType k
 // Append a representation of the type t to the string s
 // The following flags in the FormatFlags argument are significant: FormatNamespace FormatFullInst FormatAssembly FormatNoVersion
 
-void TypeString::AppendType(SString& ss, TypeHandle ty, DWORD format) 
+void TypeString::AppendType(SString& ss, TypeHandle ty, DWORD format)
 {
     CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
-        THROWS;        
+        THROWS;
     }
     CONTRACT_END
-    
+
     AppendType(ss, ty, Instantiation(), format);
 
     RETURN;
 }
 
-void TypeString::AppendType(SString& ss, TypeHandle ty, Instantiation typeInstantiation, DWORD format) 
+void TypeString::AppendType(SString& ss, TypeHandle ty, Instantiation typeInstantiation, DWORD format)
 {
     CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
-        THROWS;        
+        THROWS;
     }
     CONTRACT_END
-    
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
+
     {
         TypeNameBuilder tnb(&ss);
         if ((format & FormatAngleBrackets) != 0)
             tnb.SetUseAngleBracketsForGenerics(TRUE);
         AppendType(tnb, ty, typeInstantiation, format);
     }
-    END_SO_INTOLERANT_CODE;
 
     RETURN;
 }
 
-void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation typeInstantiation, DWORD format) 
+void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation typeInstantiation, DWORD format)
 {
     CONTRACT_VOID
     {
         MODE_ANY;
-        
+
         /* This method calls Assembly::GetDisplayName. Since that function
-        uses Fusion which takes some Crsts in some places, it is GC_TRIGGERS. 
+        uses Fusion which takes some Crsts in some places, it is GC_TRIGGERS.
         It could be made GC_NOTRIGGER by factoring out Assembly::GetDisplayName.
-        However, its better to leave stuff as GC_TRIGGERS unless really needed, 
+        However, its better to leave stuff as GC_TRIGGERS unless really needed,
         as GC_NOTRIGGER ties your hands up. */
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
-        THROWS;        
+        THROWS;
     }
     CONTRACT_END
-
-    INTERIOR_STACK_PROBE_FOR_CHECK_THREAD(10);
 
     BOOL bToString = (format & (FormatNamespace|FormatFullInst|FormatAssembly)) == FormatNamespace;
 
@@ -900,12 +886,12 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
     }
     else
 
-    // It's an array, with format 
-    //   element_ty[] (1-d, SZARRAY) 
+    // It's an array, with format
+    //   element_ty[] (1-d, SZARRAY)
     //   element_ty[*] (1-d, ARRAY)
     //   element_ty[,] (2-d, ARRAY) etc
     // or a pointer (*) or byref (&)
-    if (ty.HasTypeParam() || (!ty.IsTypeDesc() && ty.AsMethodTable()->IsArray())) 
+    if (ty.HasTypeParam() || (!ty.IsTypeDesc() && ty.AsMethodTable()->IsArray()))
     {
         if (ty.GetSignatureCorElementType() != ELEMENT_TYPE_VALUETYPE)
         {
@@ -913,7 +899,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
             TypeHandle elemType;
             if (ty.HasTypeParam())
             {
-                rank = ty.IsArray() ? ty.AsArray()->GetRank() : 0; 
+                rank = ty.IsArray() ? ty.AsArray()->GetRank() : 0;
                 elemType = ty.GetTypeParam();
             }
             else
@@ -921,7 +907,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
                 MethodTable *pMT = ty.GetMethodTable();
                 PREFIX_ASSUME(pMT != NULL);
                 rank = pMT->GetRank();
-                elemType = pMT->GetApproxArrayElementTypeHandle();
+                elemType = pMT->GetArrayElementTypeHandle();
             }
 
             _ASSERTE(!elemType.IsNull());
@@ -937,19 +923,19 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
     }
 
     // ...or type parameter
-    else if (ty.IsGenericVariable()) 
+    else if (ty.IsGenericVariable())
     {
         PTR_TypeVarTypeDesc tyvar = dac_cast<PTR_TypeVarTypeDesc>(ty.AsTypeDesc());
 
         mdGenericParam token = tyvar->GetToken();
-        
+
         LPCSTR szName = NULL;
         mdToken mdOwner;
-        
+
         IfFailThrow(ty.GetModule()->GetMDImport()->GetGenericParamProps(token, NULL, NULL, &mdOwner, NULL, &szName));
 
         _ASSERTE(TypeFromToken(mdOwner) == mdtTypeDef || TypeFromToken(mdOwner) == mdtMethodDef);
-            
+
         LPCSTR szPrefix;
         if (!(format & FormatGenericParam))
             szPrefix = "";
@@ -961,10 +947,10 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
         SmallStackSString pName(SString::Utf8, szPrefix);
         pName.AppendUTF8(szName);
         tnb.AddName(pName.GetUnicode());
-            
+
         format &= ~FormatAssembly;
     }
-    
+
     // ...or function pointer
     else if (ty.IsFnPtrType())
     {
@@ -973,7 +959,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
     }
 
     // ...otherwise it's just a plain type def or an instantiated type
-    else 
+    else
     {
         // Get the TypeDef token and attributes
         IMDInternalImport *pImport = ty.GetMethodTable()->GetMDImport();
@@ -1006,7 +992,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
     }
 
     // Now append the assembly
-    if (format & FormatAssembly) 
+    if (format & FormatAssembly)
     {
         Assembly* pAssembly = ty.GetAssembly();
         _ASSERTE(pAssembly != NULL);
@@ -1022,12 +1008,9 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
 
         tnb.AddAssemblySpec(pAssemblyName.GetUnicode());
 
-    }  
-    
-    END_INTERIOR_STACK_PROBE;
+    }
 
-
-  RETURN;
+    RETURN;
 }
 
 void TypeString::AppendMethod(SString& s, MethodDesc *pMD, Instantiation typeInstantiation, const DWORD format)
@@ -1077,10 +1060,9 @@ void TypeString::AppendMethodImpl(SString& ss, MethodDesc *pMD, Instantiation ty
     }
     CONTRACTL_END
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
     {
         TypeHandle th;
-        
+
         if (pMD->IsDynamicMethod())
         {
             if (pMD->IsLCGMethod())
@@ -1094,12 +1076,12 @@ void TypeString::AppendMethodImpl(SString& ss, MethodDesc *pMD, Instantiation ty
                 ss += sss;
             }
         }
-        else 
+        else
         {
             th = TypeHandle(pMD->GetMethodTable());
             AppendType(ss, th, typeInstantiation, format);
         }
-        
+
         SString sss1(SString::Literal, NAMESPACE_SEPARATOR_STR);
         ss += sss1;
         SString sss2(SString::Utf8, pMD->GetName());
@@ -1109,17 +1091,17 @@ void TypeString::AppendMethodImpl(SString& ss, MethodDesc *pMD, Instantiation ty
         {
             AppendInst(ss, pMD->GetMethodInstantiation(), format);
         }
-        
+
         if (format & FormatSignature)
         {
             // @TODO: The argument list should be formatted nicely using AppendType()
-            
+
             SigFormat sigFormatter(pMD, th);
             const char* sigStr = sigFormatter.GetCStringParmsOnly();
             SString sss(SString::Utf8, sigStr);
             ss += sss;
         }
-        
+
         if (format & FormatStubInfo) {
             if (pMD->IsInstantiatingStub())
             {
@@ -1153,7 +1135,6 @@ void TypeString::AppendMethodImpl(SString& ss, MethodDesc *pMD, Instantiation ty
             }
         }
     }
-    END_SO_INTOLERANT_CODE;
 }
 
 void TypeString::AppendField(SString& s, FieldDesc *pFD, Instantiation typeInstantiation, const DWORD format /* = FormatNamespace */)
@@ -1168,7 +1149,6 @@ void TypeString::AppendField(SString& s, FieldDesc *pFD, Instantiation typeInsta
     }
     CONTRACTL_END;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
     {
         TypeHandle th(pFD->GetApproxEnclosingMethodTable());
         AppendType(s, th, typeInstantiation, format);
@@ -1176,7 +1156,6 @@ void TypeString::AppendField(SString& s, FieldDesc *pFD, Instantiation typeInsta
         s.AppendUTF8(NAMESPACE_SEPARATOR_STR);
         s.AppendUTF8(pFD->GetName());
     }
-    END_SO_INTOLERANT_CODE;
 }
 
 #ifdef _DEBUG
@@ -1219,7 +1198,6 @@ void TypeString::AppendTypeDebug(SString& ss, TypeHandle t)
         NOTHROW;
         PRECONDITION(CheckPointer(t));
         PRECONDITION(ss.Check());
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END
 
@@ -1231,7 +1209,7 @@ void TypeString::AppendTypeDebug(SString& ss, TypeHandle t)
         }
         EX_CATCH
         {
-            // This function is only used as diagnostic aid in debug builds. 
+            // This function is only used as diagnostic aid in debug builds.
             // If we run out of memory or hit some other problem,
             // tough luck for the debugger.
         }
@@ -1249,7 +1227,6 @@ void TypeString::AppendTypeKeyDebug(SString& ss, TypeKey *pTypeKey)
         NOTHROW;
         PRECONDITION(CheckPointer(pTypeKey));
         PRECONDITION(ss.Check());
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END
 
@@ -1261,13 +1238,13 @@ void TypeString::AppendTypeKeyDebug(SString& ss, TypeKey *pTypeKey)
         }
         EX_CATCH
         {
-            // This function is only used as diagnostic aid in debug builds. 
+            // This function is only used as diagnostic aid in debug builds.
             // If we run out of memory or hit some other problem,
             // tough luck for the debugger.
         }
         EX_END_CATCH(SwallowAllExceptions);
     }
-#endif 
+#endif
 }
 
 #endif // _DEBUG
@@ -1281,14 +1258,13 @@ void TypeString::AppendTypeKey(TypeNameBuilder& tnb, TypeKey *pTypeKey, DWORD fo
         THROWS;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pTypeKey));
-        SO_INTOLERANT;
     }
     CONTRACT_END
 
     Module *pModule = NULL;
 
-    // It's an array, with format 
-    //   element_ty[] (1-d, SZARRAY) 
+    // It's an array, with format
+    //   element_ty[] (1-d, SZARRAY)
     //   element_ty[*] (1-d, ARRAY)
     //   element_ty[,] (2-d, ARRAY) etc
     // or a pointer (*) or byref (&)
@@ -1319,7 +1295,7 @@ void TypeString::AppendTypeKey(TypeNameBuilder& tnb, TypeKey *pTypeKey, DWORD fo
     }
 
     // ...otherwise it's just a plain type def or an instantiated type
-    else 
+    else
     {
         // Get the TypeDef token and attributes
         pModule = pTypeKey->GetModule();
@@ -1353,7 +1329,7 @@ void TypeString::AppendTypeKey(TypeNameBuilder& tnb, TypeKey *pTypeKey, DWORD fo
                                   (format & FormatNoVersion ? 0 : ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE));
 #endif
         tnb.AddAssemblySpec(pAssemblyName.GetUnicode());
-    }            
+    }
 
     RETURN;
 }
@@ -1368,13 +1344,11 @@ void TypeString::AppendTypeKey(SString& ss, TypeKey *pTypeKey, DWORD format)
         PRECONDITION(CheckPointer(pTypeKey));
     }
     CONTRACT_END
-    
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
+
     {
         TypeNameBuilder tnb(&ss);
         AppendTypeKey(tnb, pTypeKey, format);
     }
-    END_SO_INTOLERANT_CODE;
 
     RETURN;
 }
@@ -1388,7 +1362,7 @@ void TypeString::EscapeSimpleTypeName(SString* ssTypeName, SString* ssEscapedTyp
     {
         if (IsTypeNameReservedChar(c))
             ssEscapedTypeName->Append(W("\\"));
-    
+
         ssEscapedTypeName->Append(c);
     }
 }
@@ -1413,266 +1387,4 @@ bool TypeString::ContainsReservedChar(LPCWSTR pTypeName)
     }
 
     return false;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::QueryInterface(REFIID riid, void **ppUnk)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    *ppUnk = 0;
-
-    if (riid == IID_IUnknown)
-        *ppUnk = (IUnknown *)this;
-    else if (riid == IID_ITypeNameBuilder)
-        *ppUnk = (ITypeNameBuilder*)this;
-    else
-        return (E_NOINTERFACE);
-
-    AddRef();
-    return S_OK;
-}
-
-ULONG STDMETHODCALLTYPE TypeNameBuilderWrapper::AddRef()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    return InterlockedIncrement(&m_ref);
-}
-
-ULONG STDMETHODCALLTYPE TypeNameBuilderWrapper::Release()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        SUPPORTS_DAC_HOST_ONLY;
-    }
-    CONTRACTL_END;
-
-    LONG ref = 0;
-
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    
-    ref = InterlockedDecrement(&m_ref);
-    if (ref == 0)
-        delete this;
-
-    END_SO_INTOLERANT_CODE;
-
-    return ref;
-}
-
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::OpenGenericArguments()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.OpenGenericArguments();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::CloseGenericArguments()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.CloseGenericArguments();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::OpenGenericArgument()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.OpenGenericArgument();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::CloseGenericArgument()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.CloseGenericArgument();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddName(LPCWSTR szName)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddName(szName);
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddPointer()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddPointer();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddByRef()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddByRef();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddSzArray()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddSzArray();
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddArray(DWORD rank)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddArray(rank);
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::AddAssemblySpec(LPCWSTR szAssemblySpec)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.AddAssemblySpec(szAssemblySpec);
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::ToString(BSTR* pszStringRepresentation)
-{
-    WRAPPER_NO_CONTRACT;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.ToString(pszStringRepresentation);
-    END_SO_INTOLERANT_CODE;
-    return hr;
-}
-
-HRESULT STDMETHODCALLTYPE TypeNameBuilderWrapper::Clear()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    hr = m_tnb.Clear();
-    END_SO_INTOLERANT_CODE;
-    return hr;
 }

@@ -134,7 +134,7 @@ namespace
             0,
             REG_SZ,
             reinterpret_cast<const BYTE*>(fullPath),
-            static_cast<DWORD>(::wcslen(fullPath) + 1) * sizeof(fullPath[0]));
+            static_cast<DWORD>(::TP_slen(fullPath) + 1) * sizeof(fullPath[0]));
         if (res != ERROR_SUCCESS)
             return __HRESULT_FROM_WIN32(res);
 
@@ -147,7 +147,7 @@ namespace
                 0,
                 REG_SZ,
                 reinterpret_cast<const BYTE*>(threadingModel),
-                static_cast<DWORD>(::wcslen(threadingModel) + 1) * sizeof(threadingModel[0]));
+                static_cast<DWORD>(::TP_slen(threadingModel) + 1) * sizeof(threadingModel[0]));
             if (res != ERROR_SUCCESS)
                 return __HRESULT_FROM_WIN32(res);
         }
@@ -164,6 +164,10 @@ STDAPI DllRegisterServer(void)
     RETURN_IF_FAILED(RegisterClsid(__uuidof(ArrayTesting), L"Both"));
     RETURN_IF_FAILED(RegisterClsid(__uuidof(StringTesting), L"Both"));
     RETURN_IF_FAILED(RegisterClsid(__uuidof(ErrorMarshalTesting), L"Both"));
+    RETURN_IF_FAILED(RegisterClsid(__uuidof(DispatchTesting), L"Both"));
+    RETURN_IF_FAILED(RegisterClsid(__uuidof(EventTesting), L"Both"));
+    RETURN_IF_FAILED(RegisterClsid(__uuidof(AggregationTesting), L"Both"));
+    RETURN_IF_FAILED(RegisterClsid(__uuidof(ColorTesting), L"Both"));
 
     return S_OK;
 }
@@ -176,6 +180,10 @@ STDAPI DllUnregisterServer(void)
     RETURN_IF_FAILED(RemoveClsid(__uuidof(ArrayTesting)));
     RETURN_IF_FAILED(RemoveClsid(__uuidof(StringTesting)));
     RETURN_IF_FAILED(RemoveClsid(__uuidof(ErrorMarshalTesting)));
+    RETURN_IF_FAILED(RemoveClsid(__uuidof(DispatchTesting)));
+    RETURN_IF_FAILED(RemoveClsid(__uuidof(EventTesting)));
+    RETURN_IF_FAILED(RemoveClsid(__uuidof(AggregationTesting)));
+    RETURN_IF_FAILED(RemoveClsid(__uuidof(ColorTesting)));
 
     return S_OK;
 }
@@ -193,6 +201,21 @@ STDAPI DllGetClassObject(_In_ REFCLSID rclsid, _In_ REFIID riid, _Out_ LPVOID FA
 
     if (rclsid == __uuidof(ErrorMarshalTesting))
         return ClassFactoryBasic<ErrorMarshalTesting>::Create(riid, ppv);
+
+    if (rclsid == __uuidof(DispatchTesting))
+        return ClassFactoryBasic<DispatchTesting>::Create(riid, ppv);
+
+    if (rclsid == __uuidof(EventTesting))
+        return ClassFactoryBasic<EventTesting>::Create(riid, ppv);
+
+    if (rclsid == __uuidof(AggregationTesting))
+        return ClassFactoryAggregate<AggregationTesting>::Create(riid, ppv);
+
+    if (rclsid == __uuidof(ColorTesting))
+        return ClassFactoryBasic<ColorTesting>::Create(riid, ppv);
+
+    if (rclsid == __uuidof(LicenseTesting))
+        return ClassFactoryLicense<LicenseTesting>::Create(riid, ppv);
 
     return CLASS_E_CLASSNOTAVAILABLE;
 }

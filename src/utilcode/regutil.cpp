@@ -42,28 +42,23 @@ LPWSTR REGUTIL::EnvGetString(LPCWSTR name, BOOL fPrependCOMPLUS)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     WCHAR buff[64];
-    
+
     if(wcslen(name) > (size_t)(64 - 1 - (fPrependCOMPLUS ? LEN_OF_COMPLUS_PREFIX : 0)))
     {
         return NULL;
     }
 
-#ifdef ALLOW_REGISTRY
     if (fPrependCOMPLUS)
     {
+#ifdef ALLOW_REGISTRY
         if (!EnvCacheValueNameSeenPerhaps(name))
             return NULL;
-    }
 #endif // ALLOW_REGISTRY
-
-    if (fPrependCOMPLUS)
-    {
         wcscpy_s(buff, _countof(buff), COMPLUS_PREFIX);
     }
     else
@@ -75,38 +70,36 @@ LPWSTR REGUTIL::EnvGetString(LPCWSTR name, BOOL fPrependCOMPLUS)
 
     FAULT_NOT_FATAL(); // We don't report OOM errors here, we return a default value.
 
-   
+
     NewArrayHolder<WCHAR> ret = NULL;
     HRESULT hr = S_OK;
     DWORD Len;
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(SetLastError(COR_E_STACKOVERFLOW); return NULL;)
     EX_TRY
-    { 
+    {
         PathString temp;
 
         Len = WszGetEnvironmentVariable(buff, temp);
         if (Len != 0)
         {
             ret = temp.GetCopyOfUnicodeString();
-        }    
-            
+        }
+
     }
     EX_CATCH_HRESULT(hr);
-    END_SO_INTOLERANT_CODE
 
     if (hr != S_OK)
     {
         SetLastError(hr);
     }
-       
+
     if(ret != NULL)
     {
         return ret.Extract();
     }
-        
+
     return NULL;
-        
-   
+
+
 }
 
 #ifdef ALLOW_REGISTRY
@@ -135,13 +128,12 @@ DWORD REGUTIL::GetConfigDWORD_DontUse_(LPCWSTR name, DWORD defValue, CORConfigLe
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
 
     SUPPORTS_DAC_HOST_ONLY;
-    
+
     ULONGLONG result;
     GetConfigInteger(name, defValue, &result, TRUE, level, fPrependCOMPLUS);
 
@@ -150,17 +142,17 @@ DWORD REGUTIL::GetConfigDWORD_DontUse_(LPCWSTR name, DWORD defValue, CORConfigLe
 
 #define uniwcst(val, endptr, base) (fGetDWORD ? wcstoul(val, endptr, base) : _wcstoui64(val, endptr, base))
 
-// 
+//
 // Look up a dword config value, and write the result to the DWORD passed in by reference.
-// 
+//
 // Return value:
 //     * E_FAIL if the value is not found. (result is assigned the default value)
 //     * S_OK if the value is found. (result is assigned the value that was found)
-//     
+//
 // Arguments:
 //     * info - see file:../inc/CLRConfig.h for details
 //     * result - Pointer to the output DWORD.
-// 
+//
 // static
 HRESULT REGUTIL::GetConfigDWORD_DontUse_(LPCWSTR name, DWORD defValue, __out DWORD * result, CORConfigLevel level, BOOL fPrependCOMPLUS)
 {
@@ -177,13 +169,12 @@ ULONGLONG REGUTIL::GetConfigULONGLONG_DontUse_(LPCWSTR name, ULONGLONG defValue,
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
 
     SUPPORTS_DAC_HOST_ONLY;
-    
+
     ULONGLONG result;
     GetConfigInteger(name, defValue, &result, FALSE, level, fPrependCOMPLUS);
 
@@ -192,7 +183,7 @@ ULONGLONG REGUTIL::GetConfigULONGLONG_DontUse_(LPCWSTR name, ULONGLONG defValue,
 
 // This function should really be refactored to return the string from the environment and let the caller decide
 // what to convert it to; and return the buffer read from the reg call.
-// Note for PAL: right now PAL does not have a _wcstoui64 API, so I am temporarily reading in all numbers as 
+// Note for PAL: right now PAL does not have a _wcstoui64 API, so I am temporarily reading in all numbers as
 // a 32-bit number. When we have the _wcstoui64 API on MAC we will use uniwcst instead of wcstoul.
 HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGLONG * result, BOOL fGetDWORD, CORConfigLevel level, BOOL fPrependCOMPLUS)
 {
@@ -201,13 +192,12 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
 
     SUPPORTS_DAC_HOST_ONLY;
-    
+
     ULONGLONG rtn;
     ULONGLONG ret = 0;
     DWORD type = 0;
@@ -261,7 +251,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
             LONG retVal = ERROR_SUCCESS;
             BOOL bCloseHandle = FALSE;
             userKey = s_hUserFrameworkKey;
-            
+
             if (userKey == INVALID_HANDLE_VALUE)
             {
                 retVal = WszRegOpenKeyEx(HKEY_CURRENT_USER, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &userKey);
@@ -274,7 +264,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
 
                 if (bCloseHandle)
                     VERIFY(!RegCloseKey(userKey));
-                
+
                 if (rtn == ERROR_SUCCESS && (type == REG_DWORD || (!fGetDWORD && type == REG_QWORD)))
                 {
                     *result = ret;
@@ -292,7 +282,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
             LONG retVal = ERROR_SUCCESS;
             BOOL bCloseHandle = FALSE;
             machineKey = s_hMachineFrameworkKey;
-            
+
             if (machineKey == INVALID_HANDLE_VALUE)
             {
                 retVal = WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &machineKey);
@@ -305,7 +295,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
 
                 if (bCloseHandle)
                     VERIFY(!RegCloseKey(machineKey));
-                
+
                 if (rtn == ERROR_SUCCESS && (type == REG_DWORD || (!fGetDWORD && type == REG_QWORD)))
                 {
                     *result = ret;
@@ -324,8 +314,8 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
 
 //*****************************************************************************
 // Reads a string from the COR configuration according to the level specified
-// The caller is responsible for deallocating the returned string by 
-// calling code:REGUTIL::FreeConfigString or using a code:ConfigStringHolder 
+// The caller is responsible for deallocating the returned string by
+// calling code:REGUTIL::FreeConfigString or using a code:ConfigStringHolder
 //*****************************************************************************
 
 LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, CORConfigLevel level, BOOL fUsePerfCache)
@@ -337,7 +327,7 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
         FORBID_FAULT;
     }
     CONTRACTL_END;
-    
+
 #ifdef ALLOW_REGISTRY
     HRESULT lResult;
     RegKeyHolder userKey = NULL;
@@ -354,7 +344,7 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
     {
         ret = EnvGetString(name, fPrependCOMPLUS);  // try getting it from the environement first
         if (ret != 0) {
-            if (*ret != 0) 
+            if (*ret != 0)
             {
                 ret.SuppressRelease();
                 return(ret);
@@ -382,13 +372,13 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
     {
 #ifdef ALLOW_REGISTRY
         BOOL    bUsingCachedKey = FALSE;
-        
+
         if (s_hUserFrameworkKey != INVALID_HANDLE_VALUE)
         {
             bUsingCachedKey = TRUE;
             userKey = s_hUserFrameworkKey;
         }
-            
+
         if (bUsingCachedKey || WszRegOpenKeyEx(HKEY_CURRENT_USER, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &userKey) == ERROR_SUCCESS)
         {
             BOOL bReturn = FALSE;
@@ -422,13 +412,13 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
     {
 #ifdef ALLOW_REGISTRY
         BOOL    bUsingCachedKey = FALSE;
-        
+
         if (s_hMachineFrameworkKey != INVALID_HANDLE_VALUE)
         {
             bUsingCachedKey = TRUE;
             machineKey = s_hMachineFrameworkKey;
         }
-            
+
         if (bUsingCachedKey || WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &machineKey) == ERROR_SUCCESS)
         {
             BOOL bReturn = FALSE;
@@ -463,14 +453,14 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
 #ifdef ALLOW_REGISTRY
         if ((WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, FUSION_REGISTRY_KEY_W, 0, KEY_READ, &fusionKey) == ERROR_SUCCESS) &&
             (WszRegQueryValueEx(fusionKey, name, 0, &type, 0, &size) == ERROR_SUCCESS) &&
-            type == REG_SZ) 
+            type == REG_SZ)
         {
             ret = (LPWSTR) new (nothrow) BYTE [size];
             if (!ret)
             {
                 return NULL;
             }
-            ret[0] = W('\0');            
+            ret[0] = W('\0');
             lResult = WszRegQueryValueEx(fusionKey, name, 0, 0, (LPBYTE) ret.GetValue(), &size);
             _ASSERTE(lResult == ERROR_SUCCESS);
             ret.SuppressRelease();
@@ -478,20 +468,20 @@ LPWSTR REGUTIL::GetConfigString_DontUse_(LPCWSTR name, BOOL fPrependCOMPLUS, COR
         }
 #endif // ALLOW_REGISTRY
     }
-    
+
     return NULL;
 }
 
 //*****************************************************************************
-// Deallocation function for code:REGUTIL::GetConfigString_DontUse_ 
+// Deallocation function for code:REGUTIL::GetConfigString_DontUse_
 //
-// Notes: 
+// Notes:
 //     Use a code:ConfigStringHolder to automatically call this.
 //*****************************************************************************
 void REGUTIL::FreeConfigString(__in_z LPWSTR str)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     delete [] str;
 }
 
@@ -502,7 +492,7 @@ void REGUTIL::FreeConfigString(__in_z LPWSTR str)
 DWORD REGUTIL::GetConfigFlag_DontUse_(LPCWSTR name, DWORD bitToSet, BOOL defValue)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     return(GetConfigDWORD_DontUse_(name, defValue) != 0 ? bitToSet : 0);
 }
 
@@ -595,7 +585,7 @@ private:
 // From the Win32 SDK docs:
 //  Registry Element Size Limits
 //  ...
-//  The maximum size of a value name is as follows: 
+//  The maximum size of a value name is as follows:
 //  Windows Server 2003 and Windows XP:  16,383 characters
 //  Windows 2000:  260 ANSI characters or 16,383 Unicode characters.
 //  Windows Me/98/95:  255 characters
@@ -612,7 +602,7 @@ BOOL REGUTIL::s_fUseRegistry = TRUE;
 static ProbabilisticNameSet regNames; // set of registry value names seen; should be
                                    // a static field of REGUTIL but I don't
                                    // want to expose ProbabilisticNameSet.
-static ProbabilisticNameSet envNames; // set of environment value names seen; 
+static ProbabilisticNameSet envNames; // set of environment value names seen;
 
 // "Registry Configuration Cache"
 //
@@ -644,7 +634,7 @@ static ProbabilisticNameSet envNames; // set of environment value names seen;
 // Perf Optimization for VSWhidbey:113373.
 //
 void REGUTIL::InitOptionalConfigCache()
-{ 
+{
     CONTRACTL
     {
         NOTHROW;
@@ -724,7 +714,7 @@ void REGUTIL::InitOptionalConfigCache()
             }
         }
 
-        // Save the handles to framework regkeys so that future reads dont have to 
+        // Save the handles to framework regkeys so that future reads dont have to
         // open it again
         if (roots[i] == HKEY_CURRENT_USER)
             s_hUserFrameworkKey = hkey;
@@ -732,7 +722,7 @@ void REGUTIL::InitOptionalConfigCache()
             s_hMachineFrameworkKey = hkey;
         else
             RegCloseKey(hkey);
-        
+
         hkey = NULL;
     }
 
@@ -749,12 +739,12 @@ void REGUTIL::InitOptionalConfigCache()
         for(WCHAR *wszCurr = wszStrings; *wszCurr; wszCurr++)
         {
             WCHAR wch = towlower(*wszCurr);
-            
+
             // Lets only cache env variables with the COMPlus prefix only
             if (wch == W('c'))
             {
                 WCHAR *wszName = wszCurr;
-                
+
                 // Look for the separator between name and value
                 while (*wszCurr && *wszCurr != W('='))
                     wszCurr++;
@@ -768,17 +758,17 @@ void REGUTIL::InitOptionalConfigCache()
                         envNames.Add(wszName, (DWORD) (wszCurr - wszName));
                     }
                 }
-                
+
             }
             // Look for current string termination
             while (*wszCurr)
                 wszCurr++;
-        
+
         }
 
         WszFreeEnvironmentStrings(wszStrings);
         s_fUseEnvCache = TRUE;
-        
+
     }
     return;
 

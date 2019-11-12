@@ -11,25 +11,23 @@
 **
 ===========================================================*/
 
-using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.Versioning;
 
 namespace System
 {
     [Serializable]
-    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract class ValueType
     {
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (null == obj)
             {
                 return false;
             }
-            RuntimeType thisType = (RuntimeType)this.GetType();
-            RuntimeType thatType = (RuntimeType)obj.GetType();
+            Type thisType = this.GetType();
+            Type thatType = obj.GetType();
 
             if (thatType != thisType)
             {
@@ -37,9 +35,9 @@ namespace System
             }
 
             object thisObj = (object)this;
-            object thisResult, thatResult;
+            object? thisResult, thatResult;
 
-            // if there are no GC references in this object we can avoid reflection 
+            // if there are no GC references in this object we can avoid reflection
             // and do a fast memcmp
             if (CanCompareBits(this))
                 return FastEqualsCheck(thisObj, obj);
@@ -48,8 +46,8 @@ namespace System
 
             for (int i = 0; i < thisFields.Length; i++)
             {
-                thisResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(thisObj);
-                thatResult = ((RtFieldInfo)thisFields[i]).UnsafeGetValue(obj);
+                thisResult = thisFields[i].GetValue(thisObj);
+                thatResult = thisFields[i].GetValue(obj);
 
                 if (thisResult == null)
                 {
@@ -66,10 +64,10 @@ namespace System
             return true;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool CanCompareBits(object obj);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool FastEqualsCheck(object a, object b);
 
         /*=================================GetHashCode==================================
@@ -82,13 +80,13 @@ namespace System
         **Arguments: None.
         **Exceptions: None.
         ==============================================================================*/
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern override int GetHashCode();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHashCodeOfPtr(IntPtr ptr);
 
-        public override string ToString()
+        public override string? ToString()
         {
             return this.GetType().ToString();
         }

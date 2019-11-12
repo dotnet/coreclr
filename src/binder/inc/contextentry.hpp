@@ -26,12 +26,11 @@ namespace BINDER_SPACE
         typedef enum
         {
             RESULT_FLAG_NONE             = 0x00,
-            RESULT_FLAG_IS_DYNAMIC_BIND  = 0x01,
+            //RESULT_FLAG_IS_DYNAMIC_BIND  = 0x01,
             RESULT_FLAG_IS_IN_GAC        = 0x02,
             //RESULT_FLAG_FROM_MANIFEST    = 0x04,
             RESULT_FLAG_CONTEXT_BOUND    = 0x08,
             RESULT_FLAG_FIRST_REQUEST    = 0x10,
-            RESULT_FLAG_IS_SHARABLE      = 0x20
         } ResultFlags;
 
         ContextEntry() : AssemblyEntry()
@@ -43,23 +42,6 @@ namespace BINDER_SPACE
         ~ContextEntry()
         {
             SAFE_RELEASE(m_pIUnknownAssembly);
-        }
-        
-        BOOL GetIsDynamicBind()
-        {
-            return ((m_dwResultFlags & RESULT_FLAG_IS_DYNAMIC_BIND) != 0);
-        }
-
-        void SetIsDynamicBind(BOOL fIsDynamicBind)
-        {
-            if (fIsDynamicBind)
-            {
-                m_dwResultFlags |= RESULT_FLAG_IS_DYNAMIC_BIND;
-            }
-            else
-            {
-                m_dwResultFlags &= ~RESULT_FLAG_IS_DYNAMIC_BIND;
-            }
         }
 
         BOOL GetIsInGAC()
@@ -93,23 +75,6 @@ namespace BINDER_SPACE
             else
             {
                 m_dwResultFlags &= ~RESULT_FLAG_FIRST_REQUEST;
-            }
-        }
-
-        BOOL GetIsSharable()
-        {
-            return ((m_dwResultFlags & RESULT_FLAG_IS_SHARABLE) != 0);
-        }
-
-        void SetIsSharable(BOOL fIsSharable)
-        {
-            if (fIsSharable)
-            {
-                m_dwResultFlags |= RESULT_FLAG_IS_SHARABLE;
-            }
-            else
-            {
-                m_dwResultFlags &= ~RESULT_FLAG_IS_SHARABLE;
             }
         }
 

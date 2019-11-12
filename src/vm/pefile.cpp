@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEFile.cpp
-// 
+//
 
 // --------------------------------------------------------------------------------
 
@@ -49,15 +49,14 @@ SVAL_IMPL_INIT(DWORD, PEFile, s_NGENDebugFlags, 0);
 // <TODO>@todo: rename TargetFile</TODO>
 // ================================================================================
 
-PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
+PEFile::PEFile(PEImage *identity) :
 #if _DEBUG
     m_pDebugName(NULL),
 #endif
     m_identity(NULL),
     m_openedILimage(NULL),
-#ifdef FEATURE_PREJIT    
+#ifdef FEATURE_PREJIT
     m_nativeImage(NULL),
-    m_fCanUseNativeImage(TRUE),
 #endif
     m_MDImportIsRW_Debugger_Use_Only(FALSE),
     m_bHasPersistentMDImport(FALSE),
@@ -107,9 +106,9 @@ PEFile::~PEFile()
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     ReleaseMetadataInterfaces(TRUE);
-    
+
 #ifdef FEATURE_PREJIT
     if (m_nativeImage != NULL)
     {
@@ -168,7 +167,7 @@ PEFile *PEFile::Open(PEImage *image)
     }
     CONTRACT_END;
 
-    PEFile *pFile = new PEFile(image, FALSE);
+    PEFile *pFile = new PEFile(image);
 
     if (image->HasNTHeaders() && image->HasCorHeader())
         pFile->OpenMDImport_Unsafe(); //no one else can see the object yet
@@ -181,24 +180,6 @@ PEFile *PEFile::Open(PEImage *image)
 
     RETURN pFile;
 }
-
-// ------------------------------------------------------------
-// Loader support routines
-// ------------------------------------------------------------
-
-template<class T> void CoTaskFree(T *p)
-{
-    if (p != NULL)
-    {
-        p->T::~T();
-
-        CoTaskMemFree(p);
-    }
-}
-
-
-NEW_WRAPPER_TEMPLATE1(CoTaskNewHolder, CoTaskFree<_TYPE>);
-
 
 //-----------------------------------------------------------------------------------------------------
 // Catch attempts to load x64 assemblies on x86, etc.
@@ -233,7 +214,7 @@ static void ValidatePEFileMachineType(PEFile *peFile)
         // Or to put it another way, this #ifdef makes the (4.5 only) ValidatePEFileMachineType() a NOP for x64, hence preserving 4.0 compatibility.
         if (actualMachineType == IMAGE_FILE_MACHINE_I386 || actualMachineType == IMAGE_FILE_MACHINE_IA64)
             return;
-#endif // _WIN64_
+#endif // BIT64_
 
         // Image has required machine that doesn't match the CLR.
         StackSString name;
@@ -315,7 +296,7 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         if (!GetILimage()->IsILOnly() && !GetAppDomain()->IsCompilationDomain())
         {
             if (!GetILimage()->HasV1Metadata())
-                ThrowHR(COR_E_FIXUPSINEXE); // <TODO>@todo: better error</TODO>            
+                ThrowHR(COR_E_FIXUPSINEXE); // <TODO>@todo: better error</TODO>
         }
 
 
@@ -378,7 +359,7 @@ void PEFile::SetLoadedHMODULE(HMODULE hMod)
 
 /* static */
 void PEFile::DefineEmitScope(
-    GUID   iid, 
+    GUID   iid,
     void **ppEmit)
 {
     CONTRACT_VOID
@@ -391,36 +372,36 @@ void PEFile::DefineEmitScope(
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACT_END;
-    
+
     SafeComHolder<IMetaDataDispenserEx> pDispenser;
-    
+
     // Get the Dispenser interface.
     MetaDataGetDispenser(
-        CLSID_CorMetaDataDispenser, 
-        IID_IMetaDataDispenserEx, 
+        CLSID_CorMetaDataDispenser,
+        IID_IMetaDataDispenserEx,
         (void **)&pDispenser);
     if (pDispenser == NULL)
     {
         ThrowOutOfMemory();
     }
-    
+
     // Set the option on the dispenser turn on duplicate check for TypeDef and moduleRef
     VARIANT varOption;
     V_VT(&varOption) = VT_UI4;
     V_I4(&varOption) = MDDupDefault | MDDupTypeDef | MDDupModuleRef | MDDupExportedType | MDDupAssemblyRef | MDDupPermission | MDDupFile;
     IfFailThrow(pDispenser->SetOption(MetaDataCheckDuplicatesFor, &varOption));
-    
+
     // Set minimal MetaData size
     V_VT(&varOption) = VT_UI4;
     V_I4(&varOption) = MDInitialSizeMinimal;
     IfFailThrow(pDispenser->SetOption(MetaDataInitialSize, &varOption));
-    
+
     // turn on the thread safety!
     V_I4(&varOption) = MDThreadSafetyOn;
     IfFailThrow(pDispenser->SetOption(MetaDataThreadSafetyOptions, &varOption));
-    
+
     IfFailThrow(pDispenser->DefineScope(CLSID_CorMetaDataRuntime, 0, iid, (IUnknown **)ppEmit));
-    
+
     RETURN;
 } // PEFile::DefineEmitScope
 
@@ -496,7 +477,7 @@ BOOL PEFile::Equals(PEImage *pImage)
 #ifdef FEATURE_PREJIT
     if(pImage == m_nativeImage)
         return TRUE;
-#endif    
+#endif
     // Same identity is equal
     if (m_identity != NULL
         && m_identity->Equals(pImage))
@@ -553,7 +534,6 @@ CHECK PEFile::CheckLoaded(BOOL bAllowNativeSkip/*=TRUE*/)
         INSTANCE_CHECK;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACT_CHECK_END;
@@ -627,7 +607,7 @@ PTR_CVOID PEFile::GetLoadedMetadata(COUNT_T *pSize)
     }
 #endif
 
-    if (!HasLoadedIL() 
+    if (!HasLoadedIL()
          || !GetLoadedIL()->HasNTHeaders()
          || !GetLoadedIL()->HasCorHeader())
     {
@@ -663,7 +643,7 @@ TADDR PEFile::GetIL(RVA il)
     PEImageLayout *image = NULL;
 
 #ifdef FEATURE_PREJIT
-    // Note it is important to get the IL from the native image if 
+    // Note it is important to get the IL from the native image if
     // available, since we are using the metadata from the native image
     // which has different IL rva's.
     if (HasNativeImageMetadata())
@@ -701,15 +681,15 @@ void PEFile::OpenImporter()
         GC_NOTRIGGER;
         MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM(););
-    } 
+    }
     CONTRACTL_END;
 
     // Make sure internal MD is in RW format.
     ConvertMDInternalToReadWrite();
- 
+
     IMetaDataImport2 *pIMDImport = NULL;
-    IfFailThrow(GetMetaDataPublicInterfaceFromInternal((void*)GetPersistentMDImport(), 
-                                                       IID_IMetaDataImport2, 
+    IfFailThrow(GetMetaDataPublicInterfaceFromInternal((void*)GetPersistentMDImport(),
+                                                       IID_IMetaDataImport2,
                                                        (void **)&pIMDImport));
 
     // Atomically swap it into the field (release it if we lose the race)
@@ -770,7 +750,7 @@ void PEFile::ConvertMDInternalToReadWrite()
     //  replaced with pNew.  The old contents are returned.
     _ASSERTE(m_bHasPersistentMDImport);
     if (FastInterlockCompareExchangePointer(&m_pMDImport, pNew, pOld) == pOld)
-    {   
+    {
         //if the debugger queries, it will now see that we have RW metadata
         m_MDImportIsRW_Debugger_Use_Only = TRUE;
 
@@ -791,21 +771,20 @@ void PEFile::ConvertMetadataToRWForEnC()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
 
     // This should only ever be called on EnC capable files.
     // One can check this using Module::IsEditAndContinueCapable().
-    
+
     // This should only be called if we're debugging, stopped, and on the helper thread.
     _ASSERTE(CORDebuggerAttached());
     _ASSERTE((g_pDebugInterface != NULL) && g_pDebugInterface->ThisIsHelperThread());
     _ASSERTE((g_pDebugInterface != NULL) && g_pDebugInterface->IsStopped());
 
-    // Convert the metadata to RW for Edit and Continue, properly replacing the metadata import interface pointer and 
-    // properly preserving the old importer. This will be called before the EnC system tries to apply a delta to the module's 
+    // Convert the metadata to RW for Edit and Continue, properly replacing the metadata import interface pointer and
+    // properly preserving the old importer. This will be called before the EnC system tries to apply a delta to the module's
     // metadata. ConvertMDInternalToReadWrite() does that quite nicely for us.
     ConvertMDInternalToReadWrite();
 }
@@ -824,7 +803,7 @@ void PEFile::OpenMDImport_Unsafe()
 
     if (m_pMDImport != NULL)
         return;
-#ifdef FEATURE_PREJIT    
+#ifdef FEATURE_PREJIT
     if (m_nativeImage != NULL
         && m_nativeImage->GetMDImport() != NULL
         )
@@ -836,7 +815,7 @@ void PEFile::OpenMDImport_Unsafe()
     else
 #endif
     {
-#ifdef FEATURE_PREJIT        
+#ifdef FEATURE_PREJIT
         m_flags &= ~PEFILE_HAS_NATIVE_IMAGE_METADATA;
 #endif
         if (!IsDynamic()
@@ -951,20 +930,16 @@ void PEFile::SetNativeImage(PEImage *image)
                     DBG_ADDR(image->GetLoadedLayout()->GetPreferredBase()));
     }
 
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
-    // In Apollo, first ask if we're supposed to be ignoring the prejitted code &
+    // First ask if we're supposed to be ignoring the prejitted code &
     // structures in NGENd images. If so, bail now and do not set m_nativeImage. We've
-    // already set m_identity & m_openedILimage (possibly even pointing to the
-    // NGEN/Triton image), and will use those PEImages to find and JIT IL (even if they
-    // point to an NGENd/Tritonized image).
+    // already set m_identity & m_openedILimage), and will use those PEImages to find
+    // and JIT IL.
     if (ShouldTreatNIAsMSIL())
         RETURN;
-#endif
 
     m_nativeImage = image;
     m_nativeImage->AddRef();
     m_nativeImage->Load();
-    m_nativeImage->AllocateLazyCOWPages();
 
 #if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
     static ConfigDWORD configNGenReserveForJumpStubs;
@@ -1073,9 +1048,9 @@ static void RuntimeVerifyLog(DWORD level, PEAssembly *pLogAsm, const WCHAR *fmt,
     STANDARD_VM_CONTRACT;
 
     // Avoid calling RuntimeVerifyVLog unless logging is on
-    if (   ((level == LL_ERROR) && IsDebuggerPresent()) 
+    if (   ((level == LL_ERROR) && IsDebuggerPresent())
         || LoggingOn(LF_ZAP, level)
-       ) 
+       )
     {
         va_list args;
         va_start(args, fmt);
@@ -1102,7 +1077,6 @@ LPCWSTR CorCompileGetRuntimeDllName(CorCompileRuntimeDlls id)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -1117,9 +1091,6 @@ LPCWSTR CorCompileGetRuntimeDllName(CorCompileRuntimeDlls id)
 // Will always return a valid HMODULE for CLR_INFO, but will return NULL for NGEN_COMPILER_INFO
 // if the DLL has not yet been loaded (it does not try to cause a load).
 
-// Gets set by IJitManager::LoadJit (yes, this breaks the abstraction boundary).
-HMODULE s_ngenCompilerDll = NULL;
-
 extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
 {
     CONTRACTL
@@ -1127,7 +1098,6 @@ extern HMODULE CorCompileGetRuntimeDll(CorCompileRuntimeDlls id)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
@@ -1171,7 +1141,7 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, PEAsse
     //
     // Check that the EE version numbers are the same.
     //
- 
+
     if (info->wVersionMajor != CLR_MAJOR_VERSION
         || info->wVersionMinor != CLR_MINOR_VERSION
         || info->wVersionBuildNumber != CLR_BUILD_VERSION
@@ -1463,7 +1433,6 @@ void PEFile::GetNGENDebugFlags(BOOL *fAllowOpt)
 
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
 
 //---------------------------------------------------------------------------------------
 //
@@ -1486,7 +1455,7 @@ BOOL PEFile::ShouldTreatNIAsMSIL()
     LIMITED_METHOD_CONTRACT;
 
     // Never use fragile native image content during ReadyToRun compilation. It would
-    // produces non-version resilient images because of wrong cached values for 
+    // produces non-version resilient images because of wrong cached values for
     // MethodTable::IsLayoutFixedInCurrentVersionBubble, etc.
     if (IsReadyToRunCompilation())
         return TRUE;
@@ -1506,8 +1475,6 @@ BOOL PEFile::ShouldTreatNIAsMSIL()
 
     return FALSE;
 }
-
-#endif // FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
 
 #endif  //!DACCESS_COMPILE
 #endif  // FEATURE_PREJIT
@@ -1539,8 +1506,8 @@ void PEFile::GetEmbeddedResource(DWORD dwOffset, DWORD *cbResource, PBYTE *pbInM
 #ifdef FEATURE_PREJIT
     if (m_nativeImage != NULL)
         image = m_nativeImage;
-    else 
-#endif    
+    else
+#endif
     {
         EnsureImageOpened();
         image = GetILimage();
@@ -1561,7 +1528,7 @@ void PEFile::GetEmbeddedResource(DWORD dwOffset, DWORD *cbResource, PBYTE *pbInM
 // File loading
 // ------------------------------------------------------------
 
-PEAssembly * 
+PEAssembly *
 PEFile::LoadAssembly(
     mdAssemblyRef       kAssemblyRef,
     IMDInternalImport * pImport,                // = NULL
@@ -1582,19 +1549,19 @@ PEFile::LoadAssembly(
     if (pImport == NULL)
         pImport = GetPersistentMDImport();
 
-    if (((TypeFromToken(kAssemblyRef) != mdtAssembly) && 
-         (TypeFromToken(kAssemblyRef) != mdtAssemblyRef)) || 
+    if (((TypeFromToken(kAssemblyRef) != mdtAssembly) &&
+         (TypeFromToken(kAssemblyRef) != mdtAssemblyRef)) ||
         (!pImport->IsValidToken(kAssemblyRef)))
     {
         ThrowHR(COR_E_BADIMAGEFORMAT);
     }
-    
+
     AssemblySpec spec;
-    
+
     spec.InitializeSpec(kAssemblyRef, pImport, GetAppDomain()->FindAssembly(GetAssembly()));
     if (szWinRtTypeClassName != NULL)
         spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
-    
+
     RETURN GetAppDomain()->BindAssemblySpec(&spec, TRUE);
 }
 
@@ -1689,7 +1656,6 @@ void PEFile::FlushExternalLog()
 BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                  PBYTE *pbInMemoryResource, DomainAssembly** pAssemblyRef,
                                  LPCSTR *szFileName, DWORD *dwLocation,
-                                 StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                                  BOOL fSkipRaiseResolveEvent, DomainAssembly* pDomainAssembly, AppDomain* pAppDomain)
 {
     CONTRACTL
@@ -1714,10 +1680,10 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
     {
         pPEFile = this;
         IfFailThrow(pImport->GetManifestResourceProps(
-            mdResource, 
+            mdResource,
             NULL,           //&szName,
-            &mdLinkRef, 
-            &dwOffset, 
+            &mdLinkRef,
+            &dwOffset,
             &dwResourceFlags));
     }
     else
@@ -1730,7 +1696,7 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (pAssembly == NULL)
             return FALSE;
 
-        pDomainAssembly = pAssembly->GetDomainAssembly(pAppDomain);
+        pDomainAssembly = pAssembly->GetDomainAssembly();
         pPEFile = pDomainAssembly->GetFile();
 
         if (FAILED(pAssembly->GetManifestImport()->FindManifestResourceByName(
@@ -1739,23 +1705,23 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         {
             return FALSE;
         }
-        
+
         if (dwLocation != 0)
         {
             if (pAssemblyRef != NULL)
                 *pAssemblyRef = pDomainAssembly;
-            
+
             *dwLocation = *dwLocation | 2; // ResourceLocation.containedInAnotherAssembly
         }
         IfFailThrow(pPEFile->GetPersistentMDImport()->GetManifestResourceProps(
-            mdResource, 
+            mdResource,
             NULL,           //&szName,
-            &mdLinkRef, 
-            &dwOffset, 
+            &mdLinkRef,
+            &dwOffset,
             &dwResourceFlags));
     }
-    
-    
+
+
     switch(TypeFromToken(mdLinkRef)) {
     case mdtAssemblyRef:
         {
@@ -1779,8 +1745,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
                                                 pAssemblyRef,
                                                 szFileName,
                                                 dwLocation,
-                                                pStackMark,
-                                                fSkipSecurityCheck,
                                                 fSkipRaiseResolveEvent);
         }
 
@@ -1788,31 +1752,6 @@ BOOL PEFile::GetResource(LPCSTR szName, DWORD *cbResource,
         if (mdLinkRef == mdFileNil)
         {
             // The resource is embedded in the manifest file
-
-#ifndef CROSSGEN_COMPILE
-            if (!IsMrPublic(dwResourceFlags) && pStackMark && !fSkipSecurityCheck)
-            {
-                Assembly *pCallersAssembly = SystemDomain::GetCallersAssembly(pStackMark);
-
-                if (pCallersAssembly &&  // full trust for interop
-                    (!pCallersAssembly->GetManifestFile()->Equals(this)))
-                {
-                    RefSecContext sCtx(AccessCheckOptions::kMemberAccess);
-
-                    AccessCheckOptions accessCheckOptions(
-                        AccessCheckOptions::kMemberAccess,  /*accessCheckType*/
-                        NULL,                               /*pAccessContext*/
-                        FALSE,                              /*throwIfTargetIsInaccessible*/
-                        (MethodTable *) NULL                /*pTargetMT*/
-                        );
-
-                    // SL: return TRUE only if the caller is critical
-                    // Desktop: return TRUE only if demanding MemberAccess succeeds
-                    if (!accessCheckOptions.DemandMemberAccessOrFail(&sCtx, NULL, TRUE /*visibilityCheck*/))
-                        return FALSE;
-                }
-            }
-#endif // CROSSGEN_COMPILE
 
             if (dwLocation) {
                 *dwLocation = *dwLocation | 5; // ResourceLocation.embedded |
@@ -1864,7 +1803,7 @@ void PEFile::GetPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine)
             return;
         }
     }
-#endif // DACCESS_COMPILE        
+#endif // DACCESS_COMPILE
 #endif // FEATURE_PREJIT
 
     GetILimage()->GetPEKindAndMachine(pdwKind, pdwMachine);
@@ -1916,21 +1855,18 @@ void PEAssembly::Attach()
 
 
 PEAssembly::PEAssembly(
-                CoreBindResult* pBindResultInfo, 
-                IMetaDataEmit* pEmit, 
-                PEFile *creator, 
+                CoreBindResult* pBindResultInfo,
+                IMetaDataEmit* pEmit,
+                PEFile *creator,
                 BOOL system,
                 PEImage * pPEImageIL /*= NULL*/,
                 PEImage * pPEImageNI /*= NULL*/,
                 ICLRPrivAssembly * pHostAssembly /*= NULL*/)
 
-  : PEFile(pBindResultInfo ? (pBindResultInfo->GetPEImage() ? pBindResultInfo->GetPEImage() : 
+  : PEFile(pBindResultInfo ? (pBindResultInfo->GetPEImage() ? pBindResultInfo->GetPEImage() :
                                                               (pBindResultInfo->HasNativeImage() ? pBindResultInfo->GetNativeImage() : NULL)
-                              ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL), FALSE),
-    m_creator(clr::SafeAddRef(creator)),
-    m_bIsFromGAC(FALSE),
-    m_bIsOnTpaList(FALSE)
-    ,m_fProfileAssembly(0)
+                              ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL)),
+    m_creator(clr::SafeAddRef(creator))
 {
     CONTRACTL
     {
@@ -1946,6 +1882,7 @@ PEAssembly::PEAssembly(
     if (system)
         m_flags |= PEFILE_SYSTEM;
 
+#ifdef FEATURE_PREJIT
     // We check the precondition above that either pBindResultInfo is null or both pPEImageIL and pPEImageNI are,
     // so we'll only get a max of one native image passed in.
     if (pPEImageNI != NULL)
@@ -1953,7 +1890,6 @@ PEAssembly::PEAssembly(
         SetNativeImage(pPEImageNI);
     }
 
-#ifdef FEATURE_PREJIT
     if (pBindResultInfo && pBindResultInfo->HasNativeImage())
         SetNativeImage(pBindResultInfo->GetNativeImage());
 #endif
@@ -1961,14 +1897,6 @@ PEAssembly::PEAssembly(
     // If we have no native image, we require a mapping for the file.
     if (!HasNativeImage() || !IsILOnly())
         EnsureImageOpened();
-
-    // Initialize the status of the assembly being in the GAC, or being part of the TPA list, before
-    // we start to do work (like strong name verification) that relies on those states to be valid.
-    if(pBindResultInfo != nullptr)
-    {
-        m_bIsFromGAC = pBindResultInfo->IsFromGAC();
-        m_bIsOnTpaList = pBindResultInfo->IsOnTpaList();
-    }
 
     // Open metadata eagerly to minimize failure windows
     if (pEmit == NULL)
@@ -2009,7 +1937,7 @@ PEAssembly::PEAssembly(
         _ASSERTE(pHostAssembly == nullptr);
         pBindResultInfo->GetBindAssembly(&m_pHostAssembly);
     }
-    
+
 #if _DEBUG
     GetCodeBaseOrName(m_debugName);
     m_debugName.Normalize();
@@ -2029,8 +1957,8 @@ PEAssembly::PEAssembly(
 
 PEAssembly *PEAssembly::Open(
     PEAssembly *       pParent,
-    PEImage *          pPEImageIL, 
-    PEImage *          pPEImageNI, 
+    PEImage *          pPEImageIL,
+    PEImage *          pPEImageNI,
     ICLRPrivAssembly * pHostAssembly)
 {
     STANDARD_VM_CONTRACT;
@@ -2072,7 +2000,7 @@ void PEAssembly::ReleaseIL()
     {
         INSTANCE_CHECK;
         NOTHROW;
-        GC_TRIGGERS; 
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2086,7 +2014,7 @@ void PEAssembly::ReleaseIL()
 
     PEFile::ReleaseIL();
 }
-#endif 
+#endif
 
 /* static */
 
@@ -2130,102 +2058,11 @@ PEAssembly *PEAssembly::DoOpenSystem(IUnknown * pAppCtx)
     IfFailThrow(CCoreCLRBinderHelper::BindToSystem(&pPrivAsm, !IsCompilationProcess() || g_fAllowNativeImages));
     if(pPrivAsm != NULL)
     {
-        bindResult.Init(pPrivAsm, TRUE, TRUE);
+        bindResult.Init(pPrivAsm);
     }
 
     RETURN new PEAssembly(&bindResult, NULL, NULL, TRUE, FALSE);
 }
-
-
-#ifndef CROSSGEN_COMPILE
-/* static */
-PEAssembly *PEAssembly::OpenMemory(PEAssembly *pParentAssembly,
-                                   const void *flat, COUNT_T size,
-                                   CLRPrivBinderLoadFile* pBinderToUse)
-{
-    STANDARD_VM_CONTRACT;
-
-    PEAssembly *result = NULL;
-
-    EX_TRY
-    {
-        result = DoOpenMemory(pParentAssembly, flat, size, pBinderToUse);
-    }
-    EX_HOOK
-    {
-        Exception *ex = GET_EXCEPTION();
-
-        // Rethrow non-transient exceptions as file load exceptions with proper
-        // context
-
-        if (!ex->IsTransient())
-            EEFileLoadException::Throw(pParentAssembly, flat, size, ex->GetHR(), ex);
-    }
-    EX_END_HOOK;
-
-    return result;
-}
-
-
-// Thread stress
-
-class DoOpenFlatStress : APIThreadStress
-{
-public:
-    PEAssembly *pParentAssembly;
-    const void *flat;
-    COUNT_T size;
-    DoOpenFlatStress(PEAssembly *pParentAssembly, const void *flat, COUNT_T size)
-        : pParentAssembly(pParentAssembly), flat(flat), size(size) {LIMITED_METHOD_CONTRACT;}
-    void Invoke()
-    {
-        WRAPPER_NO_CONTRACT;
-        PEAssemblyHolder result(PEAssembly::OpenMemory(pParentAssembly, flat, size, FALSE));
-    }
-};
-
-/* static */
-PEAssembly *PEAssembly::DoOpenMemory(
-    PEAssembly *pParentAssembly,
-    const void *flat,
-    COUNT_T size,
-    CLRPrivBinderLoadFile* pBinderToUse)
-{
-    CONTRACT(PEAssembly *)
-    {
-        PRECONDITION(CheckPointer(flat));
-        PRECONDITION(CheckOverflow(flat, size));
-        PRECONDITION(CheckPointer(pParentAssembly));
-        STANDARD_VM_CHECK;
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    // Thread stress
-    DoOpenFlatStress ts(pParentAssembly, flat, size);
-
-    // Note that we must have a flat image stashed away for two reasons.
-    // First, we need a private copy of the data which we can verify
-    // before doing the mapping.  And secondly, we can only compute
-    // the strong name hash on a flat image.
-
-    PEImageHolder image(PEImage::LoadFlat(flat, size));
-
-    // Need to verify that this is a CLR assembly
-    if (!image->CheckILFormat())
-        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
-
-
-    CoreBindResult bindResult;
-    ReleaseHolder<ICLRPrivAssembly> assembly;
-    IfFailThrow(CCoreCLRBinderHelper::GetAssemblyFromImage(image, NULL, &assembly));
-    bindResult.Init(assembly,FALSE,FALSE);
-
-    RETURN new PEAssembly(&bindResult, NULL, pParentAssembly, FALSE);
-}
-#endif // !CROSSGEN_COMPILE
-
-
 
 PEAssembly* PEAssembly::Open(CoreBindResult* pBindResult,
                                    BOOL isSystem)
@@ -2243,7 +2080,7 @@ PEAssembly *PEAssembly::Create(PEAssembly *pParentAssembly,
     {
         PRECONDITION(CheckPointer(pParentAssembly));
         PRECONDITION(CheckPointer(pAssemblyEmit));
-        STANDARD_VM_CHECK; 
+        STANDARD_VM_CHECK;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END;
@@ -2302,52 +2139,11 @@ void PEAssembly::SetNativeImage(PEImage * image)
 
 #endif  // FEATURE_PREJIT
 
-
-BOOL PEAssembly::IsSourceGAC()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_bIsFromGAC;
-};
-
-
 #endif // #ifndef DACCESS_COMPILE
 
 
 
 #ifndef DACCESS_COMPILE
-
-BOOL PEAssembly::IsProfileAssembly()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    //
-    // For now, cache the result of the check below. This cache should be removed once/if the check below 
-    // becomes cheap (e.g. does not access metadata anymore).
-    //
-    if (VolatileLoadWithoutBarrier(&m_fProfileAssembly) != 0)
-    {
-        return m_fProfileAssembly > 0;
-    }
-
-    //
-    // In order to be a platform (profile) assembly, you must be from a trusted location (TPA list)
-    // If we are binding by TPA list and this assembly is on it, IsSourceGAC is true => Assembly is Profile
-    // If the assembly is a WinMD, it is automatically trusted since all WinMD scenarios are full trust scenarios.
-    //
-    // The check for Silverlight strongname platform assemblies is legacy backdoor. It was introduced by accidental abstraction leak
-    // from the old Silverlight binder, people took advantage of it and we cannot easily get rid of it now. See DevDiv #710462.
-    //
-    BOOL bProfileAssembly = IsSourceGAC() && (IsSystem() || m_bIsOnTpaList);
-
-    m_fProfileAssembly = bProfileAssembly ? 1 : -1;
-    return bProfileAssembly;
-}
 
 // ------------------------------------------------------------
 // Descriptive strings
@@ -2561,7 +2357,7 @@ HRESULT PEFile::GetVersion(USHORT *pMajor, USHORT *pMinor, USHORT *pBuild, USHOR
         _ASSERTE(pImport->IsValidToken(TokenFromRid(1, mdtAssembly)));
         IfFailRet(pImport->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, NULL, NULL, &md, NULL));
     }
-    
+
     if (pMajor != NULL)
         *pMajor = md.usMajorVersion;
     if (pMinor != NULL)
@@ -2581,11 +2377,11 @@ void PEFile::EnsureImageOpened()
     WRAPPER_NO_CONTRACT;
     if (IsDynamic())
         return;
-#ifdef FEATURE_PREJIT    
+#ifdef FEATURE_PREJIT
     if(HasNativeImage())
         m_nativeImage->GetLayout(PEImageLayout::LAYOUT_ANY,PEImage::LAYOUT_CREATEIFNEEDED)->Release();
     else
-#endif        
+#endif
         GetILimage()->GetLayout(PEImageLayout::LAYOUT_ANY,PEImage::LAYOUT_CREATEIFNEEDED)->Release();
 }
 
@@ -2683,9 +2479,9 @@ TADDR PEFile::GetMDInternalRWAddress()
         //    from accidentally trying to use this pointer. This pointer is a target pointer, not
         //    a host pointer. However in this function we do want the target pointer, so the usage is
         //    accurate.
-        // 2) ASSUMPTION: We are assuming that the only valid implementation of RW metadata is 
+        // 2) ASSUMPTION: We are assuming that the only valid implementation of RW metadata is
         //    MDInternalRW. If that ever changes we would need some way to disambiguate, and
-        //    probably this entire code path would need to be redesigned. 
+        //    probably this entire code path would need to be redesigned.
         // 3) ASSUMPTION: We are assuming that no pointer adjustment is required to convert between
         //    IMDInternalImport*, IMDInternalImportENC* and MDInternalRW*. Ideally I was hoping to do this with a
         //    static_cast<> but the compiler complains that the ENC<->RW is an unrelated conversion.
@@ -2698,9 +2494,9 @@ TADDR PEFile::GetMDInternalRWAddress()
 PTR_ICLRPrivBinder PEFile::GetBindingContext()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     PTR_ICLRPrivBinder pBindingContext = NULL;
-    
+
     // CoreLibrary is always bound in context of the TPA Binder. However, since it gets loaded and published
     // during EEStartup *before* DefaultContext Binder (aka TPAbinder) is initialized, we dont have a binding context to publish against.
     // Thus, we will always return NULL for its binding context.
@@ -2718,6 +2514,6 @@ PTR_ICLRPrivBinder PEFile::GetBindingContext()
             }
         }
     }
-    
+
     return pBindingContext;
 }

@@ -204,7 +204,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
             break;
         case InlineString: {
             ULONG numChars;
-            wchar_t str[84];
+            WCHAR str[84];
 
             hr = meta->GetUserString(arg.i, str, 80, &numChars);
             _ASSERTE(SUCCEEDED(hr));
@@ -212,7 +212,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
                 str[numChars] = 0;
             wcscpy_s(&str[79], 4, W("..."));
             *out << '"';
-            wchar_t* ptr = str;
+            WCHAR* ptr = str;
             while(*ptr != 0) {
                 if (*ptr == '\n')
                     *out << "\\n";
@@ -275,8 +275,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
                 size_t target = curILOffset + GET_UNALIGNED_VAL32(&arg.switch_.targets[i]);
                 setTarget(target, stackDepth()-1);
                 *out << "IL_"; out->hex(static_cast<unsigned __int64>(target), 4, OutString::zeroFill);
-                if (i < count)
-                    *out << ' ';
+                *out << ' ';
                 }
             } break;
         case InlinePhi: {
@@ -284,8 +283,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
             unsigned i;
             for (i = 0; i < count; i++) {
                 *out << GET_UNALIGNED_VAL32(&arg.phi.vars[i]);
-                if (i < count)
-                    *out << ' ';
+                *out << ' ';
                 }
             } break;
         default:

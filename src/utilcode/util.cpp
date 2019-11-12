@@ -44,8 +44,7 @@ void InitWinRTStatus()
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
-    
+
     WinRTStatusEnum winRTStatus = WINRT_STATUS_UNSUPPORTED;
 
     const WCHAR wszComBaseDll[] = W("\\combase.dll");
@@ -93,7 +92,7 @@ HRESULT GetHex(                         // Return status.
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     int         count = size * 2;       // # of bytes to take from string.
     unsigned int Result = 0;           // Result value.
     char          ch;
@@ -104,8 +103,8 @@ HRESULT GetHex(                         // Return status.
     {
         switch (ch)
         {
-            case '0': case '1': case '2': case '3': case '4': 
-            case '5': case '6': case '7': case '8': case '9': 
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
             Result = 16 * Result + (ch - '0');
             break;
 
@@ -156,7 +155,7 @@ HRESULT LPCSTRToGuid(                   // Return status.
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     int i;
 
     // Verify the surrounding syntax.
@@ -204,28 +203,105 @@ typedef HRESULT __stdcall DLLGETCLASSOBJECT(REFCLSID rclsid,
                                             REFIID   riid,
                                             void   **ppv);
 
-EXTERN_C const IID _IID_IClassFactory = 
+EXTERN_C const IID _IID_IClassFactory =
     {0x00000001, 0x0000, 0x0000, {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
+
+namespace
+{
+    HRESULT FakeCoCallDllGetClassObject(
+        REFCLSID rclsid,
+        LPCWSTR wszDllPath,
+        REFIID riid,
+        void **ppv,
+        HMODULE *phmodDll)
+    {
+        CONTRACTL
+        {
+            THROWS;
+        }
+        CONTRACTL_END;
+
+        _ASSERTE(ppv != nullptr);
+
+        HRESULT hr = S_OK;
+
+        // Initialize [out] HMODULE (if it was requested)
+        if (phmodDll != nullptr)
+            *phmodDll = nullptr;
+
+        bool fIsDllPathPrefix = (wszDllPath != nullptr) && (wcslen(wszDllPath) > 0) && (wszDllPath[wcslen(wszDllPath) - 1] == W('\\'));
+
+        // - An empty string will be treated as NULL.
+        // - A string ending will a backslash will be treated as a prefix for where to look for the DLL
+        //   if the InProcServer32 value is just a DLL name and not a full path.
+        StackSString ssDllName;
+        if ((wszDllPath == nullptr) || (wszDllPath[0] == W('\0')) || fIsDllPathPrefix)
+        {
+#ifndef FEATURE_PAL
+            IfFailRet(Clr::Util::Com::FindInprocServer32UsingCLSID(rclsid, ssDllName));
+
+            EX_TRY
+            {
+                if (fIsDllPathPrefix)
+                {
+                    SString::Iterator i = ssDllName.Begin();
+                    if (!ssDllName.Find(i, W('\\')))
+                    {   // If the InprocServer32 is just a DLL name (not a fully qualified path), then
+                        // prefix wszFilePath with wszDllPath.
+                        ssDllName.Insert(i, wszDllPath);
+                    }
+                }
+            }
+            EX_CATCH_HRESULT(hr);
+            IfFailRet(hr);
+
+            wszDllPath = ssDllName.GetUnicode();
+#else // !FEATURE_PAL
+            return E_FAIL;
+#endif // !FEATURE_PAL
+        }
+        _ASSERTE(wszDllPath != nullptr);
+
+        // We've got the name of the DLL to load, so load it.
+        HModuleHolder hDll = WszLoadLibraryEx(wszDllPath, nullptr, GetLoadWithAlteredSearchPathFlag());
+        if (hDll == nullptr)
+            return HRESULT_FROM_GetLastError();
+
+        // We've loaded the DLL, so find the DllGetClassObject function.
+        DLLGETCLASSOBJECT *dllGetClassObject = (DLLGETCLASSOBJECT*)GetProcAddress(hDll, "DllGetClassObject");
+        if (dllGetClassObject == nullptr)
+            return HRESULT_FROM_GetLastError();
+
+        // Call the function to get a class object for the rclsid and riid passed in.
+        IfFailRet(dllGetClassObject(rclsid, riid, ppv));
+
+        hDll.SuppressRelease();
+
+        if (phmodDll != nullptr)
+            *phmodDll = hDll.GetValue();
+
+        return hr;
+    }
+}
 
 // ----------------------------------------------------------------------------
 // FakeCoCreateInstanceEx
-// 
+//
 // Description:
 //     A private function to do the equivalent of a CoCreateInstance in cases where we
 //     can't make the real call. Use this when, for instance, you need to create a symbol
 //     reader in the Runtime but we're not CoInitialized. Obviously, this is only good
 //     for COM objects for which CoCreateInstance is just a glorified find-and-load-me
 //     operation.
-//     
+//
 // Arguments:
 //    * rclsid - [in] CLSID of object to instantiate
-//    * wszDllPath [in] - Path to profiler DLL.  If wszDllPath is NULL, FakeCoCreateInstanceEx 
+//    * wszDllPath [in] - Path to profiler DLL.  If wszDllPath is NULL, FakeCoCreateInstanceEx
 //        will look up the registry to find the path of the COM dll associated with rclsid.
 //        If the path ends in a backslash, FakeCoCreateInstanceEx will treat this as a prefix
 //        if the InprocServer32 found in the registry is a simple filename (not a full path).
 //        This allows the caller to specify the directory in which the InprocServer32 should
-//        be found. Also, if this path is provided and the InprocServer32 is MSCOREE.DLL, then
-//        the Server value is used instead, if it exists.
+//        be found.
 //    * riid - [in] IID of interface on object to return in ppv
 //    * ppv - [out] Pointer to implementation of requested interface
 //    * phmodDll - [out] HMODULE of DLL that was loaded to instantiate the COM object.
@@ -234,10 +310,10 @@ EXTERN_C const IID _IID_IClassFactory =
 //        caller may ignore this and the DLL will stay loaded forever. If caller
 //        specifies phmodDll==NULL, then this parameter is ignored and the HMODULE is not
 //        returned.
-//        
+//
 // Return Value:
 //    HRESULT indicating success or failure.
-//    
+//
 // Notes:
 //    * (*phmodDll) on [out] may always be trusted, even if this function returns an
 //        error. Therefore, even if creation of the COM object failed, if (*phmodDll !=
@@ -276,100 +352,6 @@ HRESULT FakeCoCreateInstanceEx(REFCLSID       rclsid,
     return hr;
 }
 
-HRESULT FakeCoCallDllGetClassObject(REFCLSID       rclsid,
-                               LPCWSTR        wszDllPath,
-                               REFIID riid,
-                               void **        ppv,
-                               HMODULE *      phmodDll)
-{
-    CONTRACTL
-    {
-        THROWS;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(ppv != NULL);
-    
-    HRESULT hr = S_OK;
-    
-    if (phmodDll != NULL)
-    {   // Initialize [out] HMODULE (if it was requested)
-        *phmodDll = NULL;
-    }
-
-    bool fIsDllPathPrefix = (wszDllPath != NULL) && (wszDllPath[wcslen(wszDllPath) - 1] == W('\\'));
-
-    // - An empty string will be treated as NULL.
-    // - A string ending will a backslash will be treated as a prefix for where to look for the DLL
-    //   if the InProcServer32 value is just a DLL name and not a full path.
-    StackSString ssDllName;
-    if ((wszDllPath == NULL) || (wszDllPath[0] == W('\0')) || fIsDllPathPrefix)
-    {
-#ifndef FEATURE_PAL    
-        IfFailRet(Clr::Util::Com::FindInprocServer32UsingCLSID(rclsid, ssDllName));
-
-        EX_TRY
-        {
-            if (fIsDllPathPrefix)
-            {
-                if (Clr::Util::Com::IsMscoreeInprocServer32(ssDllName))
-                {   // If the InprocServer32 is mscoree.dll, then we skip the shim and look for
-                    // the corresponding server DLL (if it exists) in the directory provided.
-                    hr = Clr::Util::Com::FindServerUsingCLSID(rclsid, ssDllName);
-
-                    if (FAILED(hr))
-                    {   // We don't fail if there is no server object, because in this case we assume that
-                        // the clsid is implemented in the runtime itself (clr.dll) and we do not place 
-                        // entries in the registry for this case.
-                        ssDllName.Set(MAIN_CLR_MODULE_NAME_W);
-                    }
-                }
-
-                SString::Iterator i = ssDllName.Begin();
-                if (!ssDllName.Find(i, W('\\')))
-                {   // If the InprocServer32 is just a DLL name (not a fully qualified path), then
-                    // prefix wszFilePath with wszDllPath.
-                    ssDllName.Insert(i, wszDllPath);
-                }
-            }
-        }
-        EX_CATCH_HRESULT(hr);
-        IfFailRet(hr);
-
-        wszDllPath = ssDllName.GetUnicode();
-#else // !FEATURE_PAL
-        return E_FAIL;
-#endif // !FEATURE_PAL
-    }
-    _ASSERTE(wszDllPath != NULL);
-
-    // We've got the name of the DLL to load, so load it.
-    HModuleHolder hDll = WszLoadLibraryEx(wszDllPath, NULL, GetLoadWithAlteredSearchPathFlag());
-    if (hDll == NULL)
-    {
-        return HRESULT_FROM_GetLastError();
-    }
-
-    // We've loaded the DLL, so find the DllGetClassObject function.
-    DLLGETCLASSOBJECT *dllGetClassObject = (DLLGETCLASSOBJECT*)GetProcAddress(hDll, "DllGetClassObject");
-    if (dllGetClassObject == NULL)
-    {
-        return HRESULT_FROM_GetLastError();
-    }
-
-    // Call the function to get a class object for the rclsid and riid passed in.
-    IfFailRet(dllGetClassObject(rclsid, riid, ppv));
-
-    hDll.SuppressRelease();
-
-    if (phmodDll != NULL)
-    {
-        *phmodDll = hDll.GetValue();
-    }
-
-    return hr;
-}
-
 #if USE_UPPER_ADDRESS
 static BYTE * s_CodeMinAddr;        // Preferred region to allocate the code in.
 static BYTE * s_CodeMaxAddr;
@@ -391,7 +373,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     if (PEDecoder::GetForceRelocs())
         return;
 #endif
-    
+
 //
     // If we are using the UPPER_ADDRESS space (on Win64)
     // then for any code heap that doesn't specify an address
@@ -402,7 +384,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     // Which are also placed in the UPPER_ADDRESS space.
     //
     SIZE_T reach = 0x7FFF0000u;
-    
+
     // We will choose the preferred code region based on the address of clr.dll. The JIT helpers
     // in clr.dll are the most heavily called functions.
     s_CodeMinAddr = (base + size > reach) ? (BYTE *)(base + size - reach) : (BYTE *)0;
@@ -410,7 +392,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
 
     BYTE * pStart;
 
-    if (s_CodeMinAddr <= (BYTE *)CODEHEAP_START_ADDRESS && 
+    if (s_CodeMinAddr <= (BYTE *)CODEHEAP_START_ADDRESS &&
         (BYTE *)CODEHEAP_START_ADDRESS < s_CodeMaxAddr)
     {
         // clr.dll got loaded at its preferred base address? (OS without ASLR - pre-Vista)
@@ -423,7 +405,7 @@ void InitCodeAllocHint(SIZE_T base, SIZE_T size, int randomPageOffset)
     {
         // clr.dll got address assigned by ASLR?
         // Try to occupy the space as far as possible to minimize collisions with other ASLR assigned
-        // addresses. Do not start at s_CodeMinAddr exactly so that we can also reach common native images 
+        // addresses. Do not start at s_CodeMinAddr exactly so that we can also reach common native images
         // that can be placed at higher addresses than clr.dll.
         pStart = s_CodeMinAddr + (s_CodeMaxAddr - s_CodeMinAddr) / 8;
     }
@@ -473,7 +455,7 @@ BOOL IsPreferredExecutableRange(void * p)
 // Handles the special requirements that we have on 64-bit platforms
 // where we want the executable memory to be located near clr.dll
 //
-BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize, 
+BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
                                  DWORD flAllocationType,
                                  DWORD flProtect)
 {
@@ -494,7 +476,7 @@ BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
     // since they are also placed in the UPPER_ADDRESS space.
     //
     BYTE * pHint = s_CodeAllocHint;
- 
+
     if (dwSize <= (SIZE_T)(s_CodeMaxAddr - s_CodeMinAddr) && pHint != NULL)
     {
         // Try to allocate in the preferred region after the hint
@@ -518,7 +500,7 @@ BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
         s_CodeAllocHint = NULL;
     }
 
-    // Fall through to 
+    // Fall through to
 #endif // USE_UPPER_ADDRESS
 
 #ifdef FEATURE_PAL
@@ -533,7 +515,7 @@ BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
 }
 
 //
-// Allocate free memory with specific alignment.                         
+// Allocate free memory with specific alignment.
 //
 LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, SIZE_T alignment)
 {
@@ -578,7 +560,7 @@ static DWORD ShouldInjectFaultInRange()
 //
 // Callers also should set dwSize to a multiple of sysInfo.dwAllocationGranularity (64k).
 // That way they can reserve a large region and commit smaller sized pages
-// from that region until it fills up.  
+// from that region until it fills up.
 //
 // This functions returns the reserved memory block upon success
 //
@@ -588,7 +570,7 @@ static DWORD ShouldInjectFaultInRange()
 
 BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
                                   const BYTE *pMaxAddr,
-                                  SIZE_T dwSize, 
+                                  SIZE_T dwSize,
                                   DWORD flAllocationType,
                                   DWORD flProtect)
 {
@@ -632,7 +614,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
 
     // If pMinAddr is BOT_MEMORY and pMaxAddr is TOP_MEMORY
-    // then we can call ClrVirtualAlloc instead 
+    // then we can call ClrVirtualAlloc instead
     if ((pMinAddr == (BYTE *) BOT_MEMORY) && (pMaxAddr == (BYTE *) TOP_MEMORY))
     {
         return (BYTE*) ClrVirtualAlloc(nullptr, dwSize, flAllocationType, flProtect);
@@ -647,7 +629,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 #endif // FEATURE_PAL
 
     // We will do one scan from [pMinAddr .. pMaxAddr]
-    // First align the tryAddr up to next 64k base address. 
+    // First align the tryAddr up to next 64k base address.
     // See docs for VirtualAllocEx and lpAddress and 64k alignment for reasons.
     //
     BYTE *   tryAddr            = (BYTE *)ALIGN_UP((BYTE *)pMinAddr, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
@@ -659,7 +641,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     while ((tryAddr + dwSize) <= (BYTE *) pMaxAddr)
     {
         MEMORY_BASIC_INFORMATION mbInfo;
-            
+
         // Use VirtualQuery to find out if this address is MEM_FREE
         //
         virtualQueryCount++;
@@ -669,11 +651,11 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
             virtualQueryFailed = true;
             break;
         }
-            
+
         // Is there enough memory free from this start location?
         // Note that for most versions of UNIX the mbInfo.RegionSize returned will always be 0
-        if ((mbInfo.State == MEM_FREE) && 
-            (mbInfo.RegionSize >= (SIZE_T) dwSize || mbInfo.RegionSize == 0)) 
+        if ((mbInfo.State == MEM_FREE) &&
+            (mbInfo.RegionSize >= (SIZE_T) dwSize || mbInfo.RegionSize == 0))
         {
             // Try reserving the memory using VirtualAlloc now
             pResult = (BYTE*)ClrVirtualAlloc(tryAddr, dwSize, MEM_RESERVE, flProtect);
@@ -741,59 +723,74 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 }
 
 //******************************************************************************
-// NumaNodeInfo 
+// NumaNodeInfo
 //******************************************************************************
 #if !defined(FEATURE_REDHAWK)
-/*static*/ NumaNodeInfo::PGNHNN NumaNodeInfo::m_pGetNumaHighestNodeNumber = NULL;
-/*static*/ NumaNodeInfo::PVAExN NumaNodeInfo::m_pVirtualAllocExNuma = NULL;
 
 /*static*/ LPVOID NumaNodeInfo::VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T dwSize,
                          DWORD allocType, DWORD prot, DWORD node)
 {
-    return (*m_pVirtualAllocExNuma)(hProc, lpAddr, dwSize, allocType, prot, node);
+    return ::VirtualAllocExNuma(hProc, lpAddr, dwSize, allocType, prot, node);
 }
-/*static*/ NumaNodeInfo::PGNPNEx NumaNodeInfo::m_pGetNumaProcessorNodeEx = NULL;
 
+#ifndef FEATURE_PAL
 /*static*/ BOOL NumaNodeInfo::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no)
 {
-    return (*m_pGetNumaProcessorNodeEx)(proc_no, node_no);
+    return ::GetNumaProcessorNodeEx(proc_no, node_no);
 }
+/*static*/ bool NumaNodeInfo::GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node)
+{
+    if (m_enableGCNumaAware)
+    {
+        DWORD currentProcsOnNode = 0;
+        for (int i = 0; i < m_nNodes; i++)
+        {
+            GROUP_AFFINITY processorMask;
+            if (GetNumaNodeProcessorMaskEx(i, &processorMask))
+            {
+                DWORD procsOnNode = 0;
+                uintptr_t mask = (uintptr_t)processorMask.Mask;
+                while (mask)
+                {
+                    procsOnNode++;
+                    mask &= mask - 1;
+                }
+
+                currentProcsOnNode = max(currentProcsOnNode, procsOnNode);
+            }
+        }
+
+        *max_procs_per_node = currentProcsOnNode;
+        *total_nodes = m_nNodes;
+        return true;
+    }
+
+    return false;
+}
+#else // !FEATURE_PAL
+/*static*/ BOOL NumaNodeInfo::GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no)
+{
+    return PAL_GetNumaProcessorNode(proc_no, node_no);
+}
+#endif // !FEATURE_PAL
 #endif
 
 /*static*/ BOOL NumaNodeInfo::m_enableGCNumaAware = FALSE;
+/*static*/ uint16_t NumaNodeInfo::m_nNodes = 0;
 /*static*/ BOOL NumaNodeInfo::InitNumaNodeInfoAPI()
 {
 #if !defined(FEATURE_REDHAWK)
     //check for numa support if multiple heaps are used
     ULONG highest = 0;
-    
+
     if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCNumaAware) == 0)
         return FALSE;
 
-#ifndef FEATURE_PAL
-    // check if required APIs are supported
-    HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
-#else
-    HMODULE hMod = GetCLRModule();
-#endif    
-    if (hMod == NULL)
-        return FALSE;
-
-    m_pGetNumaHighestNodeNumber = (PGNHNN) GetProcAddress(hMod, "GetNumaHighestNodeNumber");
-    if (m_pGetNumaHighestNodeNumber == NULL)
-        return FALSE;
-
     // fail to get the highest numa node number
-    if (!m_pGetNumaHighestNodeNumber(&highest) || (highest == 0))
+    if (!::GetNumaHighestNodeNumber(&highest) || (highest == 0))
         return FALSE;
 
-    m_pGetNumaProcessorNodeEx = (PGNPNEx) GetProcAddress(hMod, "GetNumaProcessorNodeEx");
-    if (m_pGetNumaProcessorNodeEx == NULL)
-        return FALSE;
-
-    m_pVirtualAllocExNuma = (PVAExN) GetProcAddress(hMod, "VirtualAllocExNuma");
-    if (m_pVirtualAllocExNuma == NULL)
-        return FALSE;
+    m_nNodes = (USHORT)(highest + 1);
 
     return TRUE;
 #else
@@ -811,41 +808,43 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     m_enableGCNumaAware = InitNumaNodeInfoAPI();
 }
 
+#ifndef FEATURE_PAL
+
 //******************************************************************************
-// NumaNodeInfo 
+// CPUGroupInfo
 //******************************************************************************
 #if !defined(FEATURE_REDHAWK)
-/*static*/ CPUGroupInfo::PGLPIEx CPUGroupInfo::m_pGetLogicalProcessorInformationEx = NULL;
-/*static*/ CPUGroupInfo::PSTGA   CPUGroupInfo::m_pSetThreadGroupAffinity = NULL;
-/*static*/ CPUGroupInfo::PGTGA   CPUGroupInfo::m_pGetThreadGroupAffinity = NULL;
-/*static*/ CPUGroupInfo::PGCPNEx CPUGroupInfo::m_pGetCurrentProcessorNumberEx = NULL;
-/*static*/ CPUGroupInfo::PGST    CPUGroupInfo::m_pGetSystemTimes = NULL;
 /*static*/ //CPUGroupInfo::PNTQSIEx CPUGroupInfo::m_pNtQuerySystemInformationEx = NULL;
 
-/*static*/ BOOL CPUGroupInfo::GetLogicalProcessorInformationEx(DWORD relationship,
+/*static*/ BOOL CPUGroupInfo::GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
                          SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count)
 {
     LIMITED_METHOD_CONTRACT;
-    return (*m_pGetLogicalProcessorInformationEx)(relationship, slpiex, count);
+    return ::GetLogicalProcessorInformationEx(relationship, slpiex, count);
 }
 
-/*static*/ BOOL CPUGroupInfo::SetThreadGroupAffinity(HANDLE h, 
-                        GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity)
+/*static*/ BOOL CPUGroupInfo::SetThreadGroupAffinity(HANDLE h,
+                        const GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity)
 {
     LIMITED_METHOD_CONTRACT;
-    return (*m_pSetThreadGroupAffinity)(h, groupAffinity, previousGroupAffinity);
+    return ::SetThreadGroupAffinity(h, groupAffinity, previousGroupAffinity);
 }
 
 /*static*/ BOOL CPUGroupInfo::GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity)
 {
     LIMITED_METHOD_CONTRACT;
-    return (*m_pGetThreadGroupAffinity)(h, groupAffinity);
+    return ::GetThreadGroupAffinity(h, groupAffinity);
 }
 
 /*static*/ BOOL CPUGroupInfo::GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime)
 {
     LIMITED_METHOD_CONTRACT;
-    return (*m_pGetSystemTimes)(idleTime, kernelTime, userTime);
+
+#ifndef FEATURE_PAL
+    return ::GetSystemTimes(idleTime, kernelTime, userTime);
+#else
+    return FALSE;
+#endif
 }
 #endif
 
@@ -857,53 +856,6 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 /*static*/ CPU_Group_Info *CPUGroupInfo::m_CPUGroupInfoArray = NULL;
 /*static*/ LONG CPUGroupInfo::m_initialization = 0;
 /*static*/ bool CPUGroupInfo::s_hadSingleProcessorAtStartup = false;
-
-// Check and setup function pointers for >64 LP Support
-/*static*/ BOOL CPUGroupInfo::InitCPUGroupInfoAPI()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
-#ifndef FEATURE_PAL    
-    HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
-#else
-    HMODULE hMod = GetCLRModule();
-#endif
-    if (hMod == NULL)
-        return FALSE;
-
-    m_pGetLogicalProcessorInformationEx = (PGLPIEx)GetProcAddress(hMod, "GetLogicalProcessorInformationEx");
-    if (m_pGetLogicalProcessorInformationEx == NULL)
-        return FALSE;
-
-    m_pSetThreadGroupAffinity = (PSTGA)GetProcAddress(hMod, "SetThreadGroupAffinity");
-    if (m_pSetThreadGroupAffinity == NULL)
-        return FALSE;
-
-    m_pGetThreadGroupAffinity = (PGTGA)GetProcAddress(hMod, "GetThreadGroupAffinity");
-    if (m_pGetThreadGroupAffinity == NULL)
-        return FALSE;
-
-    m_pGetCurrentProcessorNumberEx = (PGCPNEx)GetProcAddress(hMod, "GetCurrentProcessorNumberEx");
-    if (m_pGetCurrentProcessorNumberEx == NULL)
-        return FALSE;
-
-#ifndef FEATURE_PAL    
-    m_pGetSystemTimes = (PGST)GetProcAddress(hMod, "GetSystemTimes");
-    if (m_pGetSystemTimes == NULL)
-        return FALSE;
-#endif
-    
-    return TRUE;
-#else
-    return FALSE;
-#endif
-}
 
 #if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
 // Calculate greatest common divisor
@@ -931,7 +883,6 @@ DWORD LCM(DWORD u, DWORD v)
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -957,7 +908,7 @@ DWORD LCM(DWORD u, DWORD v)
         return FALSE;
 
     pSLPIEx = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)bBuffer;
-    if (!m_pGetLogicalProcessorInformationEx(RelationGroup, pSLPIEx, &cbSLPIEx))
+    if (!::GetLogicalProcessorInformationEx(RelationGroup, pSLPIEx, &cbSLPIEx))
     {
         delete[] bBuffer;
         return FALSE;
@@ -976,7 +927,7 @@ DWORD LCM(DWORD u, DWORD v)
     }
 
     m_CPUGroupInfoArray = new (nothrow) CPU_Group_Info[m_nGroups];
-    if (m_CPUGroupInfoArray == NULL) 
+    if (m_CPUGroupInfoArray == NULL)
     {
         delete[] bBuffer;
         return FALSE;
@@ -1015,7 +966,7 @@ DWORD LCM(DWORD u, DWORD v)
     WORD begin   = 0;
     WORD nr_proc = 0;
 
-    for (WORD i = 0; i < m_nGroups; i++) 
+    for (WORD i = 0; i < m_nGroups; i++)
     {
         nr_proc += m_CPUGroupInfoArray[i].nr_active;
         m_CPUGroupInfoArray[i].begin = begin;
@@ -1033,7 +984,6 @@ DWORD LCM(DWORD u, DWORD v)
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -1045,9 +995,6 @@ DWORD LCM(DWORD u, DWORD v)
     if (!enableGCCPUGroups)
         return;
 
-    if (!InitCPUGroupInfoAPI())
-        return;
-
     if (!InitCPUGroupInfoArray())
         return;
 
@@ -1057,7 +1004,7 @@ DWORD LCM(DWORD u, DWORD v)
     // initalGroup is whatever the CPU group that the main thread is running on
     GROUP_AFFINITY groupAffinity;
     CPUGroupInfo::GetThreadGroupAffinity(GetCurrentThread(), &groupAffinity);
-    m_initialGroup = groupAffinity.Group;  
+    m_initialGroup = groupAffinity.Group;
 
 	// only enable CPU groups if more than one group exists
 	BOOL hasMultipleGroups = m_nGroups > 1;
@@ -1089,18 +1036,17 @@ DWORD LCM(DWORD u, DWORD v)
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
-    // CPUGroupInfo needs to be initialized only once. This could happen in three cases 
+    // CPUGroupInfo needs to be initialized only once. This could happen in three cases
     // 1. CLR initialization at begining of EEStartup, or
     // 2. Sometimes, when hosted by ASP.NET, the hosting process may initialize ThreadPool
     //    before initializing CLR, thus require CPUGroupInfo to be initialized to determine
     //    if CPU group support should/could be enabled.
     // 3. Call into Threadpool functions before Threadpool _and_ CLR is initialized.
-    // Vast majority of time, CPUGroupInfo is initialized in case 1. or 2. 
+    // Vast majority of time, CPUGroupInfo is initialized in case 1. or 2.
     // The chance of contention will be extremely small, so the following code should be fine
     //
 retry:
@@ -1144,6 +1090,7 @@ retry:
         {
             *group_number = i;
             *group_processor_number = bDiff;
+
             break;
         }
         bDiff = processor_number - bTemp;
@@ -1159,7 +1106,6 @@ retry:
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -1172,7 +1118,7 @@ retry:
     proc_no.Group=0;
     proc_no.Number=0;
     proc_no.Reserved=0;
-    (*m_pGetCurrentProcessorNumberEx)(&proc_no);
+    ::GetCurrentProcessorNumberEx(&proc_no);
 
     DWORD fullNumber = 0;
     for (WORD i = 0; i < proc_no.Group; i++)
@@ -1183,6 +1129,24 @@ retry:
 #else
     return 0;
 #endif
+}
+
+// There can be different numbers of procs in groups. We take the max.
+/*static*/ bool CPUGroupInfo::GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group)
+{
+    if (m_enableGCCPUGroups)
+    {
+        *total_groups = m_nGroups;
+        DWORD currentProcsInGroup = 0;
+        for (WORD i = 0; i < m_nGroups; i++)
+        {
+            currentProcsInGroup = max(currentProcsInGroup, m_CPUGroupInfoArray[i].nr_active);
+        }
+        *max_procs_per_group = currentProcsInGroup;
+        return true;
+    }
+
+    return false;
 }
 
 #if !defined(FEATURE_REDHAWK)
@@ -1203,9 +1167,9 @@ retry:
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
-    for (i = 0; i < m_nGroups; i++) 
+    for (i = 0; i < m_nGroups; i++)
     {
-        minGroup = (m_initialGroup + i) % m_nGroups;	
+        minGroup = (m_initialGroup + i) % m_nGroups;
 
         // the group is not filled up, use it
         if (m_CPUGroupInfoArray[minGroup].activeThreadWeight / m_CPUGroupInfoArray[minGroup].groupWeight
@@ -1215,8 +1179,8 @@ retry:
 
     // all groups filled up, distribute proportionally
     minGroup = m_initialGroup;
-    minWeight = m_CPUGroupInfoArray[m_initialGroup].activeThreadWeight; 
-    for (i = 0; i < m_nGroups; i++) 
+    minWeight = m_CPUGroupInfoArray[m_initialGroup].activeThreadWeight;
+    for (i = 0; i < m_nGroups; i++)
     {
         if (m_CPUGroupInfoArray[i].activeThreadWeight < minWeight)
         {
@@ -1247,6 +1211,20 @@ found:
     m_CPUGroupInfoArray[group].activeThreadWeight -= m_CPUGroupInfoArray[group].groupWeight;
 #endif
 }
+
+BOOL CPUGroupInfo::GetCPUGroupRange(WORD group_number, WORD* group_begin, WORD* group_size)
+{
+    if (group_number >= m_nGroups)
+    {
+        return FALSE;
+    }
+
+    *group_begin = m_CPUGroupInfoArray[group_number].begin;
+    *group_size = m_CPUGroupInfoArray[group_number].nr_active;
+
+    return TRUE;
+}
+
 #endif
 
 /*static*/ BOOL CPUGroupInfo::CanEnableGCCPUGroups()
@@ -1260,6 +1238,7 @@ found:
     LIMITED_METHOD_CONTRACT;
     return m_threadUseAllCpuGroups;
 }
+#endif // !FEATURE_PAL
 
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
@@ -1269,17 +1248,18 @@ int GetCurrentProcessCpuCount()
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     static int cCPUs = 0;
 
     if (cCPUs != 0)
         return cCPUs;
 
-    int count = 0;
+    unsigned int count = 0;
+
+#ifndef FEATURE_PAL
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -1307,24 +1287,21 @@ int GetCurrentProcessCpuCount()
             count = 64;
     }
 
-#ifdef FEATURE_PAL
-    uint32_t cpuLimit;
-
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
-        count = cpuLimit;
-#endif
+#else // !FEATURE_PAL
+    count = PAL_GetLogicalCpuCountFromOS();
+#endif // !FEATURE_PAL
 
     cCPUs = count;
 
     return count;
 }
 
+#ifndef FEATURE_PAL
 DWORD_PTR GetCurrentProcessCpuMask()
 {
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -1341,6 +1318,7 @@ DWORD_PTR GetCurrentProcessCpuMask()
     return 0;
 #endif
 }
+#endif // !FEATURE_PAL
 
 uint32_t GetOsPageSizeUncached()
 {
@@ -1382,12 +1360,12 @@ void ConfigMethodSet::init(const CLRConfig::ConfigStringInfo & info)
         THROWS;
     }
     CONTRACTL_END;
-    
+
     // make sure that the memory was zero initialized
     _ASSERTE(m_inited == 0 || m_inited == 1);
 
     LPWSTR str = CLRConfig::GetConfigValue(info);
-    if (str) 
+    if (str)
     {
         m_list.Insert(str);
         delete[] str;
@@ -1435,7 +1413,7 @@ void ConfigDWORD::init_DontUse_(__in_z LPCWSTR keyName, DWORD defaultVal)
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     // make sure that the memory was zero initialized
     _ASSERTE(m_inited == 0 || m_inited == 1);
 
@@ -1451,7 +1429,7 @@ void ConfigString::init(const CLRConfig::ConfigStringInfo & info)
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     // make sure that the memory was zero initialized
     _ASSERTE(m_inited == 0 || m_inited == 1);
 
@@ -1477,24 +1455,24 @@ AssemblyNamesList::AssemblyNamesList(__in LPWSTR list)
     WCHAR prevChar = '?'; // dummy
     LPWSTR nameStart = NULL; // start of the name currently being processed. NULL if no current name
     AssemblyName ** ppPrevLink = &m_pNames;
-    
+
     for (LPWSTR listWalk = list; prevChar != '\0'; prevChar = *listWalk, listWalk++)
     {
         WCHAR curChar = *listWalk;
-        
+
         if (iswspace(curChar) || curChar == ';' || curChar == '\0' )
         {
             //
             // Found white-space
             //
-            
+
             if (nameStart)
             {
                 // Found the end of the current name
-                
+
                 AssemblyName * newName = new AssemblyName();
                 size_t nameLen = listWalk - nameStart;
-                
+
                 MAKE_UTF8PTR_FROMWIDE(temp, nameStart);
                 newName->m_assemblyName = new char[nameLen + 1];
                 memcpy(newName->m_assemblyName, temp, nameLen * sizeof(newName->m_assemblyName[0]));
@@ -1511,7 +1489,7 @@ AssemblyNamesList::AssemblyNamesList(__in LPWSTR list)
             //
             // Found the start of a new name
             //
-            
+
             nameStart = listWalk;
         }
     }
@@ -1542,7 +1520,7 @@ bool AssemblyNamesList::IsInList(LPCUTF8 assemblyName)
 {
     if (IsEmpty())
         return false;
-    
+
     for (AssemblyName * pName = m_pNames; pName; pName = pName->m_next)
     {
         if (_stricmp(pName->m_assemblyName, assemblyName) == 0)
@@ -1620,7 +1598,7 @@ void MethodNamesListBase::Insert(__in_z LPWSTR str)
 
                     // Take off the quote
                     if (bQuote) { len--; bQuote=false; }
-                    
+
                     nameBuf.className = new char[len + 1];
                     MAKE_UTF8PTR_FROMWIDE(temp, nameStart);
                     memcpy(nameBuf.className, temp, len*sizeof(nameBuf.className[0]));
@@ -1647,7 +1625,7 @@ void MethodNamesListBase::Insert(__in_z LPWSTR str)
                 {
                     str++;
                 }
-                       
+
                 nameStart++;
                 bQuote=true;
             }
@@ -1736,14 +1714,14 @@ void MethodNamesListBase::Insert(__in_z LPWSTR str)
 
 /**************************************************************/
 
-void MethodNamesListBase::Destroy() 
+void MethodNamesListBase::Destroy()
 {
     CONTRACTL
     {
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     for(MethodName * pName = pNames; pName; /**/)
     {
         if (pName->className)
@@ -1758,7 +1736,7 @@ void MethodNamesListBase::Destroy()
 }
 
 /**************************************************************/
-bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, PCCOR_SIGNATURE sig) 
+bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, PCCOR_SIGNATURE sig)
 {
     CONTRACTL
     {
@@ -1770,7 +1748,7 @@ bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, PCCOR_SIGN
     if (sig != NULL)
     {
         sig++;      // Skip calling convention
-        numArgs = CorSigUncompressData(sig);  
+        numArgs = CorSigUncompressData(sig);
     }
 
     return IsInList(methName, clsName, numArgs);
@@ -1795,7 +1773,7 @@ bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, CORINFO_SI
 }
 
 /**************************************************************/
-bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, int numArgs) 
+bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, int numArgs)
 {
     CONTRACTL
     {
@@ -1858,7 +1836,7 @@ bool MethodNamesListBase::IsInList(LPCUTF8 methName, LPCUTF8 clsName, int numArg
 //*****************************************************************************
 HRESULT validateOneArg(
     mdToken     tk,                     // [IN] Token whose signature needs to be validated.
-    SigParser  *pSig, 
+    SigParser  *pSig,
     ULONG       *pulNSentinels,         // [IN/OUT] Number of sentinels
     IMDInternalImport*  pImport,        // [IN] Internal MD Import interface ptr
     BOOL        bNoVoidAllowed)         // [IN] Flag indicating whether "void" is disallowed for this arg
@@ -1867,10 +1845,9 @@ HRESULT validateOneArg(
     CONTRACTL
     {
         NOTHROW;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
-    
+
     BYTE        elementType;          // Current element type being processed.
     mdToken     token;                  // Embedded token.
     ULONG       ulArgCnt;               // Argument count for function pointer.
@@ -1879,22 +1856,21 @@ HRESULT validateOneArg(
     ULONG       ulSizes;                // Count of sized dimensions of the array.
     ULONG       ulLbnds;                // Count of lower bounds of the array.
     ULONG       ulCallConv;
-    
+
     HRESULT     hr = S_OK;              // Value returned.
     BOOL        bRepeat = TRUE;         // MODOPT and MODREQ belong to the arg after them
-    
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
+
     while(bRepeat)
     {
         bRepeat = FALSE;
         // Validate that the argument is not missing.
-        
+
         // Get the element type.
         if (FAILED(pSig->GetByte(&elementType)))
         {
             IfFailGo(VLDTR_E_SIG_MISSARG);
         }
-        
+
         // Walk past all the modifier types.
         while (elementType & ELEMENT_TYPE_MODIFIER)
         {
@@ -1908,12 +1884,12 @@ HRESULT validateOneArg(
                 IfFailGo(VLDTR_E_SIG_MISSELTYPE);
             }
         }
-        
+
         switch (elementType)
         {
             case ELEMENT_TYPE_VOID:
                 if(bNoVoidAllowed) IfFailGo(VLDTR_E_SIG_BADVOID);
-                
+
             case ELEMENT_TYPE_BOOLEAN:
             case ELEMENT_TYPE_CHAR:
             case ELEMENT_TYPE_I1:
@@ -1963,45 +1939,45 @@ HRESULT validateOneArg(
                     if((rid==0)||(rid > maxrid)) IfFailGo(VLDTR_E_SIG_TKNBAD);
                 }
                 break;
-                
-            case ELEMENT_TYPE_FNPTR: 
+
+            case ELEMENT_TYPE_FNPTR:
                 // <TODO>@todo: More function pointer validation?</TODO>
                 // Validate that calling convention is present.
                 if (FAILED(pSig->GetCallingConvInfo(&ulCallConv)))
                 {
                     IfFailGo(VLDTR_E_SIG_MISSFPTR);
                 }
-                if(((ulCallConv & IMAGE_CEE_CS_CALLCONV_MASK) >= IMAGE_CEE_CS_CALLCONV_MAX) 
+                if(((ulCallConv & IMAGE_CEE_CS_CALLCONV_MASK) >= IMAGE_CEE_CS_CALLCONV_MAX)
                     ||((ulCallConv & IMAGE_CEE_CS_CALLCONV_EXPLICITTHIS)
                     &&(!(ulCallConv & IMAGE_CEE_CS_CALLCONV_HASTHIS)))) IfFailGo(VLDTR_E_MD_BADCALLINGCONV);
-                
+
                 // Validate that argument count is present.
                 if (FAILED(pSig->GetData(&ulArgCnt)))
                 {
                     IfFailGo(VLDTR_E_SIG_MISSFPTRARGCNT);
                 }
-                
+
                 // FNPTR signature must follow the rules of MethodDef
                 // Validate and consume return type.
                 IfFailGo(validateOneArg(mdtMethodDef, pSig, NULL, pImport, FALSE));
-                
+
                 // Validate and consume the arguments.
                 while(ulArgCnt--)
                 {
                     IfFailGo(validateOneArg(mdtMethodDef, pSig, NULL, pImport, TRUE));
                 }
                 break;
-                
+
             case ELEMENT_TYPE_ARRAY:
                 // Validate and consume the base type.
                 IfFailGo(validateOneArg(tk, pSig, pulNSentinels, pImport, TRUE));
-                
+
                 // Validate that the rank is present.
                 if (FAILED(pSig->GetData(&ulRank)))
                 {
                     IfFailGo(VLDTR_E_SIG_MISSRANK);
                 }
-                
+
                 // Process the sizes.
                 if (ulRank)
                 {
@@ -2010,7 +1986,7 @@ HRESULT validateOneArg(
                     {
                         IfFailGo(VLDTR_E_SIG_MISSNSIZE);
                     }
-                    
+
                     // Loop over the sizes.
                     while(ulSizes--)
                     {
@@ -2020,13 +1996,13 @@ HRESULT validateOneArg(
                             IfFailGo(VLDTR_E_SIG_MISSSIZE);
                         }
                     }
-                    
+
                     // Validate that the count of lower bounds is specified.
                     if (FAILED(pSig->GetData(&ulLbnds)))
                     {
                         IfFailGo(VLDTR_E_SIG_MISSNLBND);
                     }
-                    
+
                     // Loop over the lower bounds.
                     while(ulLbnds--)
                     {
@@ -2045,46 +2021,44 @@ HRESULT validateOneArg(
                     {
                         IfFailGo(VLDTR_E_SIG_MISSFPTRARGCNT);
                     }
-                    
+
                     //@todo GENERICS: check that index is in range
                     break;
-                    
+
                 case ELEMENT_TYPE_GENERICINST:
                     // Validate the generic type.
                     IfFailGo(validateOneArg(tk, pSig, pulNSentinels, pImport, TRUE));
-                    
+
                     // Validate that parameter count is present.
                     if (FAILED(pSig->GetData(&ulArgCnt)))
                     {
                         IfFailGo(VLDTR_E_SIG_MISSFPTRARGCNT);
                     }
-                    
+
                 //@todo GENERICS: check that number of parameters matches definition?
-                    
+
                     // Validate and consume the parameters.
                     while(ulArgCnt--)
                     {
                         IfFailGo(validateOneArg(tk, pSig, NULL, pImport, TRUE));
                     }
                     break;
-                    
+
             case ELEMENT_TYPE_SENTINEL: // this case never works because all modifiers are skipped before switch
                 if(TypeFromToken(tk) == mdtMethodDef) IfFailGo(VLDTR_E_SIG_SENTINMETHODDEF);
                 break;
-                
+
             default:
                 IfFailGo(VLDTR_E_SIG_BADELTYPE);
                 break;
         }   // switch (ulElementType)
     } // end while(bRepeat)
 ErrExit:
-    
-    END_SO_INTOLERANT_CODE;
     return hr;
 }   // validateOneArg()
 
 //*****************************************************************************
-// This function validates the given Method/Field/Standalone signature.  
+// This function validates the given Method/Field/Standalone signature.
 //@todo GENERICS: MethodInstantiation?
 //*****************************************************************************
 HRESULT validateTokenSig(
@@ -2099,7 +2073,7 @@ HRESULT validateTokenSig(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     ULONG       ulCallConv;             // Calling convention.
     ULONG       ulArgCount = 1;         // Count of arguments (1 because of the return type)
     ULONG       ulTyArgCount = 0;         // Count of type arguments
@@ -2108,7 +2082,7 @@ HRESULT validateTokenSig(
     HRESULT     hr = S_OK;              // Value returned.
     ULONG       ulNSentinels = 0;
     SigParser   sig(pbSig, cbSig);
-    
+
     _ASSERTE(TypeFromToken(tk) == mdtMethodDef ||
              TypeFromToken(tk) == mdtMemberRef ||
              TypeFromToken(tk) == mdtSignature ||
@@ -2118,7 +2092,7 @@ HRESULT validateTokenSig(
     if (!pbSig || !cbSig) return VLDTR_E_SIGNULL;
 
     // Validate the calling convention.
-    
+
     // Moves behind calling convention
     IfFailRet(sig.GetCallingConvInfo(&ulCallConv));
     i = ulCallConv & IMAGE_CEE_CS_CALLCONV_MASK;
@@ -2128,37 +2102,37 @@ HRESULT validateTokenSig(
             // If HASTHIS is set on the calling convention, the method should not be static.
             if ((ulCallConv & IMAGE_CEE_CS_CALLCONV_HASTHIS) &&
                 IsMdStatic(dwFlags)) return VLDTR_E_MD_THISSTATIC;
-            
+
             // If HASTHIS is not set on the calling convention, the method should be static.
             if (!(ulCallConv & IMAGE_CEE_CS_CALLCONV_HASTHIS) &&
                 !IsMdStatic(dwFlags)) return VLDTR_E_MD_NOTTHISNOTSTATIC;
             // fall thru to callconv check;
-            
+
         case mdtMemberRef:
             if(i == IMAGE_CEE_CS_CALLCONV_FIELD) return validateOneArg(tk, &sig, NULL, pImport, TRUE);
-            
+
             // EXPLICITTHIS and native call convs are for stand-alone sigs only (for calli)
             if(((i != IMAGE_CEE_CS_CALLCONV_DEFAULT)&&( i != IMAGE_CEE_CS_CALLCONV_VARARG))
                 || (ulCallConv & IMAGE_CEE_CS_CALLCONV_EXPLICITTHIS)) return VLDTR_E_MD_BADCALLINGCONV;
             break;
-            
+
         case mdtSignature:
             if(i != IMAGE_CEE_CS_CALLCONV_LOCAL_SIG) // then it is function sig for calli
             {
-                if((i >= IMAGE_CEE_CS_CALLCONV_MAX) 
+                if((i >= IMAGE_CEE_CS_CALLCONV_MAX)
                     ||((ulCallConv & IMAGE_CEE_CS_CALLCONV_EXPLICITTHIS)
                     &&(!(ulCallConv & IMAGE_CEE_CS_CALLCONV_HASTHIS)))) return VLDTR_E_MD_BADCALLINGCONV;
             }
             else
-                ulArgIx = 1;        // Local variable signatures don't have a return type 
+                ulArgIx = 1;        // Local variable signatures don't have a return type
             break;
-            
+
         case mdtFieldDef:
             if(i != IMAGE_CEE_CS_CALLCONV_FIELD) return VLDTR_E_MD_BADCALLINGCONV;
             return validateOneArg(tk, &sig, NULL, pImport, TRUE);
     }
     // Is there any sig left for arguments?
-    
+
     // Get the type argument count
     if (ulCallConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
     {
@@ -2167,23 +2141,23 @@ HRESULT validateTokenSig(
             return VLDTR_E_MD_NOARGCNT;
         }
     }
-    
+
     // Get the argument count.
     if (FAILED(sig.GetData(&ulArgCount)))
     {
         return VLDTR_E_MD_NOARGCNT;
     }
-    
+
     // Validate the return type and the arguments.
     // (at this moment ulArgCount = num.args+1, ulArgIx = (standalone sig. ? 1 :0); )
     for(; ulArgIx < ulArgCount; ulArgIx++)
     {
         if(FAILED(hr = validateOneArg(tk, &sig, &ulNSentinels, pImport, (ulArgIx!=0)))) return hr;
     }
-    
+
     // <TODO>@todo: we allow junk to be at the end of the signature (we may not consume it all)
     // do we care?</TODO>
-    
+
     if((ulNSentinels != 0) && ((ulCallConv & IMAGE_CEE_CS_CALLCONV_MASK) != IMAGE_CEE_CS_CALLCONV_VARARG ))
         return VLDTR_E_SIG_SENTMUSTVARARG;
     if(ulNSentinels > 1) return VLDTR_E_SIG_MULTSENTINELS;
@@ -2197,7 +2171,7 @@ HRESULT GetImageRuntimeVersionString(PVOID pMetaData, LPCSTR* pString)
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     _ASSERTE(pString);
     STORAGESIGNATURE* pSig = (STORAGESIGNATURE*) pMetaData;
 
@@ -2213,7 +2187,7 @@ HRESULT GetImageRuntimeVersionString(PVOID pMetaData, LPCSTR* pString)
 
     if (pSig->GetMajorVer() == 1 && pSig->GetMinorVer() < 1)
         return CLDB_E_FILE_OLDVER;
-    
+
     // Header data starts after signature.
     *pString = (LPCSTR) pSig->pVersion;
     return S_OK;
@@ -2232,7 +2206,7 @@ HRESULT Utf2Quick(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     HRESULT     hr = S_OK;              // A result.
     int         iReqLen;                // Required additional length.
     int         iActLen;
@@ -2262,13 +2236,13 @@ HRESULT Utf2Quick(
     iReqLen = WszMultiByteToWideChar(CP_UTF8, 0, pStr, -1, rNewStr, (int)(cchAvail.Value()));
 
     // If the buffer was too small, determine what is required.
-    if (iReqLen == 0) 
+    if (iReqLen == 0)
         bAlloc = iReqLen = WszMultiByteToWideChar(CP_UTF8, 0, pStr, -1, 0, 0);
     // Resize the buffer.  If the buffer was large enough, this just sets the internal
-    //  counter, but if it was too small, this will attempt a reallocation.  Note that 
+    //  counter, but if it was too small, this will attempt a reallocation.  Note that
     //  the length includes the terminating W('/0').
     IfFailGo(rStr.ReSizeNoThrow(iCurLen+iReqLen));
-    // If we had to realloc, then do the conversion again, now that the buffer is 
+    // If we had to realloc, then do the conversion again, now that the buffer is
     //  large enough.
     if (bAlloc) {
         //recalculating cchAvail since MaxSize could have been changed.
@@ -2280,7 +2254,7 @@ HRESULT Utf2Quick(
         }
         //reculculating rNewStr
         rNewStr = rStr.Ptr()+iCurLen;
-        
+
         if(rNewStr < rStr.Ptr())
         {
         _ASSERTE_MSG(false, "Integer overflow/underflow");
@@ -2301,7 +2275,7 @@ ErrExit:
 UINT64 GetIA64Imm64(UINT64 * pBundle)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     UINT64 temp0 = PTR_UINT64(pBundle)[0];
     UINT64 temp1 = PTR_UINT64(pBundle)[1];
 
@@ -2311,21 +2285,21 @@ UINT64 GetIA64Imm64(UINT64 * pBundle)
 UINT64 GetIA64Imm64(UINT64 qword0, UINT64 qword1)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     UINT64 imm64 = 0;
-    
+
 #ifdef _DEBUG_IMPL
     //
     // make certain we're decoding a movl opcode, with template 4 or 5
     //
     UINT64    templa = (qword0 >>  0) & 0x1f;
     UINT64    opcode = (qword1 >> 60) & 0xf;
-    
+
     _ASSERTE((opcode == 0x6) && ((templa == 0x4) || (templa == 0x5)));
-#endif        
+#endif
 
     imm64  = (qword1 >> 59) << 63;       //  1 i
-    imm64 |= (qword1 << 41) >>  1;       // 23 high bits of imm41 
+    imm64 |= (qword1 << 41) >>  1;       // 23 high bits of imm41
     imm64 |= (qword0 >> 46) << 22;       // 18 low  bits of imm41
     imm64 |= (qword1 >> 23) & 0x200000;  //  1 ic
     imm64 |= (qword1 >> 29) & 0x1F0000;  //  5 imm5c
@@ -2342,16 +2316,16 @@ UINT64 GetIA64Imm64(UINT64 qword0, UINT64 qword1)
 void PutIA64Imm64(UINT64 * pBundle, UINT64 imm64)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
 #ifdef _DEBUG_IMPL
     //
     // make certain we're decoding a movl opcode, with template 4 or 5
     //
     UINT64    templa = (pBundle[0] >>  0) & 0x1f;
     UINT64    opcode = (pBundle[1] >> 60) & 0xf ;
-    
+
     _ASSERTE((opcode == 0x6) && ((templa == 0x4) || (templa == 0x5)));
-#endif        
+#endif
 
     const UINT64 mask0 = UI64(0x00003FFFFFFFFFFF);
     const UINT64 mask1 = UI64(0xF000080FFF800000);
@@ -2378,15 +2352,15 @@ void PutIA64Imm64(UINT64 * pBundle, UINT64 imm64)
 }
 
 //*****************************************************************************
-//  Extract the IP-Relative signed 25-bit immediate from an IA64 bundle 
+//  Extract the IP-Relative signed 25-bit immediate from an IA64 bundle
 //  (Formats B1, B2 or B3)
-//  Note that due to branch target alignment requirements 
+//  Note that due to branch target alignment requirements
 //       the lowest four bits in the result will always be zero.
 //*****************************************************************************
 INT32 GetIA64Rel25(UINT64 * pBundle, UINT32 slot)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     UINT64 temp0 = PTR_UINT64(pBundle)[0];
     UINT64 temp1 = PTR_UINT64(pBundle)[1];
 
@@ -2396,9 +2370,9 @@ INT32 GetIA64Rel25(UINT64 * pBundle, UINT32 slot)
 INT32 GetIA64Rel25(UINT64 qword0, UINT64 qword1, UINT32 slot)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     INT32 imm25 = 0;
-    
+
     if (slot == 2)
     {
         if ((qword1 >> 59) & 1)
@@ -2425,13 +2399,13 @@ INT32 GetIA64Rel25(UINT64 qword0, UINT64 qword1, UINT32 slot)
 //*****************************************************************************
 //  Deposit the IP-Relative signed 25-bit immediate into an IA64 bundle
 //  (Formats B1, B2 or B3)
-//  Note that due to branch target alignment requirements 
+//  Note that due to branch target alignment requirements
 //       the lowest four bits are required to be zero.
 //*****************************************************************************
 void PutIA64Rel25(UINT64 * pBundle, UINT32 slot, INT32 imm25)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     _ASSERTE((imm25 & 0xF) == 0);
 
     if (slot == 2)
@@ -2441,10 +2415,10 @@ void PutIA64Rel25(UINT64 * pBundle, UINT32 slot, INT32 imm25)
         pBundle[1] &= mask1;
 
         UINT64 temp1;
-        
+
         temp1  = (UINT64) (imm25 & 0x1000000) << 35;     //  1 s
         temp1 |= (UINT64) (imm25 & 0x0FFFFF0) << 32;     // 20 imm20b
-        
+
         /* Or in the new bits used in the imm64 */
         pBundle[1] |= temp1;
     }
@@ -2455,14 +2429,14 @@ void PutIA64Rel25(UINT64 * pBundle, UINT32 slot, INT32 imm25)
         /* Clear all bits used as part of the imm25 */
         pBundle[0] &= mask0;
         pBundle[1] &= mask1;
-        
+
         UINT64 temp0;
         UINT64 temp1;
-        
+
         temp1  = (UINT64) (imm25 & 0x1000000) >>  7;     //  1 s
         temp1 |= (UINT64) (imm25 & 0x0FFFE00) >>  9;     // high 15 of imm20b
         temp0  = (UINT64) (imm25 & 0x00001F0) << 55;     // low   5 of imm20b
-        
+
         /* Or in the new bits used in the imm64 */
         pBundle[0] |= temp0;
         pBundle[1] |= temp1;
@@ -2474,10 +2448,10 @@ void PutIA64Rel25(UINT64 * pBundle, UINT32 slot, INT32 imm25)
         pBundle[0] &= mask0;
 
         UINT64 temp0;
-        
+
         temp0  = (UINT64) (imm25 & 0x1000000) << 16;     //  1 s
         temp0 |= (UINT64) (imm25 & 0x0FFFFF0) << 14;     // 20 imm20b
-        
+
         /* Or in the new bits used in the imm64 */
         pBundle[0] |= temp0;
 
@@ -2486,13 +2460,13 @@ void PutIA64Rel25(UINT64 * pBundle, UINT32 slot, INT32 imm25)
 }
 
 //*****************************************************************************
-//  Extract the IP-Relative signed 64-bit immediate from an IA64 bundle 
+//  Extract the IP-Relative signed 64-bit immediate from an IA64 bundle
 //  (Formats X3 or X4)
 //*****************************************************************************
 INT64 GetIA64Rel64(UINT64 * pBundle)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     UINT64 temp0 = PTR_UINT64(pBundle)[0];
     UINT64 temp1 = PTR_UINT64(pBundle)[1];
 
@@ -2502,22 +2476,22 @@ INT64 GetIA64Rel64(UINT64 * pBundle)
 INT64 GetIA64Rel64(UINT64 qword0, UINT64 qword1)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     INT64 imm64 = 0;
-    
+
 #ifdef _DEBUG_IMPL
     //
     // make certain we're decoding a brl opcode, with template 4 or 5
     //
     UINT64       templa = (qword0 >>  0) & 0x1f;
     UINT64       opcode = (qword1 >> 60) & 0xf;
-    
+
     _ASSERTE(((opcode == 0xC) || (opcode == 0xD)) &&
              ((templa == 0x4) || (templa == 0x5)));
-#endif        
+#endif
 
     imm64  = (qword1 >> 59) << 63;         //  1 i
-    imm64 |= (qword1 << 41) >>  1;         // 23 high bits of imm39 
+    imm64 |= (qword1 << 41) >>  1;         // 23 high bits of imm39
     imm64 |= (qword0 >> 48) << 24;         // 16 low  bits of imm39
     imm64 |= (qword1 >> 32) & 0xFFFFF0;    // 20 imm20b
                                           //  4 bits of zeros
@@ -2531,18 +2505,18 @@ INT64 GetIA64Rel64(UINT64 qword0, UINT64 qword1)
 void PutIA64Rel64(UINT64 * pBundle, INT64 imm64)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
 #ifdef _DEBUG_IMPL
     //
     // make certain we're decoding a brl opcode, with template 4 or 5
     //
     UINT64    templa = (pBundle[0] >>  0) & 0x1f;
     UINT64    opcode = (pBundle[1] >> 60) & 0xf;
-    
+
     _ASSERTE(((opcode == 0xC) || (opcode == 0xD)) &&
              ((templa == 0x4) || (templa == 0x5)));
     _ASSERTE((imm64 & 0xF) == 0);
-#endif        
+#endif
 
     const UINT64 mask0 = UI64(0x00003FFFFFFFFFFF);
     const UINT64 mask1 = UI64(0xF700000FFF800000);
@@ -2553,7 +2527,7 @@ void PutIA64Rel64(UINT64 * pBundle, INT64 imm64)
 
     UINT64 temp0  = (imm64 & UI64(0x000000FFFF000000)) << 24;  // 16 low  bits of imm39
     UINT64 temp1  = (imm64 & UI64(0x8000000000000000)) >>  4   //  1 i
-                  | (imm64 & UI64(0x7FFFFF0000000000)) >> 40   // 23 high bits of imm39 
+                  | (imm64 & UI64(0x7FFFFF0000000000)) >> 40   // 23 high bits of imm39
                   | (imm64 & UI64(0x0000000000FFFFF0)) << 32;  // 20 imm20b
 
     /* Or in the new bits used in the imm64 */
@@ -2568,7 +2542,7 @@ void PutIA64Rel64(UINT64 * pBundle, INT64 imm64)
 static FORCEINLINE UINT16 GetThumb2Imm16(UINT16 * p)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     return ((p[0] << 12) & 0xf000) |
            ((p[0] <<  1) & 0x0800) |
            ((p[1] >>  4) & 0x0700) |
@@ -2637,7 +2611,7 @@ INT32 GetThumb2BlRel24(UINT16 * p)
     UINT32 J2 = Opcode1 >> 11;
     UINT32 J1 = Opcode1 >> 13;
 
-    INT32 ret = 
+    INT32 ret =
         ((S << 24)              & 0x1000000) |
         (((J1 ^ S ^ 1) << 23)   & 0x0800000) |
         (((J2 ^ S ^ 1) << 22)   & 0x0400000) |
@@ -2662,7 +2636,7 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24)
     // Ensure that the ThumbBit is not set on the offset
     // as it cannot be encoded.
     _ASSERTE(!(imm24 & THUMB_CODE));
-#endif // _TARGET_ARM_    
+#endif // _TARGET_ARM_
 
     USHORT Opcode0 = p[0];
     USHORT Opcode1 = p[1];
@@ -2683,7 +2657,7 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24)
 }
 
 //*****************************************************************************
-//  Extract the PC-Relative offset from a b or bl instruction 
+//  Extract the PC-Relative offset from a b or bl instruction
 //*****************************************************************************
 INT32 GetArm64Rel28(UINT32 * pCode)
 {
@@ -2691,8 +2665,8 @@ INT32 GetArm64Rel28(UINT32 * pCode)
 
     UINT32 branchInstr = *pCode;
 
-    // first shift 6 bits left to set the sign bit, 
-    // then arithmetic shift right by 4 bits 
+    // first shift 6 bits left to set the sign bit,
+    // then arithmetic shift right by 4 bits
     INT32 imm28 = (((INT32)(branchInstr & 0x03FFFFFF)) << 6) >> 4;
 
     return imm28;
@@ -2734,7 +2708,7 @@ INT32 GetArm64Rel12(UINT32 * pCode)
 }
 
 //*****************************************************************************
-//  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
+//  Deposit the PC-Relative offset 'imm28' into a b or bl instruction
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28)
 {
@@ -2922,17 +2896,17 @@ LPWSTR *SegmentCommandLine(LPCWSTR lpCmdLine, DWORD *pNumArgs)
                 }
                 numslash /= 2;          /* divide numslash by two */
             }
-    
+
             /* copy slashes */
             while (numslash--)
             {
                 *pdst++ = W('\\');
             }
-    
+
             /* if at end of arg, break loop */
             if (*psrc == W('\0') || (!inquote && (*psrc == W(' ') || *psrc == W('\t'))))
                 break;
-    
+
             /* copy character into argument */
             if (copychar)
             {
@@ -2980,7 +2954,7 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip)
     param.fRet = FALSE;
 
 // UNIXTODO: implement a proper version for PAL
-#ifndef FEATURE_PAL   
+#ifndef FEATURE_PAL
     PAL_TRY(Param *, pParam, &param)
     {
         PTR_BYTE pBase = dac_cast<PTR_BYTE>(pParam->hModule);
@@ -2989,7 +2963,7 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip)
         PTR_IMAGE_NT_HEADERS pNT  = NULL;
         USHORT cbOptHdr;
         PCODE baseAddr;
-        
+
         //
         // First, must validate the format of the PE headers to make sure that
         // the fields we're interested in using exist in the image.
@@ -3049,7 +3023,7 @@ lDone: ;
     {
     }
     PAL_ENDTRY
-#endif // !FEATURE_PAL    
+#endif // !FEATURE_PAL
 
     return param.fRet;
 }
@@ -3063,7 +3037,7 @@ lDone: ;
 // outside the VM folder. Its limited since we don't have access to the
 // throwable.
 //
-// These functions are also wrapped by the corresponding CEHelper 
+// These functions are also wrapped by the corresponding CEHelper
 // methods in excep.cpp.
 
 // Given an exception code, this method returns a BOOL to indicate if the
@@ -3111,21 +3085,6 @@ void EnableTerminationOnHeapCorruption()
     HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
 }
 
-#ifdef FEATURE_COMINTEROP
-BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
-{
-    // let's simply check for all CLSIDs that are known to be runtime implemented and capped to 2.0
-    return (
-            rclsid == CLSID_ComCallUnmarshal ||
-            rclsid == CLSID_CorMetaDataDispenser ||
-            rclsid == CLSID_CorMetaDataDispenserRuntime ||
-            rclsid == CLSID_TypeNameFactory);
-}
-#endif // FEATURE_COMINTEROP
-
-
-
-
 namespace Clr
 {
 namespace Util
@@ -3133,92 +3092,102 @@ namespace Util
     static BOOL g_fLocalAppDataDirectoryInitted = FALSE;
     static WCHAR *g_wszLocalAppDataDirectory = NULL;
 
-// This api returns a pointer to a null-terminated string that contains the local appdata directory
-// or it returns NULL in the case that the directory could not be found. The return value from this function
-// is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-        } CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        *ppwzLocalAppDataDirectory = NULL;
-
-        EX_TRY
-        {
-            if (!g_fLocalAppDataDirectoryInitted)
-            {
-                WCHAR *wszLocalAppData = NULL;
-
-                DWORD cCharsNeeded;
-                cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), NULL, 0);
-
-                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_LONGPATH))
-                {
-                    wszLocalAppData = new WCHAR[cCharsNeeded];
-                    cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), wszLocalAppData, cCharsNeeded);
-                    if (cCharsNeeded != 0)
-                    {
-                        // We've collected the appropriate app data directory into a local. Now publish it.
-                        if (InterlockedCompareExchangeT(&g_wszLocalAppDataDirectory, wszLocalAppData, NULL) == NULL)
-                        {
-                            // This variable doesn't need to be freed, as it has been stored in the global
-                            wszLocalAppData = NULL;
-                        }
-                    }
-                }
-
-                g_fLocalAppDataDirectoryInitted = TRUE;
-                delete[] wszLocalAppData;
-            }
-        }
-        EX_CATCH_HRESULT(hr);
-
-        if (SUCCEEDED(hr))
-            *ppwzLocalAppDataDirectory = g_wszLocalAppDataDirectory;
-
-        return hr;
-    }
-
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-        } CONTRACTL_END;
-
-        if (pwzLocalAppDataDirectory == NULL || *pwzLocalAppDataDirectory == W('\0'))
-            return E_INVALIDARG;
-
-        if (g_fLocalAppDataDirectoryInitted)
-            return E_UNEXPECTED;
-
-        HRESULT hr = S_OK;
-
-        EX_TRY
-        {
-            size_t size = wcslen(pwzLocalAppDataDirectory) + 1;
-            WCHAR *wszLocalAppData = new WCHAR[size];
-            wcscpy_s(wszLocalAppData, size, pwzLocalAppDataDirectory);
-
-            // We've collected the appropriate app data directory into a local. Now publish it.
-            if (InterlockedCompareExchangeT(&g_wszLocalAppDataDirectory, wszLocalAppData, NULL) != NULL)
-            {
-                // Someone else already set LocalAppData. Free our copy and return an error.
-                delete[] wszLocalAppData;
-                hr = E_UNEXPECTED;
-            }
-
-            g_fLocalAppDataDirectoryInitted = TRUE;
-        }
-        EX_CATCH_HRESULT(hr);
-
-        return hr;
-    }
-
 #ifndef FEATURE_PAL
+    // Struct used to scope suspension of client impersonation for the current thread.
+    // https://docs.microsoft.com/en-us/windows/desktop/secauthz/client-impersonation
+    class SuspendImpersonation
+    {
+    public:
+        SuspendImpersonation()
+            : _token(nullptr)
+        {
+            // The approach used here matches what is used elsewhere in CLR (RevertIfImpersonated).
+            // In general, OpenThreadToken fails with ERROR_NO_TOKEN if impersonation is not active,
+            // fails with ERROR_CANT_OPEN_ANONYMOUS if anonymous impersonation is active, and otherwise
+            // succeeds and returns the active impersonation token.
+            BOOL res = ::OpenThreadToken(::GetCurrentThread(), TOKEN_IMPERSONATE, /* OpenAsSelf */ TRUE, &_token);
+            if (res != FALSE)
+            {
+                ::RevertToSelf();
+            }
+            else
+            {
+                _token = nullptr;
+            }
+        }
+
+        ~SuspendImpersonation()
+        {
+            if (_token != nullptr)
+                ::SetThreadToken(nullptr, _token);
+        }
+
+    private:
+        HandleHolder _token;
+    };
+
+    struct ProcessIntegrityResult
+    {
+        BOOL Success;
+        DWORD Integrity;
+        HRESULT LastError;
+
+        HRESULT RecordAndReturnError(HRESULT hr)
+        {
+            LastError = hr;
+            return hr;
+        }
+    };
+
+    // The system calls in this code can fail if run with reduced privileges.
+    // It is the caller's responsibility to choose an appropriate default in the event
+    // that this function fails to retrieve the current process integrity.
+    HRESULT GetCurrentProcessIntegrity(DWORD *integrity)
+    {
+        static ProcessIntegrityResult s_Result = { FALSE, 0, S_FALSE };
+
+        if (FALSE != InterlockedCompareExchangeT(&s_Result.Success, FALSE, FALSE))
+        {
+            *integrity = s_Result.Integrity;
+            return S_OK;
+        }
+
+        // Temporarily suspend impersonation (if possible) while computing the integrity level.
+        // If impersonation is active, the OpenProcessToken call below will check the impersonation
+        // token against the process token ACL, and will generally fail with ERROR_ACCESS_DENIED if
+        // the impersonation token is less privileged than this process's primary token.
+        Clr::Util::SuspendImpersonation si;
+
+        HandleHolder hToken;
+        if(!OpenProcessToken(GetCurrentProcess(), TOKEN_READ, &hToken))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        DWORD dwSize = 0;
+        DWORD err = ERROR_SUCCESS;
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, nullptr, 0, &dwSize))
+            err = GetLastError();
+
+        // We need to make sure that GetTokenInformation failed in a predictable manner so we know that
+        // dwSize has the correct buffer size in it.
+        if (err != ERROR_INSUFFICIENT_BUFFER || dwSize == 0)
+            return s_Result.RecordAndReturnError((err == ERROR_SUCCESS) ? E_FAIL : HRESULT_FROM_WIN32(err));
+
+        NewArrayHolder<BYTE> pLabel = new (nothrow) BYTE[dwSize];
+        if (pLabel == NULL)
+            return s_Result.RecordAndReturnError(E_OUTOFMEMORY);
+
+        if(!GetTokenInformation(hToken, (TOKEN_INFORMATION_CLASS)TokenIntegrityLevel, pLabel, dwSize, &dwSize))
+            return s_Result.RecordAndReturnError(HRESULT_FROM_GetLastError());
+
+        TOKEN_MANDATORY_LABEL *ptml = (TOKEN_MANDATORY_LABEL *)(void*)pLabel;
+        PSID psidIntegrityLevelLabel = ptml->Label.Sid;
+
+        s_Result.Integrity = *GetSidSubAuthority(psidIntegrityLevelLabel, (*GetSidSubAuthorityCount(psidIntegrityLevelLabel) - 1));
+        *integrity = s_Result.Integrity;
+        InterlockedExchangeT(&s_Result.Success, TRUE);
+        return S_OK;
+    }
+
 namespace Reg
 {
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKeyName, LPCWSTR wszValueName, SString & ssValue)
@@ -3314,8 +3283,6 @@ namespace Com
         {
             STANDARD_VM_CONTRACT;
 
-            HRESULT hr = S_OK;
-
             WCHAR wszClsid[39];
             if (GuidToLPWSTR(rclsid, wszClsid, NumItems(wszClsid)) == 0)
                 return E_UNEXPECTED;
@@ -3326,49 +3293,38 @@ namespace Com
             ssKeyName.Append(SL(W("\\")));
             ssKeyName.Append(wszSubKeyName);
 
-            return Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), NULL, ssValue);
-        }
+            // Query HKCR first to retain backwards compat with previous implementation where HKCR was only queried.
+            // This is being done due to registry caching. This value will be used if the process integrity is medium or less.
+            HRESULT hkcrResult = Clr::Util::Reg::ReadStringValue(HKEY_CLASSES_ROOT, ssKeyName.GetUnicode(), nullptr, ssValue);
 
-        __success(return == S_OK)
-        static
-        HRESULT FindSubKeyDefaultValueForCLSID(REFCLSID rclsid, LPCWSTR wszSubKeyName, __deref_out __deref_out_z LPWSTR* pwszValue)
-        {
-            CONTRACTL {
-                NOTHROW;
-                GC_NOTRIGGER;
-            } CONTRACTL_END;
-
-            HRESULT hr = S_OK;
-            EX_TRY
+            // HKCR is a virtualized registry hive that weaves together HKCU\Software\Classes and HKLM\Software\Classes
+            // Processes with high integrity or greater should only read from HKLM to avoid being hijacked by medium
+            // integrity processes writing to HKCU.
+            DWORD integrity = SECURITY_MANDATORY_PROTECTED_PROCESS_RID;
+            HRESULT hr = Clr::Util::GetCurrentProcessIntegrity(&integrity);
+            if (hr != S_OK)
             {
-                StackSString ssValue;
-                if (SUCCEEDED(hr = FindSubKeyDefaultValueForCLSID(rclsid, wszSubKeyName, ssValue)))
-                {
-                    *pwszValue = new WCHAR[ssValue.GetCount() + 1];
-                    wcscpy_s(*pwszValue, ssValue.GetCount() + 1, ssValue.GetUnicode());
-                }
+                // In the event that we are unable to get the current process integrity,
+                // we assume that this process is running in an elevated state.
+                // GetCurrentProcessIntegrity may fail if the process has insufficient rights to get the integrity level
+                integrity = SECURITY_MANDATORY_PROTECTED_PROCESS_RID;
             }
-            EX_CATCH_HRESULT(hr);
-            return hr;
+
+            if (integrity > SECURITY_MANDATORY_MEDIUM_RID)
+            {
+                Clr::Util::SuspendImpersonation si;
+
+                // Clear the previous HKCR queried value
+                ssValue.Clear();
+
+                // Force to use HKLM
+                StackSString ssHklmKeyName(SL(W("SOFTWARE\\Classes\\")));
+                ssHklmKeyName.Append(ssKeyName);
+                return Clr::Util::Reg::ReadStringValue(HKEY_LOCAL_MACHINE, ssHklmKeyName.GetUnicode(), nullptr, ssValue);
+            }
+
+            return hkcrResult;
         }
-    }
-
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszServerName)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("Server"), pwszServerName);
-    }
-
-    HRESULT FindServerUsingCLSID(REFCLSID rclsid, SString & ssServerName)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("Server"), ssServerName);
-    }
-
-    HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, __deref_out __deref_out_z LPWSTR* pwszInprocServer32Name)
-    {
-        WRAPPER_NO_CONTRACT;
-        return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("InprocServer32"), pwszInprocServer32Name);
     }
 
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name)
@@ -3376,109 +3332,8 @@ namespace Com
         WRAPPER_NO_CONTRACT;
         return __imp::FindSubKeyDefaultValueForCLSID(rclsid, W("InprocServer32"), ssInprocServer32Name);
     }
-
-    BOOL IsMscoreeInprocServer32(const SString & ssInprocServer32Name)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return (ssInprocServer32Name.EqualsCaseInsensitive(SL(MSCOREE_SHIM_W)) ||
-                ssInprocServer32Name.EndsWithCaseInsensitive(SL(W("\\") MSCOREE_SHIM_W)));
-    }
-
-    BOOL CLSIDHasMscoreeAsInprocServer32(REFCLSID rclsid)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        StackSString ssInprocServer32;
-        FindInprocServer32UsingCLSID(rclsid, ssInprocServer32);
-        return IsMscoreeInprocServer32(ssInprocServer32);
-    }
-
 } // namespace Com
 #endif //  FEATURE_PAL
-
-namespace Win32
-{
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames)
-    {
-        STANDARD_VM_CONTRACT;
-
-        // Try to use what the SString already has allocated. If it does not have anything allocated
-        // or it has < 20 characters allocated, then bump the size requested to _MAX_PATH.
-        
-        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName);
-
-
-        if (dwResult == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        _ASSERTE(dwResult != 0 );
-    }
-
-    // Returns heap-allocated string in *pwszFileName
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-            PRECONDITION(CheckPointer(pwszFileName));
-        } CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        EX_TRY
-        {
-            InlineSString<_MAX_PATH> ssFileName;
-            GetModuleFileName(hModule, ssFileName);
-            *pwszFileName = DuplicateStringThrowing(ssFileName.GetUnicode());
-        }
-        EX_CATCH_HRESULT(hr);
-
-        return hr;
-    }
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames)
-    {
-        STANDARD_VM_CONTRACT;
-
-        // Get the required buffer length (including terminating NULL).
-        DWORD dwLengthRequired = WszGetFullPathName(ssFileName.GetUnicode(), 0, NULL, NULL);
-
-        if (dwLengthRequired == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        LPWSTR wszPathName = ssPathName.OpenUnicodeBuffer(dwLengthRequired - 1);
-        LPWSTR wszFileName = NULL;
-        DWORD dwLengthWritten = WszGetFullPathName(
-            ssFileName.GetUnicode(),
-            dwLengthRequired,
-            wszPathName,
-            &wszFileName);
-
-        // Calculate the index while the buffer is open and the string pointer is stable.
-        if (dwLengthWritten != 0 && dwLengthWritten < dwLengthRequired && pdwFilePartIdx != NULL)
-            *pdwFilePartIdx = static_cast<DWORD>(wszFileName - wszPathName);
-
-        ssPathName.CloseBuffer(dwLengthWritten < dwLengthRequired ? dwLengthWritten : 0);
-
-        if (dwLengthRequired == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        // Overly defensive? Perhaps.
-        if (!(dwLengthWritten < dwLengthRequired))
-            ThrowHR(E_UNEXPECTED);
-
-    }
-} // namespace Win32
 
 } // namespace Util
 } // namespace Clr

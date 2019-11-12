@@ -1,7 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: COMtoCLRCall.h
 //
 
@@ -59,7 +59,7 @@ public:
             WRAPPER_NO_CONTRACT;
         }
     };
-    
+
 
     //---------------------------------------------------------
     // One-time init
@@ -93,7 +93,7 @@ public:
 private:
     ComCall() {LIMITED_METHOD_CONTRACT;};     // prevent "new"'s on this class
 
-    static SpinLock* s_plock;   
+    static SpinLock* s_plock;
 };
 #endif // DACCESS_COMPILE
 
@@ -101,7 +101,7 @@ private:
 // Operations specific to ComCall methods. This is not a code:MethodDesc.
 //-----------------------------------------------------------------------
 
-class ComCallMethodDesc 
+class ComCallMethodDesc
 {
     friend void InvokeStub(ComCallMethodDesc *pCMD, PCODE pManagedTarget, OBJECTREF orThis, ComMethodFrame *pFrame, Thread *pThread, UINT64* pRetValOut);
 
@@ -133,11 +133,10 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(IsFieldCall());
         }
         CONTRACT_END;
-        
+
         RETURN (m_flags & enum_IsGetter);
     }
 
@@ -149,11 +148,10 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(IsMethodCall());
         }
         CONTRACT_END;
-        
+
         RETURN (m_flags & enum_IsVirtual);
     }
 
@@ -162,7 +160,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_flags & enum_NativeR4Retval;
     }
-    
+
     BOOL IsNativeR8RetVal()
     {
         LIMITED_METHOD_CONTRACT;
@@ -222,7 +220,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_flags & enum_IsWinRTStatic;
     }
-    
+
     BOOL IsWinRTRedirectedMethod()
     {
         LIMITED_METHOD_CONTRACT;
@@ -232,7 +230,7 @@ public:
     BOOL IsNativeInfoInitialized()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_flags & enum_NativeInfoInitialized;    
+        return m_flags & enum_NativeInfoInitialized;
     }
 
     DWORD GetFlags()
@@ -249,13 +247,12 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(!IsFieldCall());
             PRECONDITION(CheckPointer(m_pMD));
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
         }
         CONTRACT_END;
-        
+
         RETURN m_pMD;
     }
 
@@ -267,7 +264,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(!IsFieldCall());
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
             SUPPORTS_DAC;
@@ -286,7 +282,7 @@ public:
         if (pMD == NULL)
             pMD = GetMethodDesc();
         _ASSERTE(pMD != NULL);
-        
+
         return pMD;
     }
 
@@ -298,13 +294,12 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(IsFieldCall());
             PRECONDITION(CheckPointer(m_pFD));
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
         }
         CONTRACT_END;
-        
+
         RETURN m_pFD;
     }
 
@@ -331,30 +326,28 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(IsMethodCall());
             PRECONDITION(CheckPointer(m_pMD));
         }
         CONTRACT_END;
-        
+
         RETURN m_pMD->GetSlot();
     }
 
     // get num stack bytes to pop
-    UINT16 GetNumStackBytes() 
+    UINT16 GetNumStackBytes()
     {
         CONTRACTL
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(m_flags & enum_NativeInfoInitialized);
             SUPPORTS_DAC;
         }
         CONTRACTL_END;
-        
-        return m_StackBytes; 
+
+        return m_StackBytes;
     }
 
     static DWORD GetOffsetOfReturnThunk()
@@ -377,7 +370,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             PRECONDITION(IsMethodCall());
             PRECONDITION(CheckPointer(m_pMD));
         }
@@ -392,7 +384,7 @@ public:
         {
             *pcbSigSize = cbSigSize;
         }
-        
+
         RETURN pSig;
     }
 
@@ -402,7 +394,7 @@ public:
         CONTRACTL
         {
             NOTHROW;
-            GC_TRIGGERS;
+            GC_NOTRIGGER;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -422,7 +414,7 @@ public:
     PCODE CreateCOMToCLRStub(DWORD dwStubFlags, MethodDesc **ppStubMD);
     void InitRuntimeNativeInfo(MethodDesc *pStubMD);
 
-private:   
+private:
     // Initialize the member's native type information (size of native stack, native retval flags, etc).
     void InitNativeInfo();
 
@@ -430,7 +422,7 @@ private:
     DWORD   m_flags;
     union
     {
-        struct 
+        struct
         {
             MethodDesc*    m_pMD;
             PTR_MethodDesc m_pInterfaceMD;
@@ -446,7 +438,7 @@ private:
     {
         struct
         {
-            // Index of the stack slot that gets stuffed into EDX when calling the stub. 
+            // Index of the stack slot that gets stuffed into EDX when calling the stub.
             UINT16  m_wSourceSlotEDX;
 
             // Number of stack slots expected by the IL stub.

@@ -42,14 +42,14 @@ LPVOID SetupOleContext()
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
-    
+
     IUnknown* pObjCtx = NULL;
 
     BEGIN_ENTRYPOINT_VOIDRET;
-    
-#ifdef FEATURE_COMINTEROP    
+
+#ifdef FEATURE_COMINTEROP
     if (g_fComStarted)
-    {               
+    {
         HRESULT hr = GetCurrentObjCtx(&pObjCtx);
         if (hr == S_OK)
         {
@@ -60,8 +60,8 @@ LPVOID SetupOleContext()
             }
             else
             {
-                // We can't call SafeRelease here since that would transition 
-                // to preemptive GC mode which is bad since SetupOleContext is called 
+                // We can't call SafeRelease here since that would transition
+                // to preemptive GC mode which is bad since SetupOleContext is called
                 // from places where we can't take a GC.
                 ULONG cbRef = pObjCtx->Release();
             }
@@ -83,11 +83,10 @@ LPVOID GetCurrentCtxCookie()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
-    
+
 #ifdef FEATURE_COMINTEROP
     // check if com is started
     if (!g_fComStarted)
@@ -105,7 +104,7 @@ LPVOID GetCurrentCtxCookie()
 //+-------------------------------------------------------------------------
 //
 //  HRESULT GetCurrentThreadTypeNT5(THDTYPE* pType)
-// 
+//
 HRESULT GetCurrentThreadTypeNT5(THDTYPE* pType)
 {
     CONTRACTL
@@ -113,18 +112,17 @@ HRESULT GetCurrentThreadTypeNT5(THDTYPE* pType)
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pType));
     }
     CONTRACTL_END;
 
     HRESULT hr = E_FAIL;
-    
+
     IObjectContext *pObjCurrCtx = (IObjectContext *)GetCurrentCtxCookie();
     if(pObjCurrCtx)
     {
         GCX_PREEMP();
-        
+
         SafeComHolderPreemp<IComThreadingInfo> pThreadInfo;
         hr = SafeQueryInterface(pObjCurrCtx, IID_IComThreadingInfo, (IUnknown **)&pThreadInfo);
         if(hr == S_OK)
@@ -132,14 +130,14 @@ HRESULT GetCurrentThreadTypeNT5(THDTYPE* pType)
             _ASSERTE(pThreadInfo);
             hr = pThreadInfo->GetCurrentThreadType(pType);
         }
-    }  
+    }
     return hr;
 }
 
 //+-------------------------------------------------------------------------
 //
 //  HRESULT GetCurrentApartmentTypeNT5(APTTYPE* pType)
-// 
+//
 HRESULT GetCurrentApartmentTypeNT5(IObjectContext *pObjCurrCtx, APTTYPE* pType)
 {
     CONTRACTL
@@ -155,7 +153,7 @@ HRESULT GetCurrentApartmentTypeNT5(IObjectContext *pObjCurrCtx, APTTYPE* pType)
     if(pObjCurrCtx)
     {
         GCX_PREEMP();
-        
+
         SafeComHolderPreemp<IComThreadingInfo> pThreadInfo;
         hr = SafeQueryInterface(pObjCurrCtx, IID_IComThreadingInfo, (IUnknown **)&pThreadInfo);
         if(hr == S_OK)
@@ -163,7 +161,7 @@ HRESULT GetCurrentApartmentTypeNT5(IObjectContext *pObjCurrCtx, APTTYPE* pType)
             _ASSERTE(pThreadInfo);
             hr = pThreadInfo->GetCurrentApartmentType(pType);
         }
-    }  
+    }
     return hr;
 }
 

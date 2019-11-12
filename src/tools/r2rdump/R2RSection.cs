@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Xml.Serialization;
 
@@ -26,7 +27,9 @@ namespace R2RDump
             READYTORUN_SECTION_AVAILABLE_TYPES = 108,
             READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS = 109,
             READYTORUN_SECTION_INLINING_INFO = 110,
-            READYTORUN_SECTION_PROFILEDATA_INFO = 111
+            READYTORUN_SECTION_PROFILEDATA_INFO = 111,
+            READYTORUN_SECTION_MANIFEST_METADATA = 112, // Added in v2.3
+            READYTORUN_SECTION_ATTRIBUTEPRESENCE = 113, // Added in V3.1
         }
 
         /// <summary>
@@ -52,13 +55,19 @@ namespace R2RDump
             Size = size;
         }
 
+        public void WriteTo(TextWriter writer, DumpOptions options)
+        {
+            writer.WriteLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
+            if (!options.Naked)
+            {
+                writer.WriteLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+            }
+            writer.WriteLine($"Size: {Size} bytes");
+        }
+
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
-            sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
-            sb.AppendLine($"Size: {Size} bytes");
-            return sb.ToString();
+            throw new NotImplementedException();
         }
     }
 }

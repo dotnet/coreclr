@@ -2,20 +2,20 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Runtime.Intrinsics;
+using System.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics.X86
 {
     /// <summary>
     /// This class provides access to Intel FMA hardware instructions via intrinsics
     /// </summary>
+    [Intrinsic]
     [CLSCompliant(false)]
     public abstract class Fma : Avx
     {
         internal Fma() { }
 
-        public new static bool IsSupported { get => IsSupported; }
+        public static new bool IsSupported { get => IsSupported; }
 
         /// <summary>
         /// __m128 _mm_fmadd_ps (__m128 a, __m128 b, __m128 c)

@@ -30,7 +30,7 @@ do {if ((EXPR) == 0) {ThrowOutOfMemory();} } while (0)
 #define DISPID_NAME_FORMAT_STRING                       W("[DISPID=%i]")
 
 //---------------------------------------------------------------------------
-// This method returns the default interface for the class as well as the 
+// This method returns the default interface for the class as well as the
 // type of default interface we are dealing with.
 enum DefaultInterfaceType
 {
@@ -45,7 +45,7 @@ enum DefaultInterfaceType
 
 struct SYSTEMCOLOR
 {
-#ifdef _WIN64    
+#ifdef BIT64
     STRINGREF name;
     INT64     value;
 #else
@@ -99,7 +99,7 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW = NULL);
 
 //--------------------------------------------------------------------------------
 // Release helper, must be called in preemptive mode.  Only use this variant if
-// you already know you're in preemptive mode for other reasons.  
+// you already know you're in preemptive mode for other reasons.
 ULONG SafeReleasePreemp(IUnknown* pUnk, RCW* pRCW = NULL);
 
 //--------------------------------------------------------------------------------
@@ -114,32 +114,31 @@ BOOL IsComWrapperClass(TypeHandle type);
 BOOL IsComObjectClass(TypeHandle type);
 
 //---------------------------------------------------------
-// Read the BestFit custom attribute info from 
+// Read the BestFit custom attribute info from
 // both assembly level and interface level
 //---------------------------------------------------------
 VOID ReadBestFitCustomAttribute(MethodDesc* pMD, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
-VOID ReadBestFitCustomAttribute(IMDInternalImport* pInternalImport, mdTypeDef cl, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
+VOID ReadBestFitCustomAttribute(Module* pModule, mdTypeDef cl, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
 int  InternalWideToAnsi(__in_ecount(iNumWideChars) LPCWSTR szWideString, int iNumWideChars, __out_ecount_opt(cbAnsiBufferSize) LPSTR szAnsiString, int cbAnsiBufferSize, BOOL fBestFit, BOOL fThrowOnUnmappableChar);
 
 //---------------------------------------------------------
-// Read the ClassInterfaceType custom attribute info from 
+// Read the ClassInterfaceType custom attribute info from
 // both assembly level and interface level
 //---------------------------------------------------------
 CorClassIfaceAttr ReadClassInterfaceTypeCustomAttribute(TypeHandle type);
 
 //-------------------------------------------------------------------
- // Called from DLLMain, to initialize com specific data structures.
+ // Used to populate ExceptionData with COM data
 //-------------------------------------------------------------------
-void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedErrorInfo* pRestrictedErrInfo);
-
-//------------------------------------------------------------------------------
- // helper to access fields from an object
-INT64 FieldAccessor(FieldDesc* pFD, OBJECTREF oref, INT64 val, BOOL isGetter, U1 cbSize);
+void FillExceptionData(
+    _Inout_ ExceptionData* pedata,
+    _In_ IErrorInfo* pErrInfo,
+    _In_opt_ IRestrictedErrorInfo* pRestrictedErrorInfo);
 
 //---------------------------------------------------------------------------
-//returns true if pImport has DefaultDllImportSearchPathsAttribute
-//if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
-BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, mdToken token, DWORD * pDlImportSearchPathFlag);
+// If pImport has the DefaultDllImportSearchPathsAttribute,
+// set the value of the attribute in pDlImportSearchPathFlags and return true.
+BOOL GetDefaultDllImportSearchPathsAttributeValue(Module *pModule, mdToken token, DWORD * pDlImportSearchPathFlags);
 
 //---------------------------------------------------------------------------
 // Returns the index of the LCID parameter if one exists and -1 otherwise.
@@ -164,14 +163,14 @@ HRESULT GetStringizedTypeLibGuidForAssembly(Assembly *pAssembly, CQuickArray<BYT
 
 //--------------------------------------------------------------------------------
 // GetErrorInfo helper, enables and disables GC during call-outs
-HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo);
+HRESULT SafeGetErrorInfo(_Outptr_ IErrorInfo **ppIErrInfo);
 
 //--------------------------------------------------------------------------------
 // QI helper, enables and disables GC during call-outs
 HRESULT SafeQueryInterface(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk);
 
 //--------------------------------------------------------------------------------
-// QI helper, must be called in preemptive mode.  Faster than the MODE_ANY version 
+// QI helper, must be called in preemptive mode.  Faster than the MODE_ANY version
 // because it doesn't need to toggle the mode.  Use this version only if you already
 // know that you're in preemptive mode for other reasons.
 HRESULT SafeQueryInterfacePreemp(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk);
@@ -188,21 +187,10 @@ ComCallWrapper* GetCCWFromIUnknown(IUnknown* pUnk, BOOL bEnableCustomization = T
 
 // A version of LoadRegTypeLib that loads based on bitness and platform support
 //  and loads with LCID == LOCALE_USER_DEFAULT
-HRESULT LoadRegTypeLibWithFlags(REFGUID rguid, 
-                                unsigned short wVerMajor,
-                                unsigned short wVerMinor,
-                                int flags,
-                                ITypeLib FAR* FAR*  pptlib);
-
-// A version of LoadTypeLibEx that loads based on bitness and platform support.
-HRESULT LoadTypeLibExWithFlags(LPCOLESTR  szFile, 
-                               int  flags,
-                               ITypeLib**  pptlib);
-
-//-------------------------------------------------------------------------------
-// Given an IErrorInfo pointer created on a com exception obect
-// obtain the hresult stored in the exception object
-HRESULT GetHRFromCLRErrorInfo(IErrorInfo* pErr);
+HRESULT LoadRegTypeLib(_In_ REFGUID guid,
+                       _In_ unsigned short wVerMajor,
+                       _In_ unsigned short wVerMinor,
+                       _Outptr_ ITypeLib **pptlib);
 
 //--------------------------------------------------------------------------------
 // Called from EEStartup, to initialize com Interop specific data structures.
@@ -231,7 +219,7 @@ void ReleaseRCWsInCachesNoThrow(LPVOID pCtxCookie);
 ULONG SafeAddRef(IUnknown* pUnk);
 //--------------------------------------------------------------------------------
 // AddRef helper, must be called in preemptive mode.  Only use this variant if
-// you already know you're in preemptive mode for other reasons.  
+// you already know you're in preemptive mode for other reasons.
 ULONG SafeAddRefPreemp(IUnknown* pUnk);
 
 //--------------------------------------------------------------------------------
@@ -259,7 +247,7 @@ void SafeReleaseStream(IStream *pStream);
 // Our version is more discriminating. This should only be used for
 // marshaling scenarios where we can assume unmanaged code permissions
 // (and hence are already in a position of trusting unmanaged data.)
-HRESULT ClrSafeArrayGetVartype(SAFEARRAY *psa, VARTYPE *vt);
+HRESULT ClrSafeArrayGetVartype(_In_ SAFEARRAY *psa, _Out_ VARTYPE *pvt);
 
 //Helpers
 
@@ -275,7 +263,7 @@ BOOL ComInterfaceSlotIs(IUnknown* pUnk, int slot, LPVOID pvFunction);
 
 // Is the tear-off a CLR created tear-off
 BOOL IsInProcCCWTearOff(IUnknown* pUnk);
-    
+
 // is the tear-off represent one of the standard interfaces such as IProvideClassInfo, IErrorInfo etc.
 BOOL IsSimpleTearOff(IUnknown* pUnk);
 
@@ -297,7 +285,7 @@ BOOL ClassSupportsIClassX(MethodTable *pMT);
  //  Calls COM class factory and instantiates a new RCW.
 OBJECTREF AllocateComObject_ForManaged(MethodTable* pMT);
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
- 
+
 //---------------------------------------------------------------------------
  //  get/load data for a given clsid
 MethodTable* GetTypeForCLSID(REFCLSID rclsid, BOOL* pfAssemblyInReg = NULL);
@@ -331,7 +319,7 @@ OLE_COLOR ConvertSystemColorToOleColor(SYSTEMCOLOR *pSrcSysColor);
 OLE_COLOR ConvertSystemColorToOleColor(OBJECTREF *pSrcObj);
 
 //--------------------------------------------------------------------------------
-// This method generates a stringized version of a class interface that contains 
+// This method generates a stringized version of a class interface that contains
 // the signatures of all the methods and fields.
 ULONG GetStringizedClassItfDef(TypeHandle InterfaceType, CQuickArray<BYTE> &rDef);
 
@@ -348,14 +336,17 @@ HRESULT GetTypeLibGuidForAssembly(Assembly *pAssembly, GUID *pGuid);
 
 //--------------------------------------------------------------------------------
 // Helper to get the version of the typelib that is created from an assembly.
-HRESULT GetTypeLibVersionForAssembly(Assembly *pAssembly, USHORT *pMajorVersion, USHORT *pMinorVersion);
+HRESULT GetTypeLibVersionForAssembly(
+    _In_ Assembly *pAssembly,
+    _Out_ USHORT *pMajorVersion,
+    _Out_ USHORT *pMinorVersion);
 
 //---------------------------------------------------------------------------
 // This method determines if a member is visible from COM.
 BOOL IsMethodVisibleFromCom(MethodDesc *pMD);
 
 //---------------------------------------------------------------------------
-// This method determines if a type is visible from COM or not based on 
+// This method determines if a type is visible from COM or not based on
 // its visibility. This version of the method works with a type handle.
 BOOL IsTypeVisibleFromCom(TypeHandle hndType);
 
@@ -370,8 +361,19 @@ BOOL MethodNeedsReverseComStub(MethodDesc *pMD);
 //--------------------------------------------------------------------------------
 // InvokeDispMethod will convert a set of managed objects and call IDispatch.  The
 // result will be returned as a COM+ Variant pointed to by pRetVal.
-void IUInvokeDispMethod(REFLECTCLASSBASEREF* pRefClassObj, OBJECTREF* pTarget,OBJECTREF* pName, DISPID *pMemberID, OBJECTREF* pArgs, OBJECTREF* pModifiers, 
-                        OBJECTREF* pNamedArgs, OBJECTREF* pRetVal, LCID lcid, WORD flags, BOOL bIgnoreReturn, BOOL bIgnoreCase);
+void IUInvokeDispMethod(
+    REFLECTCLASSBASEREF* pRefClassObj,
+    OBJECTREF* pTarget,
+    OBJECTREF* pName,
+    DISPID *pMemberID,
+    OBJECTREF* pArgs,
+    OBJECTREF* pModifiers,
+    OBJECTREF* pNamedArgs,
+    OBJECTREF* pRetVal,
+    LCID lcid,
+    WORD flags,
+    BOOL bIgnoreReturn,
+    BOOL bIgnoreCase);
 
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 // Class Factory helpers
@@ -384,12 +386,6 @@ void GetComClassFromProgID(STRINGREF srefProgID, STRINGREF srefServer, OBJECTREF
 // GetComClassFromCLSID used by reflection class to setup a Class based on CLSID
 void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF* pRef);
 
-// Helper used by GetComClassFromProgID and GetComClassFromCLSID
-void GetComClassHelper(OBJECTREF *pRef,
-                       EEClassFactoryInfoHashTable *pClassFactHash,
-                       ClassFactoryInfo *pClassFactInfo,
-                       __in_opt WCHAR *wszProgID);
-
 //-------------------------------------------------------------
 // check if a ComClassFactory/WinRTClassFactory has been setup for this class
 // if not set one up
@@ -401,8 +397,8 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT);
 
 #ifdef _DEBUG
 
-VOID LogInterop(__in_z LPSTR szMsg);
-VOID LogInterop(__in_z LPWSTR szMsg);
+VOID LogInterop(__in_z LPCSTR szMsg);
+VOID LogInterop(__in_z LPCWSTR szMsg);
 
 VOID LogInteropLeak(IUnkEntry * pEntry);
 VOID LogInteropLeak(IUnknown* pItf);
@@ -447,7 +443,7 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk);
 
 //--------------------------------------------------------------------------------
 // Try to load a WinRT type.
-TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound);
+TypeHandle LoadWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound, ICLRPrivBinder* loadBinder = nullptr);
 
 //--------------------------------------------------------------------------------
 // Try to get the class from IInspectable.
@@ -456,16 +452,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
 //--------------------------------------------------------------------------------
 // Build a WinRT URI for a given raw URI
 ABI::Windows::Foundation::IUriRuntimeClass *CreateWinRTUri(LPCWSTR wszUri, INT32 cchUri);
-
-// Global process GUID to identify the process
-BSTR GetProcessGUID();
-
-//--------------------------------------------------------------------------
- // switch objects for this wrapper
-// used by JIT&ObjectPooling to ensure a deactivated CCW can point to a new object
-// during reactivate
-//--------------------------------------------------------------------------
-BOOL ReconnectWrapper(OBJECTREF* pOldRef, OBJECTREF* pNewRef);
 
 // Generates GUIDs for parameterized WinRT types.
 class WinRTGuidGenerator
@@ -502,7 +488,7 @@ void GetNativeWinRTFactoryObject(MethodTable *pMT, Thread *pThread, MethodTable 
 inline HRESULT EnsureComStartedNoThrow()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     return S_OK;
 }
 
@@ -510,7 +496,7 @@ inline VOID EnsureComStarted()
 {
     LIMITED_METHOD_CONTRACT;
 }
-    
+
 #define LogInteropRelease(x, y, z)
 
 #endif // FEATURE_COMINTEROP

@@ -20,7 +20,7 @@ struct ItfMarshalInfo
         ITF_MARSHAL_USE_BASIC_ITF   = 0x10,
         ITF_MARSHAL_WINRT_SCENARIO  = 0x20,  // WinRT scenario only
     };
-    
+
     TypeHandle      thClass;
     TypeHandle      thItf;
     TypeHandle      thNativeItf;
@@ -41,9 +41,9 @@ struct ItfMarshalInfo
 
 
 /*
-01 REQUIRE_IINSPECTABLE         01 ITF_MARSHAL_INSP_ITF         01 CF_SupportsIInspectable 
-02 SUPPRESS_ADDREF              02 ITF_MARSHAL_SUPPRESS_ADDREF  
-                                                                04 CF_IsWeakReference      
+01 REQUIRE_IINSPECTABLE         01 ITF_MARSHAL_INSP_ITF         01 CF_SupportsIInspectable
+02 SUPPRESS_ADDREF              02 ITF_MARSHAL_SUPPRESS_ADDREF
+                                                                04 CF_IsWeakReference
 04 CLASS_IS_HINT                04 ITF_MARSHAL_CLASS_IS_HINT
 08 UNIQUE_OBJECT                                                08 CF_NeedUniqueObject
                                 08 ITF_MARSHAL_DISP_ITF
@@ -70,7 +70,7 @@ struct ObjFromComIP
         static_assert_no_msg(((DWORD)REQUIRE_IINSPECTABLE)  == ((DWORD)ItfMarshalInfo::ITF_MARSHAL_INSP_ITF));
         static_assert_no_msg(((DWORD)SUPPRESS_ADDREF)       == ((DWORD)ItfMarshalInfo::ITF_MARSHAL_SUPPRESS_ADDREF));
 
-        DWORD dwResult = (dwFlags & 
+        DWORD dwResult = (dwFlags &
                             (ItfMarshalInfo::ITF_MARSHAL_CLASS_IS_HINT|
                              ItfMarshalInfo::ITF_MARSHAL_INSP_ITF|
                              ItfMarshalInfo::ITF_MARSHAL_SUPPRESS_ADDREF));
@@ -111,19 +111,6 @@ enum ComIpType
 
 
 //--------------------------------------------------------------------------------
-// GetIUnknownForMarshalByRefInServerDomain
-// setup a CCW for Transparent proxy/marshalbyref in the server domain
-// either the object is in-proc & the domains match, or its out-of proc
-// and we don't care about appdomains
-IUnknown* GetIUnknownForMarshalByRefInServerDomain(OBJECTREF* poref);
-
-//--------------------------------------------------------------------------------
-// GetIUnknownForTransparentProxy
-// delegates the call to the managed implementation in the real proxy
-
-IUnknown* GetIUnknownForTransparentProxy(OBJECTREF* poref, BOOL fIsBeingMarshalled);
-
-//--------------------------------------------------------------------------------
 // IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, ...);
 // Convert ObjectRef to a COM IP, based on MethodTable* pMT.
 IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bSecurityCheck = TRUE, BOOL bEnableCustomizedQueryInterface = TRUE);
@@ -156,12 +143,6 @@ inline void GetObjectRefFromComIP(OBJECTREF* pObjOut, IUnknown *pUnk, MethodTabl
     WRAPPER_NO_CONTRACT;
     return GetObjectRefFromComIP(pObjOut, &pUnk, pMTClass, pItfMT, dwFlags);
 }
-
-
-//--------------------------------------------------------------------------------
-// UnMarshalObjectForCurrentDomain
-// unmarshal the managed object for the current domain
-BOOL UnMarshalObjectForCurrentDomain(ADID pObjDomain, ComCallWrapper* pWrap, OBJECTREF* pResult);
 
 #endif // FEATURE_COMINTEROP
 

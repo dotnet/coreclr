@@ -22,7 +22,7 @@ The team marks the most straightforward issues as "up for grabs". This set of is
 Contribution "Bar"
 ------------------
 
-Project maintainers will merge changes that improve the product significantly and broadly and that align with the [.NET Core roadmap](https://github.com/dotnet/core/blob/master/roadmap.md). 
+Project maintainers will merge changes that improve the product significantly and broadly and that align with the [.NET Core roadmap](https://github.com/dotnet/core/blob/master/roadmap.md).
 
 Maintainers will not merge changes that have narrowly-defined benefits, due to compatibility risk. The .NET Core codebase is used by several Microsoft products (for example, ASP.NET Core, .NET Framework 4.x, Windows Universal Apps) to enable execution of managed code. Other companies are building products on top of .NET Core, too. We may revert changes if they are found to be breaking.
 
@@ -48,7 +48,7 @@ Please do:
 
 Please do not:
 
-* **DON'T** make PRs for style changes. 
+* **DON'T** make PRs for style changes.
 * **DON'T** surprise us with big pull requests. Instead, file an issue and start
   a discussion so we can agree on a direction before you invest a large amount
   of time.
@@ -61,15 +61,10 @@ Managed Code Compatibility
 
 Contributions must maintain [API signature](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md#bucket-1-public-contract) and behavioral compatibility. Contributions that include [breaking changes](https://github.com/dotnet/corefx/blob/master/Documentation/coding-guidelines/breaking-changes.md) will be rejected. Please file an issue to discuss your idea or change if you believe that it may affect managed code compatibility.
 
-Contributing to mscorlib library
---------------------------------
+Contributing to System.Private.CoreLib library
+----------------------------------------------
 
-Most managed code changes should be made in the [CoreFX](https://github.com/dotnet/corefx) repo. We have moved and are continuing to move many mscorlib types to CoreFX. Please use the following general rule-of-thumb for choosing the right repo to make your change (start by creating an issue):
-
-- The type or concept doesn't yet exist in .NET Core -> choose CoreFX.
-- The type exists in both CoreCLR and CoreFX repo -> choose CoreFX.
-- The type exists in CoreCLR only -> choose CoreCLR.
-- In doubt -> choose CoreFX.
+Most changes in managed libraries should be made in the [CoreFX](https://github.com/dotnet/corefx) repo. The CoreCLR repo contains implementation for the [System.Private.CoreLib.dll](https://github.com/dotnet/coreclr/tree/master/src/System.Private.CoreLib) library. Publicly visible changes in this library require [staging](changing-corelib.md) over the two repos.
 
 Commit Messages
 ---------------
@@ -147,7 +142,7 @@ The following rules must be followed for PRs that include files from another pro
 - The license of the file is left in-tact.
 - The contribution is correctly attributed in the [3rd party notices](../../THIRD-PARTY-NOTICES.TXT) file in the repository, as needed.
 
-See [IdnMapping.cs](../../src/System.Private.CoreLib/shared/System/Globalization/IdnMapping.cs) for an example of a file copied from another project and attributed in the [CoreCLR 3rd party notices](../../THIRD-PARTY-NOTICES.TXT) file. 
+See [IdnMapping.cs](../../src/System.Private.CoreLib/shared/System/Globalization/IdnMapping.cs) for an example of a file copied from another project and attributed in the [CoreCLR 3rd party notices](../../THIRD-PARTY-NOTICES.TXT) file.
 
 Porting Files from Other Projects
 ---------------------------------

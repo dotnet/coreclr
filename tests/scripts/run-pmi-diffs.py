@@ -4,12 +4,14 @@
 # The .NET Foundation licenses this file to you under the MIT license.
 # See the LICENSE file in the project root for more information.
 #
-##########################################################################
-##########################################################################
-#
-# Module: run-pmi-diffs.py
+##
+# Title               :run-pmi-diffs.py
 #
 # Notes:
+#
+# TODO: Instead of downloading and extracting the dotnet CLI, can we convert
+# to using init-tools.cmd/sh and the Tools/dotnetcli "last known good"
+# version? (This maybe should be done for format.py as well.)
 #
 # Script to automate running PMI diffs on a pull request
 #
@@ -23,10 +25,18 @@ import re
 import shutil
 import subprocess
 import urllib
-import urllib2
 import sys
 import tarfile
 import zipfile
+
+# Version specific imports
+if sys.version_info.major < 3:
+    import urllib
+else:
+    import urllib.request
+
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts"))
+from coreclr_arguments import *
 
 ##########################################################################
 # Globals
@@ -36,6 +46,14 @@ testing = False
 
 Coreclr_url = 'https://github.com/dotnet/coreclr.git'
 Jitutils_url = 'https://github.com/dotnet/jitutils.git'
+
+# The Docker file and possibly options should be hoisted out to a text file to be shared between scripts.
+
+Docker_name_arm32 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420'
+Docker_opts_arm32 = '-e ROOTFS_DIR=/crossrootfs/arm'
+
+Docker_name_arm64 = 'microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921'
+Docker_opts_arm64 = '-e ROOTFS_DIR=/crossrootfs/arm64'
 
 # This should be factored out of build.sh
 Unix_name_map = {
@@ -48,14 +66,14 @@ Unix_name_map = {
 }
 
 Is_windows = (os.name == 'nt')
-clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
+Clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
 
 ##########################################################################
 # Delete protocol
 ##########################################################################
 
 def del_rw(action, name, exc):
-    os.chmod(name, 0651)
+    os.chmod(name, 0o651)
     os.remove(name)
 
 ##########################################################################
@@ -70,18 +88,37 @@ parser = argparse.ArgumentParser(description=description)
 # coreclr tree and build it. If base_root is passed, we'll use it, and not
 # clone or build the base.
 
-# TODO: need to fix parser so -skip_baseline_build / -skip_diffs don't take an argument
-
 parser.add_argument('-arch', dest='arch', default='x64')
 parser.add_argument('-ci_arch', dest='ci_arch', default=None)
 parser.add_argument('-build_type', dest='build_type', default='Checked')
 parser.add_argument('-base_root', dest='base_root', default=None)
 parser.add_argument('-diff_root', dest='diff_root', default=None)
 parser.add_argument('-scratch_root', dest='scratch_root', default=None)
-parser.add_argument('-skip_baseline_build', dest='skip_baseline_build', default=False)
-parser.add_argument('-skip_diffs', dest='skip_diffs', default=False)
+parser.add_argument('--skip_baseline_build', dest='skip_baseline_build', action='store_true', default=False)
+parser.add_argument('--skip_diffs', dest='skip_diffs', action='store_true', default=False)
 parser.add_argument('-target_branch', dest='target_branch', default='master')
 parser.add_argument('-commit_hash', dest='commit_hash', default=None)
+
+##########################################################################
+# Class to change the current directory, and automatically restore the
+# directory back to what it used to be, on exit.
+##########################################################################
+
+class ChangeDir:
+    def __init__(self, dir):
+        self.dir = dir
+        self.cwd = None
+
+    def __enter__(self):
+        self.cwd = os.getcwd()
+        log('[cd] %s' % self.dir)
+        if not testing:
+            os.chdir(self.dir)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        log('[cd] %s' % self.cwd)
+        if not testing:
+            os.chdir(self.cwd)
 
 ##########################################################################
 # Helper Functions
@@ -90,79 +127,85 @@ parser.add_argument('-commit_hash', dest='commit_hash', default=None)
 def validate_args(args):
     """ Validate all of the arguments parsed.
     Args:
-        args (argparser.ArgumentParser): Args parsed by the argument parser.
+        args (argparser.ArgumentParser) : Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, base_root, diff_root, scratch_root, skip_baseline_build, skip_diffs, target_branch, commit_hash)
-            (str, str, str, str, str, str, bool, bool, str, str)
+        args (CoreclrArguments)         : Args parsed
     Notes:
-    If the arguments are valid then return them all in a tuple. If not, raise
-    an exception stating x argument is incorrect.
+        If the arguments are valid then return them all in a tuple. If not, 
+        raise an exception stating x argument is incorrect.
     """
 
-    arch = args.arch
-    ci_arch = args.ci_arch
-    build_type = args.build_type
-    base_root = args.base_root
-    diff_root = args.diff_root
-    scratch_root = args.scratch_root
-    skip_baseline_build = args.skip_baseline_build
-    skip_diffs = args.skip_diffs
-    target_branch = args.target_branch
-    commit_hash = args.commit_hash
+    coreclr_setup_args = CoreclrArguments(args, 
+                                          require_built_test_dir=False, 
+                                          require_built_core_root=True, 
+                                          require_built_product_dir=False)
 
-    def validate_arg(arg, check):
-        """ Validate an individual arg
-        Args:
-           arg (str|bool): argument to be validated
-           check (lambda: x-> bool): test that returns either True or False
-                                   : based on whether the check passes.
+    coreclr_setup_args.verify(args,
+                              "base_root",
+                              lambda directory: os.path.isdir(directory) if directory is not None else True,
+                              "Base root is not a valid directory")
 
-        Returns:
-           is_valid (bool): Is the argument valid?
-        """
+    coreclr_setup_args.verify(args,
+                              "diff_root",
+                              lambda directory: os.path.isdir(directory) if directory is not None else True,
+                              "Diff root is not a valid directory",
+                              modify_arg=lambda directory: nth_dirname(os.path.abspath(sys.argv[0]), 3) if directory is None else os.path.abspath(directory))
 
-        helper = lambda item: item is not None and check(item)
+    coreclr_setup_args.verify(args,
+                              "scratch_root",
+                              lambda unused: True,
+                              "Error setting scratch_root",
+                              modify_arg=lambda directory: os.path.join(coreclr_setup_args.diff_root, '_', 'pmi') if directory is None else os.path.abspath(directory))
 
-        if not helper(arg):
-            raise Exception('Argument: %s is not valid.' % (arg))
+    coreclr_setup_args.verify(args,
+                              "skip_baseline_build",
+                              lambda unused: True,
+                              "Error setting baseline build")
+    
+    coreclr_setup_args.verify(args,
+                              "skip_diffs",
+                              lambda unused: True,
+                              "Error setting skip_diffs")
 
-    valid_archs = ['x86', 'x64', 'arm', 'arm64']
-    valid_ci_archs = valid_archs + ['x86_arm_altjit', 'x64_arm64_altjit']
-    valid_build_types = ['Debug', 'Checked', 'Release']
+    coreclr_setup_args.verify(args,
+                              "target_branch",
+                              lambda unused: True,
+                              "Error setting target_branch")
 
-    arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
-    build_type = next((b for b in valid_build_types if b.lower() == build_type.lower()), build_type)
+    coreclr_setup_args.verify(args,
+                              "commit_hash",
+                              lambda unused: True,
+                              "Error setting commit_hash")
 
-    validate_arg(arch, lambda item: item in valid_archs)
-    validate_arg(build_type, lambda item: item in valid_build_types)
+    coreclr_setup_args.verify(args,
+                              "ci_arch",
+                              lambda ci_arch: ci_arch in coreclr_setup_args.valid_arches + ['x86_arm_altjit', 'x64_arm64_altjit'],
+                              "Error setting ci_arch")
 
-    if diff_root is None:
-        diff_root = nth_dirname(os.path.abspath(sys.argv[0]), 3)
-    else:
-        diff_root = os.path.abspath(diff_root)
-        validate_arg(diff_root, lambda item: os.path.isdir(diff_root))
-
-    if scratch_root is None:
-        scratch_root = os.path.join(diff_root, '_')
-    else:
-        scratch_root = os.path.abspath(scratch_root)
-
-    if ci_arch is not None:
-        validate_arg(ci_arch, lambda item: item in valid_ci_archs)
-
-    args = (arch, ci_arch, build_type, base_root, diff_root, scratch_root, skip_baseline_build, skip_diffs, target_branch, commit_hash)
+    args = (
+        coreclr_setup_args.arch, 
+        coreclr_setup_args.ci_arch, 
+        coreclr_setup_args.build_type, 
+        coreclr_setup_args.base_root, 
+        coreclr_setup_args.diff_root, 
+        coreclr_setup_args.scratch_root, 
+        coreclr_setup_args.skip_baseline_build, 
+        coreclr_setup_args.skip_diffs, 
+        coreclr_setup_args.target_branch, 
+        coreclr_setup_args.commit_hash
+    )
 
     log('Configuration:')
-    log(' arch: %s' % arch)
-    log(' ci_arch: %s' % ci_arch)
-    log(' build_type: %s' % build_type)
-    log(' base_root: %s' % base_root)
-    log(' diff_root: %s' % diff_root)
-    log(' scratch_root: %s' % scratch_root)
-    log(' skip_baseline_build: %s' % skip_baseline_build)
-    log(' skip_diffs: %s' % skip_diffs)
-    log(' target_branch: %s' % target_branch)
-    log(' commit_hash: %s' % commit_hash)
+    log('    arch: %s' % coreclr_setup_args.arch)
+    log('    ci_arch: %s' % coreclr_setup_args.ci_arch)
+    log('    build_type: %s' % coreclr_setup_args.build_type)
+    log('    base_root: %s' % coreclr_setup_args.base_root)
+    log('    diff_root: %s' % coreclr_setup_args.diff_root)
+    log('    scratch_root: %s' % coreclr_setup_args.scratch_root)
+    log('    skip_baseline_build: %s' % coreclr_setup_args.skip_baseline_build)
+    log('    skip_diffs: %s' % coreclr_setup_args.skip_diffs)
+    log('    target_branch: %s' % coreclr_setup_args.target_branch)
+    log('    commit_hash: %s' % coreclr_setup_args.commit_hash)
 
     return args
 
@@ -190,7 +233,7 @@ def log(message):
         message (str): message to be printed
     """
 
-    print '[%s]: %s' % (sys.argv[0], message)
+    print('[%s]: %s' % (sys.argv[0], message))
 
 def copy_files(source_dir, target_dir):
     """ Copy any files in the source_dir to the target_dir.
@@ -214,6 +257,27 @@ def copy_files(source_dir, target_dir):
             log('Copy: %s => %s' % (source_pathname, target_pathname))
             if not testing:
                 shutil.copy2(source_pathname, target_pathname)
+
+def run_command(command, command_env):
+    """ Run a command (process) in a given environment. stdout/stderr are output piped through.
+    Args:
+        command (array): the command to run, with components of the command as separate elements.
+        command_env (map): environment in which the command should be run
+    Returns:
+        The return code of the command.
+    """
+
+    returncode = 0
+
+    log('Invoking: %s' % (' '.join(command)))
+    if not testing:
+        proc = subprocess.Popen(command, env=command_env)
+        output,error = proc.communicate()
+        returncode = proc.returncode
+        if returncode != 0:
+            log('Return code = %s' % returncode)
+
+    return returncode
 
 ##########################################################################
 # Do baseline build:
@@ -243,70 +307,59 @@ def baseline_build():
 
     # Change directory to the baseline root
 
-    cwd = os.getcwd()
-    log('[cd] %s' % baseCoreClrPath)
-    if not testing:
-        os.chdir(baseCoreClrPath)
+    with ChangeDir(baseCoreClrPath):
 
-    # Set up for possible docker usage
+        # Set up for possible docker usage
 
-    scriptPath = '.'
-    buildOpts = ''
-    dockerCmd = ''
-    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
-        # Linux arm and arm64 builds are cross-compilation builds using Docker.
-        if arch == 'arm':
-            dockerFile = 'microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420'
-            dockerOpts = '-e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86'
+        scriptPath = '.'
+        buildOpts = ''
+        dockerCmd = ''
+        if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+            # Linux arm and arm64 builds are cross-compilation builds using Docker.
+            if arch == 'arm':
+                dockerFile = Docker_name_arm32
+                dockerOpts = Docker_opts_arm32
+            else:
+                # arch == 'arm64'
+                dockerFile = Docker_name_arm64
+                dockerOpts = Docker_opts_arm64
+
+            dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
+            buildOpts = 'cross'
+            scriptPath = baseCoreClrPath
+
+        # Build a checked baseline jit 
+
+        if Is_windows:
+            command = 'set __TestIntermediateDir=int&&build.cmd %s checked skiptests skipbuildpackages' % arch
         else:
-            # arch == 'arm64'
-            dockerFile = 'microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921'
-            dockerOpts = '-e ROOTFS_DIR=/crossrootfs/arm64'
-
-        dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
-        buildOpts = 'cross crosscomponent'
-        scriptPath = baseCoreClrPath
-
-    # Build a checked baseline jit 
-
-    if Is_windows:
-        command = 'set __TestIntermediateDir=int&&build.cmd %s checked skiptests skipbuildpackages' % arch
-    else:
-        command = '%s%s/build.sh %s checked skiptests skipbuildpackages %s' % (dockerCmd, scriptPath, arch, buildOpts)
-    log(command)
-    returncode = 0 if testing else os.system(command)
-    if returncode != 0:
-        log('ERROR: build failed')
-        return 1
-
-    # Build the layout (Core_Root) directory
-
-    # For Windows, you need to first do a restore. It's unfortunately complicated. Run:
-    #   run.cmd build -Project="tests\build.proj" -BuildOS=Windows_NT -BuildType=Checked -BuildArch=x64 -BatchRestorePackages
-
-    if Is_windows:
-        command = 'run.cmd build -Project="tests\\build.proj" -BuildOS=Windows_NT -BuildType=%s -BuildArch=%s -BatchRestorePackages' % (build_type, arch)
+            command = '%s%s/build.sh %s checked skipbuildpackages %s' % (dockerCmd, scriptPath, arch, buildOpts)
         log(command)
         returncode = 0 if testing else os.system(command)
         if returncode != 0:
-            log('ERROR: restoring packages failed')
+            log('ERROR: build failed')
             return 1
 
-    if Is_windows:
-        command = 'tests\\runtest.cmd %s checked GenerateLayoutOnly' % arch
-    else:
-        command = '%s%s/build-test.sh %s checked generatelayoutonly' % (dockerCmd, scriptPath, arch)
-    log(command)
-    returncode = 0 if testing else os.system(command)
-    if returncode != 0:
-        log('ERROR: generating layout failed')
-        return 1
+        # Build the layout (Core_Root) directory
+        # For Windows, invoke build-test.cmd to restore packages before generating the layout.
 
-    # After baseline build, change directory back to where we started
+        if Is_windows:
+            command = 'build-test.cmd %s %s skipmanaged skipnative' % (build_type, arch)
+            log(command)
+            returncode = 0 if testing else os.system(command)
+            if returncode != 0:
+                log('ERROR: restoring packages failed')
+                return 1
 
-    log('[cd] %s' % cwd)
-    if not testing:
-        os.chdir(cwd)
+        if Is_windows:
+            command = 'tests\\runtest.cmd %s checked GenerateLayoutOnly' % arch
+        else:
+            command = '%s%s/build-test.sh %s checked generatelayoutonly' % (dockerCmd, scriptPath, arch)
+        log(command)
+        returncode = 0 if testing else os.system(command)
+        if returncode != 0:
+            log('ERROR: generating layout failed')
+            return 1
 
     return 0
 
@@ -315,18 +368,17 @@ def baseline_build():
 # 1. download dotnet CLI (needed by jitutils)
 # 2. clone jitutils repo
 # 3. build jitutils
-# 4. run PMI asm generation on baseline
-# 5. run PMI asm generation on diff
-# 6. run jit-analyze to compare baseline and diff
+# 4. run PMI asm generation on baseline and diffs
+# 5. run jit-analyze to compare baseline and diff
 ##########################################################################
 
 def do_pmi_diffs():
     global baseCoreClrPath
 
     # Setup scratch directories. Names are short to avoid path length problems on Windows.
-    dotnetcliPath = os.path.abspath(os.path.join(scratch_root, '_d'))
-    jitutilsPath = os.path.abspath(os.path.join(scratch_root, '_j'))
-    asmRootPath = os.path.abspath(os.path.join(scratch_root, '_asm'))
+    dotnetcliPath = os.path.abspath(os.path.join(scratch_root, 'cli'))
+    jitutilsPath = os.path.abspath(os.path.join(scratch_root, 'jitutils'))
+    asmRootPath = os.path.abspath(os.path.join(scratch_root, 'asm'))
 
     dotnet_tool = 'dotnet.exe' if Is_windows else 'dotnet'
 
@@ -348,12 +400,7 @@ def do_pmi_diffs():
                     temp_env["PATH"] = dotnetcliPath + os.pathsep + my_env["PATH"]
                     log('Shutting down build servers')
                     command = ["dotnet", "build-server", "shutdown"]
-                    log('Invoking: %s' % (' '.join(command)))
-                    proc = subprocess.Popen(command, env=temp_env)
-                    output,error = proc.communicate()
-                    returncode = proc.returncode
-                    if returncode != 0:
-                        log('Return code = %s' % returncode)
+                    returncode = run_command(command, temp_env)
 
                     # Try again
                     log('Trying again to remove existing tree: %s' % dotnetcliPath)
@@ -381,7 +428,7 @@ def do_pmi_diffs():
                 log('ERROR: cannot create jitutils install directory %s' % jitutilsPath)
                 return 1
             if not os.path.isdir(asmRootPath):
-                log('ERROR: cannot create diff directory %s' % asmRootPath)
+                log('ERROR: cannot create asm directory %s' % asmRootPath)
                 return 1
 
     log('dotnet CLI install directory: %s' % dotnetcliPath)
@@ -390,39 +437,44 @@ def do_pmi_diffs():
 
     # Download .NET CLI
 
-    log('Downloading .Net CLI')
+    log('Downloading .NET CLI')
 
     dotnetcliUrl = ""
     dotnetcliFilename = ""
 
-    if clr_os == 'Linux':
+    if Clr_os == 'Linux' and arch == 'x64':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-linux-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
-    elif clr_os == 'OSX':
+    elif Clr_os == 'Linux' and arch == 'arm':
+        dotnetcliUrl = "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/release/2.1.4xx/dotnet-sdk-latest-linux-arm.tar.gz"
+    elif Clr_os == 'Linux' and arch == 'arm64':
+        # Use the latest (3.0) dotnet SDK. Earlier versions don't work.
+        dotnetcliUrl = "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/master/dotnet-sdk-latest-linux-arm64.tar.gz"
+    elif Clr_os == 'OSX':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-osx-x64.tar.gz"
-        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
-    elif clr_os == 'Windows_NT':
+    elif Clr_os == 'Windows_NT':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.402/dotnet-sdk-2.1.402-win-x64.zip"
+    else:
+        log('ERROR: unknown or unsupported OS (%s) architecture (%s) combination' % (Clr_os, arch))
+        return 1
+
+    if Is_windows:
         dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.zip')
     else:
-        log('ERROR: unknown or unsupported OS %s' % os)
-        return 1
+        dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
 
     log('Downloading: %s => %s' % (dotnetcliUrl, dotnetcliFilename))
 
     if not testing:
-        response = urllib2.urlopen(dotnetcliUrl)
-        request_url = response.geturl()
-        testfile = urllib.URLopener()
-        testfile.retrieve(request_url, dotnetcliFilename)
+        urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
+        urlretrieve(dotnetcliUrl, dotnetcliFilename)
 
         if not os.path.isfile(dotnetcliFilename):
-            log('ERROR: Did not download .Net CLI')
+            log('ERROR: Did not download .NET CLI')
             return 1
 
-    # Install .Net CLI
+    # Install .NET CLI
 
-    log('Unpacking .Net CLI')
+    log('Unpacking .NET CLI')
 
     if not testing:
         if Is_windows:
@@ -434,13 +486,18 @@ def do_pmi_diffs():
             tar.close()
 
         if not os.path.isfile(os.path.join(dotnetcliPath, dotnet_tool)):
-            log('ERROR: did not extract .Net CLI from download')
+            log('ERROR: did not extract .NET CLI from download')
             return 1
 
     # Add dotnet CLI to PATH we'll use to spawn processes.
 
     log('Add %s to my PATH' % dotnetcliPath)
     my_env["PATH"] = dotnetcliPath + os.pathsep + my_env["PATH"]
+
+    # To aid diagnosing problems, do "dotnet --info" to output to any capturing logfile.
+
+    command = ["dotnet", "--info"]
+    returncode = run_command(command, my_env)
 
     # Clone jitutils
 
@@ -451,160 +508,117 @@ def do_pmi_diffs():
         log('ERROR: cannot clone jitutils');
         return 1
 
-    #
-    # Build jitutils, including "dotnet restore"
-    #
+    # We're going to start running dotnet CLI commands. Unfortunately, once you've done that,
+    # the dotnet CLI sticks around with a set of build server processes running. Put all this
+    # in a try/finally, and stop the build servers under any circumstance.
 
-    # Change directory to the jitutils root
+    try:
 
-    cwd = os.getcwd()
-    log('[cd] %s' % jitutilsPath)
-    if not testing:
-        os.chdir(jitutilsPath)
+        #
+        # Build jitutils, including "dotnet restore"
+        #
 
-    # Do "dotnet restore"
+        # Change directory to the jitutils root
 
-    command = ["dotnet", "restore"]
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
-        if returncode != 0:
-            log('Return code = %s' % returncode)
+        with ChangeDir(jitutilsPath):
 
-    # Do build
+            # Do "dotnet restore"
 
-    command = ['build.cmd' if Is_windows else 'build.sh', '-p']
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
-        if returncode != 0:
-            log('Return code = %s' % returncode)
-            log('ERROR: jitutils build failed')
+            command = ["dotnet", "restore"]
+            returncode = run_command(command, my_env)
+
+            # Do build
+
+            command = ['build.cmd', '-p'] if Is_windows else ['bash', './build.sh', '-p']
+            returncode = run_command(command, my_env)
+            if returncode != 0:
+                log('ERROR: jitutils build failed')
+                return 1
+
+            jitutilsBin = os.path.join(jitutilsPath, "bin")
+
+            if not testing and not os.path.isdir(jitutilsBin):
+                log("ERROR: jitutils not correctly built")
+                return 1
+
+            jitDiffPath = os.path.join(jitutilsBin, "jit-diff.dll")
+            if not testing and not os.path.isfile(jitDiffPath):
+                log("ERROR: jit-diff.dll not built")
+                return 1
+
+            jitAnalyzePath = os.path.join(jitutilsBin, "jit-analyze.dll")
+            if not testing and not os.path.isfile(jitAnalyzePath):
+                log("ERROR: jit-analyze.dll not built")
+                return 1
+
+            # Add jitutils bin to path for spawned processes
+
+            log('Add %s to my PATH' % jitutilsBin)
+            my_env["PATH"] = jitutilsBin + os.pathsep + my_env["PATH"]
+
+        #
+        # Run PMI asm diffs
+        #
+
+        # We want this script as a whole to return 0 if it succeeds (even if there are diffs) and only
+        # return non-zero if there are any fatal errors.
+        #
+        # TO DO: figure out how to differentiate fatal errors and a return code indicating there are diffs,
+        # and have the invoking netci.groovy code act differently for each case.
+
+        # Generate the diffs
+        #
+        # Invoke command like:
+        #   dotnet c:\gh\jitutils\bin\jit-diff.dll diff --pmi --base --base_root f:\gh\coreclr12 --diff --diff_root f:\gh\coreclr10 --arch x64 --build Checked --tag 1 --noanalyze --output f:\output --corelib
+        #
+        # We pass --noanalyze and call jit-analyze manually. This isn't really necessary, but it does give us better output
+        # due to https://github.com/dotnet/jitutils/issues/175.
+
+        altjit_args = []
+        if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
+            altjit_args = ["--altjit", "protononjit.dll"]
+
+        # Over which set of assemblies should we generate asm?
+        # TODO: parameterize this
+        asm_source_args = ["--frameworks", "--benchmarks"]
+
+        command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "1", "--noanalyze", "--output", asmRootPath] + asm_source_args + altjit_args
+        returncode = run_command(command, my_env)
+
+        # We ignore the return code: it is non-zero if there are any diffs. If there are fatal errors here, we will miss them.
+        # Question: does jit-diff distinguish between non-zero fatal error code and the existence of diffs?
+
+        # Did we get any diffs?
+
+        baseOutputDir = os.path.join(asmRootPath, "1", "base")
+        if not testing and not os.path.isdir(baseOutputDir):
+            log("ERROR: base asm not generated")
             return 1
 
-    jitutilsBin = os.path.join(jitutilsPath, "bin")
+        diffOutputDir = os.path.join(asmRootPath, "1", "diff")
+        if not testing and not os.path.isdir(diffOutputDir):
+            log("ERROR: diff asm not generated")
+            return 1
 
-    if not testing and not os.path.isdir(jitutilsBin):
-        log("ERROR: jitutils not correctly built")
-        return 1
+        # Do the jit-analyze comparison:
+        #   dotnet c:\gh\jitutils\bin\jit-analyze.dll --base f:\output\diffs\1\base --recursive --diff f:\output\diffs\1\diff
 
-    jitDiffPath = os.path.join(jitutilsBin, "jit-diff.dll")
-    if not testing and not os.path.isfile(jitDiffPath):
-        log("ERROR: jit-diff.dll not built")
-        return 1
-
-    jitAnalyzePath = os.path.join(jitutilsBin, "jit-analyze.dll")
-    if not testing and not os.path.isfile(jitAnalyzePath):
-        log("ERROR: jit-analyze.dll not built")
-        return 1
-
-    # Add jitutils bin to path for spawned processes
-
-    log('Add %s to my PATH' % jitutilsBin)
-    my_env["PATH"] = jitutilsBin + os.pathsep + my_env["PATH"]
-
-    # After baseline build, change directory back to where we started
-
-    log('[cd] %s' % cwd)
-    if not testing:
-        os.chdir(cwd)
-
-    #
-    # Run PMI asm diffs
-    #
-
-    # We continue through many failures, to get as much asm generated as possible. But make sure we return
-    # a failure code if there are any failures.
-
-    result = 0
-
-    # First, generate the diffs
-
-    # Invoke command like:
-    #   dotnet c:\gh\jitutils\bin\jit-diff.dll diff --pmi --corelib --diff --diff_root f:\gh\coreclr10 --arch x64 --build Checked --tag diff --output f:\output\diffs
-    #
-    # TODO: Fix issues when invoking this from a script:
-    # 1. There is no way to turn off the progress output
-    # 2. Make it easier to specify the exact directory you want output to go to?
-    # 3. run base and diff with a single command?
-    # 4. put base and diff in saner directory names.
-
-    altjit_args = []
-    if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
-        altjit_args = ["--altjit", "protononjit.dll"]
-
-    # Over which set of assemblies should we generate asm?
-    # TODO: parameterize this
-    asm_source_args = ["--corelib"]
-    # asm_source_args = ["--frameworks"]
-
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath] + asm_source_args + altjit_args
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
+        command = ["dotnet", jitAnalyzePath, "--recursive", "--base", baseOutputDir, "--diff", diffOutputDir]
+        returncode = run_command(command, my_env)
         if returncode != 0:
-            log('Return code = %s' % returncode)
-            result = 1
-
-    # Did we get any diffs?
-
-    diffOutputDir = os.path.join(asmRootPath, "diff", "diff")
-    if not testing and not os.path.isdir(diffOutputDir):
-        log("ERROR: diff asm not generated")
-        return 1
-
-    # Next, generate the baseline asm
-
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath] + asm_source_args + altjit_args
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
-        if returncode != 0:
-            log('Return code = %s' % returncode)
-            result = 1
-
-    # Did we get any diffs?
-
-    baseOutputDir = os.path.join(asmRootPath, "base", "base")
-    if not testing and not os.path.isdir(baseOutputDir):
-        log("ERROR: base asm not generated")
-        return 1
-
-    # Do the jit-analyze comparison:
-    #   dotnet c:\gh\jitutils\bin\jit-analyze.dll --base f:\output\diffs\base\diff --recursive --diff f:\output\diffs\diff\diff
-
-    command = ["dotnet", jitAnalyzePath, "--base", baseOutputDir, "--diff", diffOutputDir]
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
-        if returncode != 0:
-            log('Return code = %s' % returncode)
+            # This is not a fatal error.
             log('Compare: %s %s' % (baseOutputDir, diffOutputDir))
 
-    # Shutdown the dotnet build servers before cleaning things up
-    # TODO: make this shutdown happen anytime after we've run any 'dotnet' commands. I.e., try/finally style.
+    finally:
 
-    log('Shutting down build servers')
-    command = ["dotnet", "build-server", "shutdown"]
-    log('Invoking: %s' % (' '.join(command)))
-    if not testing:
-        proc = subprocess.Popen(command, env=my_env)
-        output,error = proc.communicate()
-        returncode = proc.returncode
-        if returncode != 0:
-            log('Return code = %s' % returncode)
+        # Shutdown the dotnet build servers before cleaning things up
+        # TODO: make this shutdown happen anytime after we've run any 'dotnet' commands. I.e., try/finally style.
 
-    return result
+        log('Shutting down build servers')
+        command = ["dotnet", "build-server", "shutdown"]
+        returncode = run_command(command, my_env)
+
+    return 0
 
 ##########################################################################
 # Main
@@ -632,7 +646,7 @@ def main(args):
     diff_layout_root = os.path.join(diff_root,
                                     'bin',
                                     'tests',
-                                    '%s.%s.%s' % (clr_os, arch, build_type),
+                                    '%s.%s.%s' % (Clr_os, arch, build_type),
                                     'Tests',
                                     'Core_Root')
 
@@ -656,7 +670,7 @@ def main(args):
     if base_root is None:
         # Setup scratch directories. Names are short to avoid path length problems on Windows.
         # No need to create this directory now, as the "git clone" will do it later.
-        baseCoreClrPath = os.path.abspath(os.path.join(scratch_root, '_c'))
+        baseCoreClrPath = os.path.abspath(os.path.join(scratch_root, 'base'))
     else:
         baseCoreClrPath = os.path.abspath(base_root)
         if not testing and not os.path.isdir(baseCoreClrPath):
@@ -675,7 +689,7 @@ def main(args):
     base_layout_root = os.path.join(baseCoreClrPath,
                                     'bin',
                                     'tests',
-                                    '%s.%s.%s' % (clr_os, arch, build_type),
+                                    '%s.%s.%s' % (Clr_os, arch, build_type),
                                     'Tests',
                                     'Core_Root')
 

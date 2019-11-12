@@ -104,6 +104,7 @@ private:
     void ContainCheckSIMD(GenTreeSIMD* simdNode);
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
+    void ContainCheckHWIntrinsicAddr(GenTreeHWIntrinsic* node, GenTree* addr);
     void ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node);
 #endif // FEATURE_HW_INTRINSICS
 
@@ -129,6 +130,7 @@ private:
     GenTree* OptimizeConstCompare(GenTree* cmp);
     GenTree* LowerCompare(GenTree* cmp);
     GenTree* LowerJTrue(GenTreeOp* jtrue);
+    GenTreeCC* LowerNodeCC(GenTree* node, GenCondition condition);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
     GenTree* LowerDelegateInvoke(GenTreeCall* call);
@@ -137,6 +139,10 @@ private:
     GenTree* LowerNonvirtPinvokeCall(GenTreeCall* call);
     GenTree* LowerTailCallViaHelper(GenTreeCall* callNode, GenTree* callTarget);
     void LowerFastTailCall(GenTreeCall* callNode);
+    void RehomeArgForFastTailCall(unsigned int lclNum,
+                                  GenTree*     insertTempBefore,
+                                  GenTree*     lookForUsesStart,
+                                  GenTreeCall* callNode);
     void InsertProfTailCallHook(GenTreeCall* callNode, GenTree* insertionPoint);
     GenTree* LowerVirtualVtableCall(GenTreeCall* call);
     GenTree* LowerVirtualStubCall(GenTreeCall* call);
@@ -198,18 +204,18 @@ private:
     }
 
     // Replace the definition of the given use with a lclVar, allocating a new temp
-    // if 'tempNum' is BAD_VAR_NUM.
-    unsigned ReplaceWithLclVar(LIR::Use& use, unsigned tempNum = BAD_VAR_NUM)
+    // if 'tempNum' is BAD_VAR_NUM. Returns the LclVar node.
+    GenTreeLclVar* ReplaceWithLclVar(LIR::Use& use, unsigned tempNum = BAD_VAR_NUM)
     {
         GenTree* oldUseNode = use.Def();
         if ((oldUseNode->gtOper != GT_LCL_VAR) || (tempNum != BAD_VAR_NUM))
         {
-            unsigned newLclNum  = use.ReplaceWithLclVar(comp, m_block->getBBWeight(comp), tempNum);
+            use.ReplaceWithLclVar(comp, m_block->getBBWeight(comp), tempNum);
             GenTree* newUseNode = use.Def();
             ContainCheckRange(oldUseNode->gtNext, newUseNode);
-            return newLclNum;
+            return newUseNode->AsLclVar();
         }
-        return oldUseNode->AsLclVarCommon()->gtLclNum;
+        return oldUseNode->AsLclVar();
     }
 
     // return true if this call target is within range of a pc-rel call on the machine
@@ -271,15 +277,15 @@ private:
 
     // Per tree node member functions
     void LowerStoreIndir(GenTreeIndir* node);
-    GenTree* LowerAdd(GenTree* node);
+    void LowerAdd(GenTreeOp* node);
     bool LowerUnsignedDivOrMod(GenTreeOp* divMod);
     GenTree* LowerConstIntDivOrMod(GenTree* node);
     GenTree* LowerSignedDivOrMod(GenTree* node);
     void LowerBlockStore(GenTreeBlk* blkNode);
+    void ContainBlockStoreAddress(GenTreeBlk* blkNode, unsigned size, GenTree* addr);
     void LowerPutArgStk(GenTreePutArgStk* tree);
 
-    GenTree* TryCreateAddrMode(LIR::Use&& use, bool isIndir);
-    void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
+    bool TryCreateAddrMode(GenTree* addr, bool isContainable);
 
     GenTree* LowerSwitch(GenTree* node);
     bool TryLowerSwitchToBitTest(
@@ -304,11 +310,11 @@ private:
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
     void LowerHWIntrinsic(GenTreeHWIntrinsic* node);
+    void LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIntrinsicId, GenCondition condition);
+    void LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node);
 #endif // FEATURE_HW_INTRINSICS
 
     // Utility functions
-    void MorphBlkIntoHelperCall(GenTree* pTree, GenTree* treeStmt);
-
 public:
     static bool IndirsAreEquivalent(GenTree* pTreeA, GenTree* pTreeB);
 

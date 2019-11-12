@@ -117,7 +117,7 @@ __PWTB_StackAlloc SETA __PWTB_TransitionBlock
 
         ; Spill callee saved registers and return address.
         PROLOG_PUSH         {r4-r11,lr}
-        
+
         ; Allocate space for the rest of the frame
         PROLOG_STACK_ALLOC  __PWTB_StackAlloc
 
@@ -136,7 +136,7 @@ __PWTB_StackAlloc SETA __PWTB_TransitionBlock
     MACRO
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
-        IF __PWTB_SaveFPArgs 
+        IF __PWTB_SaveFPArgs
         add         r6, sp, #(__PWTB_FloatArgumentRegisters)
         vldm        r6, {s0-s15}
         ENDIF
@@ -159,3 +159,39 @@ __PWTB_StackAlloc SETA __PWTB_TransitionBlock
         EPILOG_RETURN
     MEND
 
+;-----------------------------------------------------------------------------
+; Macro to get a pointer to the Thread* object for the currently executing thread
+;
+__tls_array     equ 0x2C    ;; offsetof(TEB, ThreadLocalStoragePointer)
+
+        GBLS __SECTIONREL_gCurrentThreadInfo
+__SECTIONREL_gCurrentThreadInfo SETS "SECTIONREL_gCurrentThreadInfo"
+
+    MACRO
+        INLINE_GETTHREAD $destReg, $trashReg
+        EXTERN _tls_index
+
+        ldr         $destReg, =_tls_index
+        ldr         $destReg, [$destReg]
+        mrc         p15, 0, $trashReg, c13, c0, 2
+        ldr         $trashReg, [$trashReg, #__tls_array]
+        ldr         $destReg, [$trashReg, $destReg, lsl #2]
+        ldr         $trashReg, $__SECTIONREL_gCurrentThreadInfo
+        ldr         $destReg,[$destReg, $trashReg]     ; return gCurrentThreadInfo.m_pThread
+    MEND
+
+;-----------------------------------------------------------------------------
+; INLINE_GETTHREAD_CONSTANT_POOL macro has to be used after the last function in the .asm file that used
+; INLINE_GETTHREAD. Optionally, it can be also used after any function that used INLINE_GETTHREAD
+; to improve density, or to reduce distance betweeen the constant pool and its use.
+;
+    MACRO
+        INLINE_GETTHREAD_CONSTANT_POOL
+        EXTERN gCurrentThreadInfo
+
+$__SECTIONREL_gCurrentThreadInfo
+        DCDU gCurrentThreadInfo
+        RELOC 15 ;; SECREL
+
+__SECTIONREL_gCurrentThreadInfo SETS "$__SECTIONREL_gCurrentThreadInfo":CC:"_"
+    MEND

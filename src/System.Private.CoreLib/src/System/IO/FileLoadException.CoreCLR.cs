@@ -2,43 +2,40 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using System.Security;
+using System.Runtime.InteropServices;
 
 namespace System.IO
 {
     public partial class FileLoadException
     {
         // Do not delete: this is invoked from native code.
-        private FileLoadException(string fileName, string fusionLog, int hResult)
+        private FileLoadException(string? fileName, int hResult)
             : base(null)
         {
             HResult = hResult;
             FileName = fileName;
-            FusionLog = fusionLog;
             _message = FormatFileLoadExceptionMessage(FileName, HResult);
         }
 
-        internal static string FormatFileLoadExceptionMessage(string fileName, int hResult)
+        internal static string FormatFileLoadExceptionMessage(string? fileName, int hResult)
         {
-            string format = null;
-            GetFileLoadExceptionMessage(hResult, JitHelpers.GetStringHandleOnStack(ref format));
+            string? format = null;
+            GetFileLoadExceptionMessage(hResult, new StringHandleOnStack(ref format));
 
-            string message = null;
+            string? message = null;
             if (hResult == System.HResults.COR_E_BADEXEFORMAT)
                 message = SR.Arg_BadImageFormatException;
-            else 
-                GetMessageForHR(hResult, JitHelpers.GetStringHandleOnStack(ref message));
+            else
+                GetMessageForHR(hResult, new StringHandleOnStack(ref message));
 
-            return string.Format(CultureInfo.CurrentCulture, format, fileName, message);
+            return string.Format(format, fileName, message);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetFileLoadExceptionMessage(int hResult, StringHandleOnStack retString);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetMessageForHR(int hresult, StringHandleOnStack retString);
     }
 }

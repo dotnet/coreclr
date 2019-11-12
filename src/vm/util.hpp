@@ -12,9 +12,6 @@
 #ifndef _H_UTIL
 #define _H_UTIL
 
-#define MAX_UINT32_HEX_CHAR_LEN 8 // max number of chars representing an unsigned int32, not including terminating null char.
-#define MAX_INT32_DECIMAL_CHAR_LEN 11 // max number of chars representing an int32, including sign, not including terminating null char.
-
 #include "utilcode.h"
 #include "metadata.h"
 #include "holderinst.h"
@@ -23,7 +20,7 @@
 #include "posterror.h"
 #include "clr_std/type_traits"
 
-                  
+
 // Prevent the use of UtilMessageBox and WszMessageBox from inside the EE.
 #undef UtilMessageBoxCatastrophic
 #undef UtilMessageBoxCatastrophicNonLocalized
@@ -72,27 +69,6 @@ typedef double              R8;
 // using compiler intrinsics so they are as fast as they can possibly be.
 //
 
-//
-// these don't have corresponding compiler intrinsics
-//
-
-#ifdef FEATURE_SINGLE_THREADED
-#define FastInterlockIncrement(a)   (++(*a))
-#define FastInterlockDecrement(a)   (--(*a))
-#define FastInterlockOr(a, b)   (*a |= (DWORD)b)
-#define FastInterlockAnd(a, b)   (*a &= (DWORD)b)
-#define FastInterlockIncrementLong(a)   (++(*a))
-#define FastInterlockDecrementLong(a)   (--(*a))
-#define FastInterlockOrLong(a, b)   (*a |= (UINT64)b)
-#define FastInterlockAndLong(a, b)   (*a &= (UINT64)b)
-#define FastInterlockCompareExchange        InterlockedCompareExchange
-#define FastInterlockCompareExchangePointer InterlockedCompareExchangeT
-
-#else
-
-//
-// these DO have corresponding compiler intrinsics
-//
 #define FastInterlockIncrement              InterlockedIncrement
 #define FastInterlockDecrement              InterlockedDecrement
 #define FastInterlockExchange               InterlockedExchange
@@ -103,9 +79,9 @@ typedef double              R8;
 #define FastInterlockExchangeAddLong        InterlockedExchangeAdd64
 
 //
-// Forward FastInterlock[Compare]ExchangePointer to the 
+// Forward FastInterlock[Compare]ExchangePointer to the
 // Utilcode Interlocked[Compare]ExchangeT.
-// 
+//
 #define FastInterlockExchangePointer        InterlockedExchangeT
 #define FastInterlockCompareExchangePointer InterlockedCompareExchangeT
 
@@ -123,8 +99,6 @@ FORCEINLINE void FastInterlockAnd(DWORD RAW_KEYWORD(volatile) *p, const int msk)
     InterlockedAnd((LONG *)p, msk);
 }
 
-#endif
-
 #ifndef FEATURE_PAL
 // Copied from malloc.h: don't want to bring in the whole header file.
 void * __cdecl _alloca(size_t);
@@ -135,9 +109,6 @@ void * __cdecl _alloca(size_t);
 #pragma warning(disable:6255)
 #endif // _PREFAST_
 
-// Function to parse apart a command line and return the
-// arguments just like argv and argc
-LPWSTR* CommandLineToArgvW(__in LPWSTR lpCmdLine, DWORD *pNumArgs);
 #define ISWWHITE(x) ((x)==W(' ') || (x)==W('\t') || (x)==W('\n') || (x)==W('\r') )
 
 BOOL inline FitsInI1(__int64 val)
@@ -325,16 +296,7 @@ class CQuickHeap
 
         // Linked list of big QuickBlock's
         QuickBlock      *m_pFirstBigQuickBlock;
-
 };
-
-//======================================================================
-// String Helpers
-//
-//
-//
-ULONG StringHashValueW(__in LPWSTR wzString);
-ULONG StringHashValueA(LPCSTR szString);
 
 void PrintToStdOutA(const char *pszString);
 void PrintToStdOutW(const WCHAR *pwzString);
@@ -345,50 +307,7 @@ void NPrintToStdOutW(const WCHAR *pwzString, size_t nchars);
 void NPrintToStdErrA(const char *pszString, size_t nbytes);
 void NPrintToStdErrW(const WCHAR *pwzString, size_t nchars);
 
-
-//=====================================================================
-// Function for formatted text output to the debugger
-//
-//
-void __cdecl VMDebugOutputA(__in LPSTR format, ...);
-void __cdecl VMDebugOutputW(__in LPWSTR format, ...);
-
-//=====================================================================
-// VM-safe wrapper for PostError.
-//
-HRESULT VMPostError(                    // Returned error.
-    HRESULT     hrRpt,                  // Reported error.
-    ...);                               // Error arguments.
-    
-//=====================================================================
-// Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
-void VMDumpCOMErrors(HRESULT hrErr);
-
 #include "nativevaraccessors.h"
-
-//======================================================================
-// Stack friendly registry helpers
-//
-LONG UtilRegEnumKey(HKEY hKey,            // handle to key to query
-                    DWORD dwIndex,        // index of subkey to query
-                    CQuickWSTR* lpName);// buffer for subkey name
-
-LONG UtilRegQueryStringValueEx(HKEY hKey,            // handle to key to query
-                               LPCWSTR lpValueName,  // address of name of value to query
-                               LPDWORD lpReserved,   // reserved
-                               LPDWORD lpType,       // address of buffer for value type
-                               CQuickWSTR* lpData);// data buffer
-
-//======================================================================
-// Event logging
-
-BOOL ReportEventCLR (
-     IN WORD       wType,       // Event type - warning, error, success, etc
-     IN WORD       wCategory,   // Event category
-     IN DWORD      dwEventID,   // Event identifier (defined in shimr\msg.mc)
-     IN PSID       lpUserSid,   // user's security identifier
-     IN SString  * message      // message to log
-    );
 
 // --------------------------------------------------------------------------------
 // GCX macros
@@ -512,7 +431,7 @@ typedef GCAssert<FALSE>                 GCAssertPreemp;
 
 // This has a potential race with the GC thread.  It is currently
 // used for a few cases where (a) we potentially haven't started up the EE yet, or
-// (b) we are on a "special thread". 
+// (b) we are on a "special thread".
 #ifdef ENABLE_CONTRACTS_IMPL
 #define GCX_COOP_NO_THREAD_BROKEN()                 GCCoopHackNoThread __gcHolder("GCX_COOP_NO_THREAD_BROKEN",  __FUNCTION__, __FILE__, __LINE__)
 #else
@@ -615,7 +534,7 @@ struct LockOwner
     FnLockOwner lockOwnerFunc;
 };
 
-// this is the standard lockowner for things that require a lock owner but which really don't 
+// this is the standard lockowner for things that require a lock owner but which really don't
 // need any validation due to their simple/safe semantics
 // the classic example of this is a hash table that is initialized and then never grows
 extern LockOwner g_lockTrustMeIAmThreadSafe;
@@ -651,7 +570,7 @@ public:
         return (m_FiberPtrId == ClrTeb::GetFiberPtrId());
     }
 
-    
+
 #ifdef _DEBUG
     bool IsUnknown() const
     {
@@ -679,29 +598,12 @@ inline BOOL CLRHosted()
 }
 
 #ifndef FEATURE_PAL
-HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName);
-
-// Equivalent to CLRGetModuleHandle(NULL) but doesn't have the INJECT_FAULT contract associated
-// with CLRGetModuleHandle.
-HMODULE CLRGetCurrentModuleHandle();
-
 HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 #endif // !FEATURE_PAL
 
 HMODULE CLRLoadLibrary(LPCWSTR lpLibFileName);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
-VOID CLRFreeLibraryAndExitThread(HMODULE hModule, DWORD dwExitCode);
-
-LPVOID
-CLRMapViewOfFileEx(
-    IN HANDLE hFileMappingObject,
-    IN DWORD dwDesiredAccess,
-    IN DWORD dwFileOffsetHigh,
-    IN DWORD dwFileOffsetLow,
-    IN SIZE_T dwNumberOfBytesToMap,
-    IN LPVOID lpBaseAddress
-    );
 
 LPVOID
 CLRMapViewOfFile(
@@ -709,9 +611,8 @@ CLRMapViewOfFile(
     IN DWORD dwDesiredAccess,
     IN DWORD dwFileOffsetHigh,
     IN DWORD dwFileOffsetLow,
-    IN SIZE_T dwNumberOfBytesToMap
-    );
-
+    IN SIZE_T dwNumberOfBytesToMap,
+    IN LPVOID lpBaseAddress = NULL);
 
 BOOL
 CLRUnmapViewOfFile(
@@ -739,10 +640,6 @@ typedef Wrapper<void *, DoNothing, DoNothing> PALPEFileHolder;
 
 void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX);
 
-void ProcessEventForHost(EClrEvent event, void *data);
-void ProcessSOEventForHost(EXCEPTION_POINTERS *pExceptionInfo, BOOL fInSoTolerant);
-BOOL IsHostRegisteredForEvent(EClrEvent event);
-
 #define SetupThreadForComCall(OOMRetVal)            \
     MAKE_CURRENT_THREAD_AVAILABLE_EX(GetThreadNULLOk()); \
     if (CURRENT_THREAD == NULL)                     \
@@ -752,78 +649,25 @@ BOOL IsHostRegisteredForEvent(EClrEvent event);
             return OOMRetVal;                       \
     }                                               \
 
+#define SetupForComCallHR() SetupThreadForComCall(E_OUTOFMEMORY)
+#define SetupForComCallDWORD() SetupThreadForComCall(ERROR_OUTOFMEMORY)
 
-#define InternalSetupForComCall(CannotEnterRetVal, OOMRetVal, SORetVal, CheckCanRunManagedCode) \
-SetupThreadForComCall(OOMRetVal);                       \
-if (CheckCanRunManagedCode && !CanRunManagedCode())     \
-    return CannotEnterRetVal;                           \
-SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)
-
-#define SetupForComCallHRNoHostNotif() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
-#define SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
-#define SetupForComCallDWORDNoHostNotif() InternalSetupForComCall(-1, -1, -1, true)
-
-#define SetupForComCallHR()                                                                \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
-
-#define SetupForComCallHRNoCheckCanRunManagedCode()                                        \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-
-// Since Corrupting exceptions can escape COM interop boundaries,
-// these macros will be used to setup the initial SO-Intolerant transition.
-#define InternalSetupForComCallWithEscapingCorruptingExceptions(CannotEnterRetVal, OOMRetVal, SORetVal, CheckCanRunManagedCode) \
-if (CheckCanRunManagedCode && !CanRunManagedCode())                         \
-    return CannotEnterRetVal;                                               \
-SetupThreadForComCall(OOMRetVal);                                           \
-BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, SORetVal)                  \
-
-#define BeginSetupForComCallHRWithEscapingCorruptingExceptions()            \
-HRESULT __hr = S_OK;                                                        \
-InternalSetupForComCallWithEscapingCorruptingExceptions(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)              \
-                                                                            \
-if (SUCCEEDED(__hr))                                                        \
-{                                                                           \
-
-#define EndSetupForComCallHRWithEscapingCorruptingExceptions()              \
-}                                                                           \
-END_SO_INTOLERANT_CODE;                                                     \
-                                                                            \
-if (FAILED(__hr))                                                           \
-{                                                                           \
-    return __hr;                                                            \
-}                                                                           \
-
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-#define SetupForComCallDWORD()                                              \
-InternalSetupForComCall(-1, -1, -1, true)
-
-// Special version of SetupForComCallDWORD that doesn't call
-// CanRunManagedCode() to avoid firing LoaderLock MDA
-#define SetupForComCallDWORDNoCheckCanRunManagedCode()                      \
-InternalSetupForComCall(-1, -1, -1, false)
-
-#include "unsafe.h"
-
-inline void UnsafeTlsFreeForHolder(DWORD* addr)
+// A holder for NATIVE_LIBRARY_HANDLE.
+FORCEINLINE void VoidFreeNativeLibrary(NATIVE_LIBRARY_HANDLE h)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (addr && *addr != TLS_OUT_OF_INDEXES) {
-        UnsafeTlsFree(*addr);
-        *addr = TLS_OUT_OF_INDEXES;
-    }
+    if (h == NULL)
+        return;
+
+#ifdef FEATURE_PAL
+    PAL_FreeLibraryDirect(h);
+#else
+    FreeLibrary(h);
+#endif
 }
 
-// A holder to make sure tls slot is released and memory for allocated one is set to TLS_OUT_OF_INDEXES
-typedef Holder<DWORD*, DoNothing<DWORD*>, UnsafeTlsFreeForHolder> TlsHolder;
-
-// A holder for HMODULE.
-FORCEINLINE void VoidFreeLibrary(HMODULE h) { WRAPPER_NO_CONTRACT; CLRFreeLibrary(h); }
-
-typedef Wrapper<HMODULE, DoNothing<HMODULE>, VoidFreeLibrary, NULL> ModuleHandleHolder;
+typedef Wrapper<NATIVE_LIBRARY_HANDLE, DoNothing<NATIVE_LIBRARY_HANDLE>, VoidFreeNativeLibrary, NULL> NativeLibraryHandleHolder;
 
 #ifndef FEATURE_PAL
 
@@ -873,50 +717,29 @@ inline int GetCantStopCount()
 // At places where we know we're calling out to native code, we can assert that we're NOT in a CS region.
 // This is _debug only since we only use it for asserts; not for real code-flow control in a retail build.
 inline bool IsInCantStopRegion()
-{    
+{
     return (GetCantStopCount() > 0);
 }
 #endif // _DEBUG
 
-
-// PAL does not support per-thread locales. The holder is no-op for FEATURE_PALs
-class ThreadLocaleHolder
-{
-#ifndef FEATURE_PAL
-public:
-
-    ThreadLocaleHolder()
-    {
-        m_locale = GetThreadLocale();
-    }
-
-    ~ThreadLocaleHolder();
-
-private:
-    LCID m_locale;
-#endif // !FEATURE_PAL
-};
-
-
-
 BOOL IsValidMethodCodeNotification(USHORT Notification);
-    
+
 typedef DPTR(struct JITNotification) PTR_JITNotification;
 struct JITNotification
 {
     USHORT state; // values from CLRDataMethodCodeNotification
     TADDR clrModule;
     mdToken methodToken;
-    
-    JITNotification() { SetFree(); } 
+
+    JITNotification() { SetFree(); }
     BOOL IsFree() { return state == CLRDATA_METHNOTIFY_NONE; }
     void SetFree() { state = CLRDATA_METHNOTIFY_NONE; clrModule = NULL; methodToken = 0; }
-    void SetState(TADDR moduleIn, mdToken tokenIn, USHORT NType) 
-    { 
-        _ASSERTE(IsValidMethodCodeNotification(NType)); 
-        clrModule = moduleIn; 
-        methodToken = tokenIn; 
-        state = NType; 
+    void SetState(TADDR moduleIn, mdToken tokenIn, USHORT NType)
+    {
+        _ASSERTE(IsValidMethodCodeNotification(NType));
+        clrModule = moduleIn;
+        methodToken = tokenIn;
+        state = NType;
     }
 };
 
@@ -941,15 +764,15 @@ InitializeJITNotificationTable()
 class JITNotifications
 {
 public:
-    JITNotifications(JITNotification *jitTable);    
+    JITNotifications(JITNotification *jitTable);
     BOOL SetNotification(TADDR clrModule, mdToken token, USHORT NType);
-    USHORT Requested(TADDR clrModule, mdToken token); 
+    USHORT Requested(TADDR clrModule, mdToken token);
 
     // if clrModule is NULL, all active notifications are changed to NType
     BOOL SetAllNotifications(TADDR clrModule,USHORT NType,BOOL *changedOut);
-    inline BOOL IsActive() { LIMITED_METHOD_CONTRACT; return m_jitTable!=NULL; }    
+    inline BOOL IsActive() { LIMITED_METHOD_CONTRACT; return m_jitTable!=NULL; }
 
-    UINT GetTableSize();    
+    UINT GetTableSize();
 #ifdef DACCESS_COMPILE
     static JITNotification *InitializeNotificationTable(UINT TableSize);
     // Updates target table from host copy
@@ -962,7 +785,7 @@ private:
     void DecrementLength();
 
     BOOL FindItem(TADDR clrModule, mdToken token, UINT *indexOut);
-    
+
     JITNotification *m_jitTable;
 };
 
@@ -978,12 +801,12 @@ struct GcNotification
 {
     GcEvtArgs ev;
 
-    GcNotification() { SetFree(); } 
+    GcNotification() { SetFree(); }
     BOOL IsFree() { return ev.typ == CLRDATA_GC_NONE; }
     void SetFree() { memset(this, 0, sizeof(*this)); ev.typ = (GcEvt_t) CLRDATA_GC_NONE; }
     void Set(GcEvtArgs ev_)
     {
-        _ASSERTE(IsValidGcNotification(ev_.typ)); 
+        _ASSERTE(IsValidGcNotification(ev_.typ));
         ev = ev_;
     }
     BOOL IsMatch(GcEvtArgs ev_)
@@ -1015,7 +838,7 @@ GPTR_DECL(GcNotification, g_pGcNotificationTable);
 class GcNotifications
 {
 public:
-    GcNotifications(GcNotification *gcTable);    
+    GcNotifications(GcNotification *gcTable);
     BOOL SetNotification(GcEvtArgs ev);
     GcEvtArgs* GetNotification(GcEvtArgs ev)
     {
@@ -1032,8 +855,8 @@ public:
     }
 
     // if clrModule is NULL, all active notifications are changed to NType
-    inline BOOL IsActive() 
-    { return m_gcTable != NULL; }    
+    inline BOOL IsActive()
+    { return m_gcTable != NULL; }
 
     UINT GetTableSize()
     { return Size(); }
@@ -1086,7 +909,7 @@ public:
         CATCH_ENTER_NOTIFICATION = 7,
         JIT_NOTIFICATION2=8,
     };
-    
+
     // called from the runtime
     static void DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation);
     static void DoJITPitchingNotification(MethodDesc *MethodDescPtr);
@@ -1108,19 +931,6 @@ public:
 };
 
 void DACNotifyCompilationFinished(MethodDesc *pMethodDesc);
-    
-#ifdef _DEBUG
-#ifndef FEATURE_PAL
-// NOTE: Windows Vista RTM SDK defines CaptureStackBackTrace as RtlCaptureStackBackTrace (in winbase.h)
-//       Renamed CaptureStackBackTrace to UtilCaptureBackTrace in order to avoid conflicts with the Windows definition
-USHORT UtilCaptureStackBackTrace(
-    ULONG FramesToSkip,
-    ULONG FramesToCapture,
-    PVOID * BackTrace,
-    OUT PULONG BackTraceHash);
-#endif // !FEATURE_PAL
-#endif //_DEBUG
-
 
 // These wrap the SString:L:CompareCaseInsenstive function in a way that makes it
 // easy to fix code that uses _stricmp. _stricmp should be avoided as it uses the current
@@ -1131,49 +941,9 @@ USHORT UtilCaptureStackBackTrace(
 // you've got a problem.
 int __cdecl stricmpUTF8(const char* szStr1, const char* szStr2);
 
-#ifdef _DEBUG
-class DisableDelayLoadCheckForOleaut32
-{
-public:
-    DisableDelayLoadCheckForOleaut32();
-    ~DisableDelayLoadCheckForOleaut32();
-};
-#endif
-
-extern LONG g_OLEAUT32_Loaded;
-
-#define ENSURE_OLEAUT32_LOADED()
-
 BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);
 
-#ifndef DACCESS_COMPILE
-// returns if ARM was already enabled or not.
-BOOL EnableARM();
-#endif // !DACCESS_COMPILE
-
 int GetRandomInt(int maxVal);
-
-class InternalCasingHelper {
-
-    private:
-    // Convert szIn to lower case in the Invariant locale.
-    // TODO: NLS Arrowhead -Called by the two ToLowers)
-    static INT32 InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow);
-
-    public:
-    //
-    // Native helper functions to do correct casing operations in
-    // runtime native code.
-    //
-
-    // Convert szIn to lower case in the Invariant locale. (WARNING: May throw.)
-    static INT32 InvariantToLower(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn);
-
-    // Convert szIn to lower case in the Invariant locale. (WARNING: This version
-    // won't throw but it will use stack space as an intermediary (so don't
-    // use for ridiculously long strings.)
-    static INT32 InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn);
-};
 
 //
 //

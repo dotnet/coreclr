@@ -42,7 +42,7 @@ WARNING:   When setting properties based on their current state (for example:
     </PropertyGroup>
     <!-- In order to avoid the overhead of calling MSBuild (as it may result in chains of MSBuild calls) I am assuming the extension in this circumstance. -->
     <PropertyGroup Condition="$(CLRTestProjectToRun) != '' AND $(GenerateRunScript)">
-      <ExecuteCmdFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).exe</ExecuteCmdFullPath>
+      <ExecuteCmdFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).dll</ExecuteCmdFullPath>
     </PropertyGroup>
     <PropertyGroup Condition="!$(GenerateRunScript)">
         <ExecuteCmdFullPath>$(OutputPath)$(MSBuildProjectName).$(OutputType.ToLower())</ExecuteCmdFullPath>
@@ -76,19 +76,39 @@ IF NOT "%COMPlus_GCStress%"=="" (
   Exit /b 0
 )
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
+      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(UnloadabilityIncompatible)' == 'true'"><![CDATA[
+$(BatchCLRTestEnvironmentCompatibilityCheck)
+IF NOT "%RunInUnloadableContext%"=="" (
+  ECHO SKIPPING EXECUTION BECAUSE the test is incompatible with unloadability
+  popd
+  Exit /b 0
+)
+      ]]></BatchCLRTestEnvironmentCompatibilityCheck>
       <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'">
     <![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
-IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" IF "%COMPlus_TieredCompilation%"=="" goto :Compatible1
+REM JitOptimizationSensitive includes our set of tests which cannot run under:
+REM     JitMinOpts=1
+REM     JitStress=*
+REM     JitStressRegs=*
+REM     TailcallStress=1
+REM
+REM TieredCompilation will use minopts. Therefore it is also included in this
+REM set. Unlike the rest, TieredCompilation=0 should run the JitOptimizationSensitive
+REM tests. The following cannot run the test.
+REM
+REM     TieredCompilation=1
+REM     TieredCompilation=
+IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" goto :Compatible
   ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_TieredCompilation) IS SET
   popd
   Exit /b 0
-:Compatible1
-IF "%COMPlus_TieredCompilation%"=="0" goto :Compatible2
+:Compatible
+IF "%COMPlus_TieredCompilation%"=="0" goto :TieredCompilationDisabledCorrectly
   ECHO SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has not been disabled and this test is marked JitOptimizationSensitive
   popd
   Exit /b 0
-:Compatible2
+:TieredCompilationDisabledCorrectly
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
       <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
@@ -150,6 +170,7 @@ Exit /b 0
         <Command><![CDATA[
     IF EXIST "%2" (
         set _DebuggerFullPath=%2
+        shift
     ) ELSE (
         ECHO The Debugger FullPath "%2" doesn't exist
         GOTO :USAGE
@@ -234,7 +255,7 @@ IF defined DoLink (
     copy *.txt %LinkBin% > nul 2> nul
 
     set ExePath=%LinkBin%\$(InputAssemblyName)
-    set CORE_ROOT=%~dp0%LinkBin%
+    set CORE_ROOT=%scriptPath%LinkBin%
 )
 ]]>
           </BatchLinkerTestLaunchCmds>
@@ -260,7 +281,7 @@ COPY /y %CORE_ROOT%\CoreShim.dll .
       ]]></BatchCopyCoreShimLocalCmds>
       <BatchCLRTestLaunchCmds><![CDATA[
 IF NOT "%CLRCustomTestLauncher%"=="" (
-  set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
+  set LAUNCHER=call %CLRCustomTestLauncher% %scriptPath%
 ) ELSE (
   set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
 )
@@ -365,12 +386,20 @@ $(BatchCLRTestArgPrep)
 setlocal ENABLEDELAYEDEXPANSION
 set "lockFolder=%~dp0\lock"
 pushd %~dp0
+set "scriptPath=%~dp0"
 
 $(BatchCLRTestArgPrep)
 $(BatchCLRTestExitCodePrep)
 
 REM The __TestEnv variable may be used to specify something to run before the test.
-IF NOT "%__TestEnv%"=="" call %__TestEnv%
+IF NOT "%__TestEnv%"=="" (
+    call %__TestEnv%
+    IF NOT "!ERRORLEVEL!"=="0" (
+        ECHO CALLING __TestEnv SCRIPT FAILED
+        popd
+        Exit /b 1
+    )
+)
 
 REM Environment Variables
 $(BatchEnvironmentVariables)

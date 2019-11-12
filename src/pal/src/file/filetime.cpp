@@ -84,11 +84,11 @@ SET_DEFAULT_DEBUG_CHANNEL(FILE);
    89 * 366 + 280 * 365 = 134774 days between epochs. Of course
    60 * 60 * 24 = 86400 seconds per day, so 134774 * 86400 =
    11644473600 = SECS_BETWEEN_1601_AND_1970_EPOCHS.
-   
+
    To 2001:
    Again, both epochs are Gregorian. 2001 - 1601 = 400. Assuming a leap
    year every four years, 400 / 4 = 100. However, 1700, 1800, and 1900
-   were NOT leap years (2000 was because it was divisible by 400), so 
+   were NOT leap years (2000 was because it was divisible by 400), so
    97 leap years, 303 non-leap years.
    97 * 366 + 303 * 365 = 146097 days between epochs. 146097 * 86400 =
    12622780800 = SECS_BETWEEN_1601_AND_2001_EPOCHS.
@@ -121,7 +121,7 @@ CompareFileTime(
     long Ret;
 
     PERF_ENTRY(CompareFileTime);
-    ENTRY("CompareFileTime(lpFileTime1=%p lpFileTime2=%p)\n", 
+    ENTRY("CompareFileTime(lpFileTime1=%p lpFileTime2=%p)\n",
           lpFileTime1, lpFileTime2);
 
     First = ((__int64)lpFileTime1->dwHighDateTime << 32) +
@@ -141,7 +141,7 @@ CompareFileTime(
     {
         Ret = 0;
     }
-    
+
     LOGEXIT("CompareFileTime returns LONG %ld\n", Ret);
     PERF_EXIT(CompareFileTime);
     return Ret;
@@ -160,7 +160,7 @@ GetSystemTimeAsFileTime(
             OUT LPFILETIME lpSystemTimeAsFileTime)
 {
     PERF_ENTRY(GetSystemTimeAsFileTime);
-    ENTRY("GetSystemTimeAsFileTime(lpSystemTimeAsFileTime=%p)\n", 
+    ENTRY("GetSystemTimeAsFileTime(lpSystemTimeAsFileTime=%p)\n",
           lpSystemTimeAsFileTime);
 
 #if HAVE_WORKING_CLOCK_GETTIME
@@ -197,23 +197,23 @@ Function:
 Convert a CFAbsoluteTime value to a win32 FILETIME structure, as described
 in MSDN documentation. CFAbsoluteTime is the number of seconds elapsed since
 00:00 01 January 2001 UTC (Mac OS X epoch), while FILETIME represents a
-64-bit number of 100-nanosecond intervals that have passed since 00:00 
+64-bit number of 100-nanosecond intervals that have passed since 00:00
 01 January 1601 UTC (win32 epoch).
 --*/
 FILETIME FILECFAbsoluteTimeToFileTime( CFAbsoluteTime sec )
 {
     __int64 Result;
     FILETIME Ret;
-    
+
     Result = ((__int64)sec + SECS_BETWEEN_1601_AND_2001_EPOCHS) * SECS_TO_100NS;
 
     Ret.dwLowDateTime = (DWORD)Result;
     Ret.dwHighDateTime = (DWORD)(Result >> 32);
 
-    TRACE("CFAbsoluteTime = [%9f] converts to Win32 FILETIME = [%#x:%#x]\n", 
+    TRACE("CFAbsoluteTime = [%9f] converts to Win32 FILETIME = [%#x:%#x]\n",
           sec, Ret.dwHighDateTime, Ret.dwLowDateTime);
 
-    return Ret;    
+    return Ret;
 }
 #endif // __APPLE__
 
@@ -223,9 +223,9 @@ Function:
   FILEUnixTimeToFileTime
 
 Convert a time_t value to a win32 FILETIME structure, as described in
-MSDN documentation. time_t is the number of seconds elapsed since 
-00:00 01 January 1970 UTC (Unix epoch), while FILETIME represents a 
-64-bit number of 100-nanosecond intervals that have passed since 00:00 
+MSDN documentation. time_t is the number of seconds elapsed since
+00:00 01 January 1970 UTC (Unix epoch), while FILETIME represents a
+64-bit number of 100-nanosecond intervals that have passed since 00:00
 01 January 1601 UTC (win32 epoch).
 --*/
 FILETIME FILEUnixTimeToFileTime( time_t sec, long nsec )
@@ -239,75 +239,24 @@ FILETIME FILEUnixTimeToFileTime( time_t sec, long nsec )
     Ret.dwLowDateTime = (DWORD)Result;
     Ret.dwHighDateTime = (DWORD)(Result >> 32);
 
-    TRACE("Unix time = [%ld.%09ld] converts to Win32 FILETIME = [%#x:%#x]\n", 
+    TRACE("Unix time = [%ld.%09ld] converts to Win32 FILETIME = [%#x:%#x]\n",
           sec, nsec, Ret.dwHighDateTime, Ret.dwLowDateTime);
 
     return Ret;
 }
 
 
-/*++
-Function:
-  FILEFileTimeToUnixTime
-
-See FILEUnixTimeToFileTime above.
-
-This function takes a win32 FILETIME structures, returns the equivalent
-time_t value, and, if the nsec parameter is non-null, also returns the
-nanoseconds.
-
-NOTE: a 32-bit time_t is only capable of representing dates between
-13 December 1901 and 19 January 2038. This function will calculate the
-number of seconds (positive or negative) since the Unix epoch, however if
-this value is outside of the range of 32-bit numbers, the result will be
-truncated on systems with a 32-bit time_t.
---*/
-time_t FILEFileTimeToUnixTime( FILETIME FileTime, long *nsec )
-{
-    __int64 UnixTime;
-
-    /* get the full win32 value, in 100ns */
-    UnixTime = ((__int64)FileTime.dwHighDateTime << 32) + 
-        FileTime.dwLowDateTime;
-
-    /* convert to the Unix epoch */
-    UnixTime -= (SECS_BETWEEN_1601_AND_1970_EPOCHS * SECS_TO_100NS);
-
-    TRACE("nsec=%p\n", nsec);
-
-    if ( nsec )
-    {
-        /* get the number of 100ns, convert to ns */
-        *nsec = (UnixTime % SECS_TO_100NS) * 100;
-    }
-
-    UnixTime /= SECS_TO_100NS; /* now convert to seconds */
-
-    if ( (time_t)UnixTime != UnixTime )
-    {
-        WARN("Resulting value is too big for a time_t value\n");
-    }
-
-    TRACE("Win32 FILETIME = [%#x:%#x] converts to Unix time = [%ld.%09ld]\n", 
-          FileTime.dwHighDateTime, FileTime.dwLowDateTime ,(long) UnixTime,
-          nsec?*nsec:0L);
-
-    return (time_t)UnixTime;
-}
-
-
-
 /**
-Function 
+Function
 
     FileTimeToSystemTime()
-    
+
     Helper function for FileTimeToDosTime.
     Converts the necessary file time attibutes to system time, for
     easier manipulation in FileTimeToDosTime.
-        
+
 --*/
-BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime, 
+BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime,
                                   LPSYSTEMTIME lpSystemTime )
 {
     UINT64 FileTime = 0;
@@ -323,7 +272,7 @@ BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime,
             SECS_BETWEEN_1601_AND_1970_EPOCHS * SECS_TO_100NS,
             FileTime);
 
-    if (isSafe == true) 
+    if (isSafe == true)
     {
 #if HAVE_GMTIME_R
         struct tm timeBuf;
@@ -331,7 +280,7 @@ BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime,
         /* Convert file time to unix time. */
         if (((INT64)FileTime) < 0)
         {
-            UnixFileTime =  -1 - ( ( -FileTime - 1 ) / 10000000 );            
+            UnixFileTime =  -1 - ( ( -FileTime - 1 ) / 10000000 );
         }
         else
         {
@@ -347,12 +296,12 @@ BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime,
 
         /* Convert unix system time to Windows system time. */
         lpSystemTime->wDay      = UnixSystemTime->tm_mday;
-    
+
         /* Unix time counts January as a 0, under Windows it is 1*/
         lpSystemTime->wMonth    = UnixSystemTime->tm_mon + 1;
         /* Unix time returns the year - 1900, Windows returns the current year*/
         lpSystemTime->wYear     = UnixSystemTime->tm_year + 1900;
-        
+
         lpSystemTime->wSecond   = UnixSystemTime->tm_sec;
         lpSystemTime->wMinute   = UnixSystemTime->tm_min;
         lpSystemTime->wHour     = UnixSystemTime->tm_hour;

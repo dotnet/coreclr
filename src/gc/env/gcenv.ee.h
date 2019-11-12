@@ -15,20 +15,20 @@ public:
     static void SuspendEE(SUSPEND_REASON reason);
     static void RestartEE(bool bFinishedGC); //resume threads.
 
-    // 
+    //
     // The GC roots enumeration callback
     //
     static void GcScanRoots(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
 
-    // 
+    //
     // Callbacks issues during GC that the execution engine can do its own bookeeping
     //
 
     // start of GC call back - single threaded
-    static void GcStartWork(int condemned, int max_gen); 
+    static void GcStartWork(int condemned, int max_gen);
 
-    //EE can perform post stack scanning action, while the 
-    // user threads are still suspended 
+    //EE can perform post stack scanning action, while the
+    // user threads are still suspended
     static void AfterGcScanRoots(int condemned, int max_gen, ScanContext* sc);
 
     // Called before BGC starts sweeping, the heap is walkable
@@ -63,7 +63,7 @@ public:
     static void DiagUpdateGenerationBounds();
     static void DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent);
     static void DiagWalkFReachableObjects(void* gcContext);
-    static void DiagWalkSurvivors(void* gcContext);
+    static void DiagWalkSurvivors(void* gcContext, bool fCompacting);
     static void DiagWalkLOHSurvivors(void* gcContext);
     static void DiagWalkBGCSurvivors(void* gcContext);
     static void StompWriteBarrier(WriteBarrierParameters* args);
@@ -71,8 +71,6 @@ public:
     static void EnableFinalization(bool foundFinalizers);
 
     static void HandleFatalError(unsigned int exitCode);
-    static bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj);
-    static bool ForceFullGCToBeBlocking();
     static bool EagerFinalized(Object* obj);
     static MethodTable* GetFreeObjectMethodTable();
     static bool GetBooleanConfigValue(const char* key, bool* value);
@@ -86,15 +84,13 @@ public:
     static void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     static IGCToCLREventSink* EventSink();
 
-    static uint32_t GetDefaultDomainIndex();
-    static void *GetAppDomainAtIndex(uint32_t appDomainIndex);
-    static bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
-    static uint32_t GetIndexOfAppDomainBeingUnloaded();
     static uint32_t GetTotalNumSizedRefHandles();
-    static bool AppDomainIsRudeUnload(void *appDomain);
 
     static bool AnalyzeSurvivorsRequested(int condemnedGeneration);
     static void AnalyzeSurvivorsFinished(int condemnedGeneration);
+
+    static void VerifySyncTableEntry();
+    static void UpdateGCEventStatus(int publicLevel, int publicKeywords, int privateLevel, int privateKeywords);
 };
 
 #endif // __GCENV_EE_H__

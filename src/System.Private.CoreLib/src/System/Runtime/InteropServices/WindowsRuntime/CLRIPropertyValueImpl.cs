@@ -2,22 +2,20 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Security;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     internal class CLRIPropertyValueImpl : IPropertyValue
     {
-        private PropertyType _type;
-        private object _data;
+        private readonly PropertyType _type;
+        private readonly object _data;
 
         // Numeric scalar types which participate in coersion
-        private static volatile Tuple<Type, PropertyType>[] s_numericScalarTypes;
+        private static volatile Tuple<Type, PropertyType>[]? s_numericScalarTypes;
 
         internal CLRIPropertyValueImpl(PropertyType type, object data)
         {
@@ -50,20 +48,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public PropertyType Type
-        {
-            get { return _type; }
-        }
+        public PropertyType Type => _type;
 
-        public bool IsNumericScalar
-        {
-            get
-            {
-                return IsNumericScalarImpl(_type, _data);
-            }
-        }
+        public bool IsNumericScalar => IsNumericScalarImpl(_type, _data);
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (_data != null)
             {
@@ -308,10 +297,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
 
             // Make sure we have an array to begin with
-            Array dataArray = _data as Array;
-            if (dataArray == null)
+            if (!(_data is Array dataArray))
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, this.Type, typeof (T).MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, this.Type, typeof(T).MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
             }
 
             // Array types are 1024 larger than their equivilent scalar counterpart
@@ -325,12 +313,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 try
                 {
-                    coercedArray[i] = CoerceScalarValue<T>(scalarType, dataArray.GetValue(i));
+                    coercedArray[i] = CoerceScalarValue<T>(scalarType, dataArray.GetValue(i)!);
                 }
                 catch (InvalidCastException elementCastException)
                 {
-                    Exception e = new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueArrayCoersion, this.Type, typeof (T).MakeArrayType().Name, i, elementCastException.Message), elementCastException);
-                    e.HResult = elementCastException._HResult;
+                    Exception e = new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueArrayCoersion, this.Type, typeof(T).MakeArrayType().Name, i, elementCastException.Message), elementCastException);
+                    e.HResult = elementCastException.HResult;
                     throw e;
                 }
             }
@@ -355,7 +343,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // should not attempt coersion, even if the underlying value is technically convertable
             if (!IsCoercable(type, value) && type != PropertyType.Inspectable)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
 
             try
@@ -378,28 +366,27 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     {
                         if (numericScalar.Item1 == typeof(T))
                         {
-                            return (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
+                            return (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture)!;
                         }
                     }
                 }
             }
             catch (FormatException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
             catch (InvalidCastException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
             catch (OverflowException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueCoersion, type, value, typeof (T).Name), HResults.DISP_E_OVERFLOW);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueCoersion, type, value, typeof(T).Name), HResults.DISP_E_OVERFLOW);
             }
 
             // If the property type is IInspectable, and we have a nested IPropertyValue, then we need
             // to pass along the request to coerce the value.
-            IPropertyValue ipv = value as IPropertyValue;
-            if (type == PropertyType.Inspectable && ipv != null)
+            if (type == PropertyType.Inspectable && value is IPropertyValue ipv)
             {
                 if (typeof(T) == typeof(byte))
                 {
@@ -444,7 +431,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
 
             // Otherwise, this is an invalid coersion
-            throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+            throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
         }
 
         private static bool IsCoercable(PropertyType type, object data)
@@ -477,7 +464,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return false;
         }
 
-        // Unbox the data stored in the property value to a structurally equivilent type
+        // Unbox the data stored in the property value to a structurally equivalent type
         private unsafe T Unbox<T>(Type expectedBoxedType) where T : struct
         {
             Debug.Assert(expectedBoxedType != null);
@@ -488,11 +475,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, _data.GetType(), expectedBoxedType.Name), HResults.TYPE_E_TYPEMISMATCH);
             }
 
-            T unboxed = new T();
+            T unboxed = default;
 
-            fixed (byte* pData = &JitHelpers.GetPinningHelper(_data).m_data)
+            fixed (byte* pData = &_data.GetRawData())
             {
-                byte* pUnboxed = (byte*)JitHelpers.UnsafeCastToStackPointer(ref unboxed);
+                byte* pUnboxed = (byte*)Unsafe.AsPointer(ref unboxed);
                 Buffer.Memcpy(pUnboxed, pData, Marshal.SizeOf(unboxed));
             }
 
@@ -505,8 +492,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(expectedArrayElementType != null);
             Debug.Assert(Marshal.SizeOf(expectedArrayElementType) == Marshal.SizeOf(typeof(T)));
 
-            Array dataArray = _data as Array;
-            if (dataArray == null || _data.GetType().GetElementType() != expectedArrayElementType)
+            if (!(_data is Array dataArray) || _data.GetType().GetElementType() != expectedArrayElementType)
             {
                 throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, _data.GetType(), expectedArrayElementType.MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
             }
@@ -515,15 +501,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (converted.Length > 0)
             {
-                fixed (byte* dataPin = &JitHelpers.GetPinningHelper(dataArray).m_data)
+                fixed (byte* dataPin = &dataArray.GetRawData())
+                fixed (byte* convertedPin = &converted.GetRawData())
                 {
-                    fixed (byte* convertedPin = &JitHelpers.GetPinningHelper(converted).m_data)
-                    {
-                        byte* pData = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(dataArray, 0);
-                        byte* pConverted = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(converted, 0);
+                    byte* pData = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(dataArray, 0);
+                    byte* pConverted = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(converted, 0);
 
-                        Buffer.Memcpy(pConverted, pData, checked(Marshal.SizeOf(typeof(T)) * converted.Length));
-                    }
+                    Buffer.Memcpy(pConverted, pData, checked(Marshal.SizeOf(typeof(T)) * converted.Length));
                 }
             }
 

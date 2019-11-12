@@ -56,7 +56,7 @@ HRESULT EnsureRtlFunctions()
 
 #endif // _TARGET_AMD64_
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 VOID InstallEEFunctionTable (
         PVOID pvTableID,
@@ -78,7 +78,7 @@ VOID InstallEEFunctionTable (
     static LPWSTR wszModuleName = NULL;
     static WCHAR  rgwModuleName[MAX_LONGPATH] = { 0 };
 
-    if (wszModuleName == NULL)        
+    if (wszModuleName == NULL)
     {
         StackSString ssTempName;
         DWORD dwTempNameSize;
@@ -128,5 +128,5 @@ VOID InstallEEFunctionTable (
     }
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 

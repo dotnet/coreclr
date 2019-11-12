@@ -144,7 +144,7 @@ namespace JIT.HardwareIntrinsics.X86
             _dataTable = new SimpleUnaryOpTest__DataTable<Int32, Double>(_data, new Int32[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Sse2.IsSupported && (Environment.Is64BitProcess || ((typeof(Int32) != typeof(long)) && (typeof(Int32) != typeof(ulong))));
+        public bool IsSupported => Sse2.IsSupported;
 
         public bool Succeeded { get; set; }
 
@@ -312,7 +312,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
 
-            Succeeded = false;
+            bool succeeded = false;
 
             try
             {
@@ -320,7 +320,12 @@ namespace JIT.HardwareIntrinsics.X86
             }
             catch (PlatformNotSupportedException)
             {
-                Succeeded = true;
+                succeeded = true;
+            }
+
+            if (!succeeded)
+            {
+                Succeeded = false;
             }
         }
 
@@ -348,9 +353,11 @@ namespace JIT.HardwareIntrinsics.X86
 
         private void ValidateResult(Double[] firstOp, Int32[] result, [CallerMemberName] string method = "")
         {
+            bool succeeded = true;
+
             if (result[0] != (int)Math.Round(firstOp[0]))
             {
-                Succeeded = false;
+                succeeded = false;
             }
             else
             {
@@ -358,18 +365,20 @@ namespace JIT.HardwareIntrinsics.X86
                 {
                     if (result[i] != ((i < 2) ? (int)Math.Round(firstOp[i]) : 0))
                     {
-                        Succeeded = false;
+                        succeeded = false;
                         break;
                     }
                 }
             }
 
-            if (!Succeeded)
+            if (!succeeded)
             {
                 TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.ConvertToVector128Int32)}<Int32>(Vector128<Double>): {method} failed:");
                 TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
                 TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
                 TestLibrary.TestFramework.LogInformation(string.Empty);
+
+                Succeeded = false;
             }
         }
     }

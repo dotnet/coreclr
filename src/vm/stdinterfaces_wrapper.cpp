@@ -4,7 +4,7 @@
 //---------------------------------------------------------------------------------
 // stdinterfaces_wrapper.cpp
 //
-// Defines various standard com interfaces 
+// Defines various standard com interfaces
 
 //---------------------------------------------------------------------------------
 
@@ -25,7 +25,6 @@
 #include "field.h"
 #include "threads.h"
 #include "interoputil.h"
-#include "tlbexport.h"
 #include "comdelegate.h"
 #include "olevariant.h"
 #include "eeconfig.h"
@@ -43,7 +42,6 @@
 
 
 interface IEnumConnectionPoints;
-interface IManagedObject;
 
 // IUnknown is part of IDispatch
 // Common vtables for well-known COM interfaces
@@ -57,7 +55,7 @@ interface IManagedObject;
 //  Tearoff interfaces created for std. interfaces such as IProvideClassInfo, IErrorInfo etc.
 //  have the AddRef & Release function point to Unknown_AddRefSpecial & Unknown_ReleaseSpecial
 //
-//  Inner unknown, or the original unknown for a wrapper has 
+//  Inner unknown, or the original unknown for a wrapper has
 //  AddRef & Release point to a Unknown_AddRefInner & Unknown_ReleaseInner
 
 // global inner Unknown vtable
@@ -67,18 +65,18 @@ const StdInterfaceDesc<3> g_InnerUnknown =
     {
         (UINT_PTR*)Unknown_QueryInterface,
         (UINT_PTR*)Unknown_AddRefInner,             // special addref to distinguish inner unk
-        (UINT_PTR*)Unknown_ReleaseInner,            // special release to distinguish inner unknown                          
+        (UINT_PTR*)Unknown_ReleaseInner,            // special release to distinguish inner unknown
     }
 };
 
 // global IProvideClassInfo vtable
-const StdInterfaceDesc<4> g_IProvideClassInfo = 
-{ 
-    enum_IProvideClassInfo, 
+const StdInterfaceDesc<4> g_IProvideClassInfo =
+{
+    enum_IProvideClassInfo,
     {
         (UINT_PTR*)Unknown_QueryInterface,          // don't change this
         (UINT_PTR*)Unknown_AddRefSpecial,           // special addref for std. interface
-        (UINT_PTR*)Unknown_ReleaseSpecial,          // special release for std. interface        
+        (UINT_PTR*)Unknown_ReleaseSpecial,          // special release for std. interface
         (UINT_PTR*)ClassInfo_GetClassInfo_Wrapper   // GetClassInfo
     }
 };
@@ -128,19 +126,6 @@ const StdInterfaceDesc<8> g_IErrorInfo =
     }
 };
 
-// global IManagedObject vtable
-const StdInterfaceDesc<5> g_IManagedObject =
-{
-    enum_IManagedObject,
-    {
-        (UINT_PTR*)Unknown_QueryInterface,
-        (UINT_PTR*)Unknown_AddRefSpecial,
-        (UINT_PTR*)Unknown_ReleaseSpecial,                                
-        (UINT_PTR*)ManagedObject_GetSerializedBuffer_Wrapper,                                    
-        (UINT_PTR*)ManagedObject_GetObjectIdentity_Wrapper
-    }
-};
-            
 // global IConnectionPointContainer vtable
 const StdInterfaceDesc<5> g_IConnectionPointContainer =
 {
@@ -270,7 +255,6 @@ inline BOOL IsCurrentDomainValid(ComCallWrapper* pWrap, Thread* pThread)
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWrap));
         PRECONDITION(CheckPointer(pThread));
     }
@@ -278,25 +262,25 @@ inline BOOL IsCurrentDomainValid(ComCallWrapper* pWrap, Thread* pThread)
 
     _ASSERTE(pWrap != NULL);
     PREFIX_ASSUME(pWrap != NULL);
-    
-    // If we are finalizing all alive objects, or after this stage, we do not allow 
+
+    // If we are finalizing all alive objects, or after this stage, we do not allow
     // a thread to enter EE.
     if ((g_fEEShutDown & ShutDown_Finalize2) || g_fForbidEnterEE)
         return FALSE;
 
-    return (!pWrap->NeedToSwitchDomains(pThread));        
+    return TRUE;
 }
 
 BOOL IsCurrentDomainValid(ComCallWrapper* pWrap)
 {
-    CONTRACTL { NOTHROW; GC_TRIGGERS; MODE_ANY; SO_TOLERANT; } CONTRACTL_END;
+    CONTRACTL { NOTHROW; GC_TRIGGERS; MODE_ANY; } CONTRACTL_END;
 
     return IsCurrentDomainValid(pWrap, GetThread());
 }
 
 struct AppDomainSwitchToPreemptiveHelperArgs
 {
-    Context::ADCallBackFcnType pRealCallback;
+    ADCallBackFcnType pRealCallback;
     void* pRealArgs;
 };
 
@@ -314,19 +298,18 @@ VOID __stdcall AppDomainSwitchToPreemptiveHelper(LPVOID pv)
         if (pArgs->pRealCallback == Dispatch_Invoke_CallBack) THROWS; else NOTHROW;
     }
     CONTRACTL_END;
-    
+
     GCX_PREEMP();
     pArgs->pRealCallback(pArgs->pRealArgs);
 }
 
-VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
-{ 
+VOID AppDomainDoCallBack(ComCallWrapper* pWrap, ADCallBackFcnType pTarget, LPVOID pArgs, HRESULT* phr)
+{
     CONTRACTL
     {
         DISABLED(NOTHROW);
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pWrap));
         PRECONDITION(CheckPointer(pTarget));
         PRECONDITION(CheckPointer(pArgs));
@@ -334,7 +317,7 @@ VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarg
     }
     CONTRACTL_END;
 
-    // If we are finalizing all alive objects, or after this stage, we do not allow 
+    // If we are finalizing all alive objects, or after this stage, we do not allow
     // a thread to enter EE.
     if ((g_fEEShutDown & ShutDown_Finalize2) || g_fForbidEnterEE)
     {
@@ -344,25 +327,9 @@ VOID AppDomainDoCallBack(ComCallWrapper* pWrap, Context::ADCallBackFcnType pTarg
 
     BEGIN_EXTERNAL_ENTRYPOINT(phr)
     {
-        GCX_COOP_THREAD_EXISTS(GET_THREAD());
-        Thread *pThread = GET_THREAD();
-
-        ADID targetADID;
-        Context *pTargetContext;
-        if (pWrap->NeedToSwitchDomains(pThread, &targetADID, &pTargetContext))
-        {
-            // call ourselves again through DoCallBack with a domain transition.
-            // We need to switch back to preemptive GC mode before we call the 
-            // real target method.
-            AppDomainSwitchToPreemptiveHelperArgs args = {(Context::ADCallBackFcnType)pTarget, pArgs};
-            pThread->DoContextCallBack(targetADID, pTargetContext, AppDomainSwitchToPreemptiveHelper, &args);
-        }
-        else
-        {
-            // make the call directly not forgetting to switch to preemptive GC mode
-            GCX_PREEMP();
-            ((Context::ADCallBackFcnType)pTarget)(pArgs);
-        }
+        // make the call directly not forgetting to switch to preemptive GC mode
+        GCX_PREEMP();
+        ((ADCallBackFcnType)pTarget)(pArgs);
     }
     END_EXTERNAL_ENTRYPOINT;
 }
@@ -386,26 +353,25 @@ VOID __stdcall Unknown_QueryInterface_CallBack(LPVOID ptr)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
-    
+
     QIArgs* pArgs = (QIArgs*)ptr;
-    
+
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
         *(pArgs->hr) = Unknown_QueryInterface_Internal(pArgs->pWrap, pArgs->pUnk, *pArgs->riid, pArgs->ppv);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Unknown_QueryInterface_CallBack, pArgs, pArgs->hr);;
     }
 }
 
 HRESULT __stdcall Unknown_QueryInterface(IUnknown* pUnk, REFIID riid, void** ppv)
-{   
+{
     SetupThreadForComCall(E_OUTOFMEMORY);
 
     CONTRACTL
@@ -413,7 +379,6 @@ HRESULT __stdcall Unknown_QueryInterface(IUnknown* pUnk, REFIID riid, void** ppv
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppv, NULL_OK));
     }
@@ -447,21 +412,20 @@ HRESULT __stdcall Unknown_QueryInterface_ICCW(IUnknown *pUnk, REFIID riid, void 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppv, NULL_OK));
     }
     CONTRACTL_END;
-    
+
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pUnk);
-    
+
     //
     // AddRef to keep the object alive
     // AddRef is "safe" at this point because if it is a CCW with outstanding Jupiter Ref,
     // we know for sure the CCW is no claimed yet (but the object itself could be)
     //
     pWrap->AddRef();
-    
+
     CCWHolder pCCW = pWrap;
 
     //
@@ -472,7 +436,7 @@ HRESULT __stdcall Unknown_QueryInterface_ICCW(IUnknown *pUnk, REFIID riid, void 
     //
     {
         GCX_COOP_THREAD_EXISTS(GET_THREAD());
-        
+
         SimpleComCallWrapper *pSimpleWrap = pWrap->GetSimpleWrapper();
 
         //
@@ -512,24 +476,11 @@ struct AddRefReleaseArgs
     HRESULT* hr;
 };
 
-#ifdef MDA_SUPPORTED
-VOID __stdcall DirtyCast_Assert(IUnknown* pUnk)
-{
-    WRAPPER_NO_CONTRACT;
-    
-    _ASSERTE(!"The native code calling into the CLR has performed an illegal dirty cast on this IUnknown or IDispatch pointer. "
-              "The caller neglected to QI for the correct interface before making this call.  This is not a CLR bug. "
-              "A bug should be filed against the native caller.");
-
-    MDA_TRIGGER_ASSISTANT(DirtyCastAndCallOnInterface, ReportViolation(pUnk));
-}
-#endif
-
 ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -538,11 +489,11 @@ ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
-    // Allow addrefs to go through, coz we are allowing 
+    // Allow addrefs to go through, coz we are allowing
     // all releases to go through, otherwise we would
     // have a mismatch of ref-counts
     return Unknown_AddRef_Internal(pUnk);
@@ -551,8 +502,8 @@ ULONG __stdcall Unknown_AddRef(IUnknown* pUnk)
 ULONG __stdcall Unknown_Release(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -561,21 +512,21 @@ ULONG __stdcall Unknown_Release(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
     // Don't switch domains since we need to allow release calls to go through
     // even after the AD has been unlaoded. Furthermore release doesn't require
     // us to transition into the domain to work properly.
-    return Unknown_Release_Internal(pUnk);  
+    return Unknown_Release_Internal(pUnk);
 }
 
 ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -584,11 +535,11 @@ ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
-    // Allow addrefs to go through, coz we are allowing 
+    // Allow addrefs to go through, coz we are allowing
     // all releases to go through, otherwise we would
     // have a mismatch of ref-counts
     return Unknown_AddRefInner_Internal(pUnk);
@@ -597,8 +548,8 @@ ULONG __stdcall Unknown_AddRefInner(IUnknown* pUnk)
 ULONG __stdcall Unknown_ReleaseInner(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -607,21 +558,21 @@ ULONG __stdcall Unknown_ReleaseInner(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
     // Don't switch domains since we need to allow release calls to go through
     // even after the AD has been unlaoded. Furthermore release doesn't require
     // us to transition into the domain to work properly.
-    return Unknown_ReleaseInner_Internal(pUnk);     
+    return Unknown_ReleaseInner_Internal(pUnk);
 }
 
 ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked increment on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -630,11 +581,11 @@ ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
-    // Allow addrefs to go through, coz we are allowing 
+    // Allow addrefs to go through, coz we are allowing
     // all releases to go through, otherwise we would
     // have a mismatch of ref-counts
     return Unknown_AddRefSpecial_Internal(pUnk);
@@ -643,8 +594,8 @@ ULONG __stdcall Unknown_AddRefSpecial(IUnknown* pUnk)
 ULONG __stdcall Unknown_ReleaseSpecial(IUnknown* pUnk)
 {
     // Ensure the Thread is available for contracts and other users of the Thread, but don't do any of
-    // the other "entering managed code" work like going to SO_INTOLERANT or checking for reentrancy.
-    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so 
+    // the other "entering managed code" work like checking for reentrancy.
+    // We don't really need to "enter" the runtime to do an interlocked decrement on a refcount, so
     // all of that stuff should be isolated to rare paths here.
     SetupThreadForComCall(-1);
 
@@ -653,7 +604,7 @@ ULONG __stdcall Unknown_ReleaseSpecial(IUnknown* pUnk)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        ENTRY_POINT;        // implies SO_TOLERANT
+        ENTRY_POINT;
     }
     CONTRACTL_END;
 
@@ -665,26 +616,9 @@ ULONG __stdcall Unknown_ReleaseSpecial(IUnknown* pUnk)
 
 HRESULT __stdcall Unknown_QueryInterface_IErrorInfo(IUnknown* pUnk, REFIID riid, void** ppv)
 {
-    // Special version of SetupForComCallHR that doesn't call
-    // CanRunManagedCode() to avoid firing LoaderLock MDA
-    SetupForComCallHRNoCheckCanRunManagedCode();
+    SetupForComCallHR();
 
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    HRESULT hr = S_OK;
-    if (!CanRunManagedCode(LoaderLockCheck::ForCorrectness))
-    {
-        // if we cannot run managed code, do a very simple QI which responds only to IUnknown and IErrorInfo
-        hr = Unknown_QueryInterface_IErrorInfo_Simple(pUnk, riid, ppv);
-
-        if (hr == E_NOINTERFACE)
-        {
-            // make sure that the MDA fires
-            VERIFY(!CanRunManagedCode(LoaderLockCheck::ForMDA));
-            hr = HOST_E_CLRNOTAVAILABLE;
-        }
-    }
 
     // otherwise do a regular QI
     return Unknown_QueryInterface(pUnk, riid, ppv);
@@ -696,30 +630,16 @@ HRESULT __stdcall Unknown_QueryInterface_IErrorInfo(IUnknown* pUnk, REFIID riid,
 // ---------------------------------------------------------------------------
 ULONG __stdcall Unknown_ReleaseSpecial_IErrorInfo(IUnknown* pUnk)
 {
-    // Special version of SetupForComCallDWORD that doesn't call
-    // CanRunManagedCode() to avoid firing LoaderLock MDA
-    // No managed code will be executed in this function
-    SetupForComCallDWORDNoCheckCanRunManagedCode();
+    SetupForComCallDWORD();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
-    // <TODO>Address this violation in context of bug 27409</TODO>
     CONTRACT_VIOLATION(GCViolation);
 
-    if (!CanRunManagedCode(LoaderLockCheck::None))
-    {
-        // CCW cleanup doesn't run managed code but may trigger operations such as
-        // switching the thread to cooperative mode which is not safe during shutdown.
-        return 0;
-    }
-    else
-    {
-        // Don't switch domains since we need to allow release calls to go through
-        // even after the AD has been unlaoded. Furthermore release doesn't require
-        // us to transition into the domain to work properly.
-        return Unknown_ReleaseSpecial_IErrorInfo_Internal(pUnk);
-    }
+    // Don't switch domains since we need to allow release calls to go through
+    // even after the AD has been unlaoded. Furthermore release doesn't require
+    // us to transition into the domain to work properly.
+    return Unknown_ReleaseSpecial_IErrorInfo_Internal(pUnk);
 }
 
 
@@ -743,16 +663,16 @@ VOID __stdcall ClassInfo_GetClassInfo_CallBack(LPVOID ptr)
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
-    
+
     GetClassInfoArgs* pArgs = (GetClassInfoArgs*)ptr;
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
-    
+
     if (IsCurrentDomainValid(pWrap))
     {
         *(pArgs->hr) = ClassInfo_GetClassInfo(pArgs->pUnk, pArgs->ppTI);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ClassInfo_GetClassInfo_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -766,16 +686,15 @@ HRESULT __stdcall ClassInfo_GetClassInfo_Wrapper(IUnknown* pUnk, ITypeInfo** ppT
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppTI, NULL_OK));
     }
     CONTRACTL_END;
-    
+
     HRESULT hr = S_OK;
     GetClassInfoArgs args = {pUnk, ppTI, &hr};
-    ClassInfo_GetClassInfo_CallBack(&args);     
-    return hr;  
+    ClassInfo_GetClassInfo_CallBack(&args);
+    return hr;
 }
 
 
@@ -799,7 +718,7 @@ VOID __stdcall SupportsErroInfo_IntfSupportsErrorInfo_CallBack(LPVOID ptr)
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
-    
+
     IntfSupportsErrorInfoArgs* pArgs = (IntfSupportsErrorInfoArgs*)ptr;
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
@@ -807,7 +726,7 @@ VOID __stdcall SupportsErroInfo_IntfSupportsErrorInfo_CallBack(LPVOID ptr)
         *(pArgs->hr) = SupportsErroInfo_IntfSupportsErrorInfo(pArgs->pUnk, *pArgs->riid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, SupportsErroInfo_IntfSupportsErrorInfo_CallBack, pArgs, pArgs->hr);;
     }
 }
@@ -822,14 +741,13 @@ SupportsErroInfo_IntfSupportsErrorInfo_Wrapper(IUnknown* pUnk, REFIID riid)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
     IntfSupportsErrorInfoArgs args = {pUnk, &riid, &hr};
-    SupportsErroInfo_IntfSupportsErrorInfo_CallBack(&args);     
+    SupportsErroInfo_IntfSupportsErrorInfo_CallBack(&args);
     return hr;
 }
 
@@ -853,7 +771,7 @@ VOID __stdcall ErrorInfo_GetDescription_CallBack(LPVOID ptr)
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
-    
+
     GetDescriptionArgs* pArgs = (GetDescriptionArgs*)ptr;
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
@@ -861,7 +779,7 @@ VOID __stdcall ErrorInfo_GetDescription_CallBack(LPVOID ptr)
         *(pArgs->hr) = ErrorInfo_GetDescription(pArgs->pUnk, pArgs->pbstDescription);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ErrorInfo_GetDescription_CallBack, pArgs, pArgs->hr);;
     }
 }
@@ -875,7 +793,6 @@ HRESULT __stdcall ErrorInfo_GetDescription_Wrapper(IUnknown* pUnk, BSTR* pbstrDe
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrDescription, NULL_OK));
     }
@@ -883,7 +800,7 @@ HRESULT __stdcall ErrorInfo_GetDescription_Wrapper(IUnknown* pUnk, BSTR* pbstrDe
 
     HRESULT hr = S_OK;
     GetDescriptionArgs args = {pUnk, pbstrDescription, &hr};
-    ErrorInfo_GetDescription_CallBack(&args);       
+    ErrorInfo_GetDescription_CallBack(&args);
     return hr;
 }
 
@@ -904,7 +821,7 @@ VOID __stdcall ErrorInfo_GetGUID_CallBack(LPVOID ptr)
         PRECONDITION(CheckPointer(ptr));
     }
     CONTRACTL_END;
-    
+
     GetGUIDArgs* pArgs = (GetGUIDArgs*)ptr;
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
@@ -912,7 +829,7 @@ VOID __stdcall ErrorInfo_GetGUID_CallBack(LPVOID ptr)
         *(pArgs->hr) = ErrorInfo_GetGUID(pArgs->pUnk, pArgs->pguid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ErrorInfo_GetGUID_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -926,7 +843,6 @@ HRESULT __stdcall ErrorInfo_GetGUID_Wrapper(IUnknown* pUnk, GUID* pguid)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pguid, NULL_OK));
     }
@@ -934,7 +850,7 @@ HRESULT __stdcall ErrorInfo_GetGUID_Wrapper(IUnknown* pUnk, GUID* pguid)
 
     HRESULT hr = S_OK;
     GetGUIDArgs args = {pUnk, pguid, &hr};
-    ErrorInfo_GetGUID_CallBack(&args);      
+    ErrorInfo_GetGUID_CallBack(&args);
     return hr;
 }
 
@@ -963,7 +879,7 @@ VOID _stdcall ErrorInfo_GetHelpContext_CallBack(LPVOID ptr)
         *(pArgs->hr) = ErrorInfo_GetHelpContext(pArgs->pUnk, pArgs->pdwHelpCtxt);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ErrorInfo_GetHelpContext_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -977,7 +893,6 @@ HRESULT _stdcall ErrorInfo_GetHelpContext_Wrapper(IUnknown* pUnk, DWORD* pdwHelp
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pdwHelpCtxt, NULL_OK));
     }
@@ -985,7 +900,7 @@ HRESULT _stdcall ErrorInfo_GetHelpContext_Wrapper(IUnknown* pUnk, DWORD* pdwHelp
 
     HRESULT hr = S_OK;
     GetHelpContextArgs args = {pUnk, pdwHelpCtxt, &hr};
-    ErrorInfo_GetHelpContext_CallBack(&args);       
+    ErrorInfo_GetHelpContext_CallBack(&args);
     return hr;
 }
 
@@ -1014,7 +929,7 @@ VOID __stdcall ErrorInfo_GetHelpFile_CallBack(LPVOID ptr)
         *(pArgs->hr) = ErrorInfo_GetHelpFile(pArgs->pUnk, pArgs->pbstrHelpFile);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ErrorInfo_GetHelpFile_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1028,7 +943,6 @@ HRESULT __stdcall ErrorInfo_GetHelpFile_Wrapper(IUnknown* pUnk, BSTR* pbstrHelpF
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrHelpFile, NULL_OK));
     }
@@ -1036,7 +950,7 @@ HRESULT __stdcall ErrorInfo_GetHelpFile_Wrapper(IUnknown* pUnk, BSTR* pbstrHelpF
 
     HRESULT hr = S_OK;
     GetHelpFileArgs args = {pUnk, pbstrHelpFile, &hr};
-    ErrorInfo_GetHelpFile_CallBack(&args);      
+    ErrorInfo_GetHelpFile_CallBack(&args);
     return hr;
 }
 
@@ -1065,7 +979,7 @@ VOID __stdcall ErrorInfo_GetSource_CallBack(LPVOID ptr)
         *(pArgs->hr) = ErrorInfo_GetSource(pArgs->pUnk, pArgs->pbstrSource);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ErrorInfo_GetSource_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1079,7 +993,6 @@ HRESULT __stdcall ErrorInfo_GetSource_Wrapper(IUnknown* pUnk, BSTR* pbstrSource)
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pbstrSource, NULL_OK));
     }
@@ -1087,7 +1000,7 @@ HRESULT __stdcall ErrorInfo_GetSource_Wrapper(IUnknown* pUnk, BSTR* pbstrSource)
 
     HRESULT hr = S_OK;
     GetSourceArgs args = {pUnk, pbstrSource, &hr};
-    ErrorInfo_GetSource_CallBack(&args);        
+    ErrorInfo_GetSource_CallBack(&args);
     return hr;
 }
 
@@ -1095,8 +1008,8 @@ HRESULT __stdcall ErrorInfo_GetSource_Wrapper(IUnknown* pUnk, BSTR* pbstrSource)
 // ---------------------------------------------------------------------------
 //  Interface IDispatch
 //
-//      IDispatch methods for COM+ objects. These methods dispatch's to the 
-//      appropriate implementation based on the flags of the class that 
+//      IDispatch methods for COM+ objects. These methods dispatch's to the
+//      appropriate implementation based on the flags of the class that
 //      implements them.
 
 struct GetTypeInfoCountArgs
@@ -1124,7 +1037,7 @@ VOID __stdcall Dispatch_GetTypeInfoCount_CallBack(LPVOID ptr)
         *(pArgs->hr) = Dispatch_GetTypeInfoCount(pArgs->pUnk, pArgs->pctinfo);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Dispatch_GetTypeInfoCount_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1138,7 +1051,6 @@ HRESULT __stdcall Dispatch_GetTypeInfoCount_Wrapper(IDispatch* pDisp, unsigned i
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pctinfo, NULL_OK));
     }
@@ -1146,9 +1058,9 @@ HRESULT __stdcall Dispatch_GetTypeInfoCount_Wrapper(IDispatch* pDisp, unsigned i
 
     HRESULT hr = S_OK;
     GetTypeInfoCountArgs args = {pDisp, pctinfo, &hr};
-    Dispatch_GetTypeInfoCount_CallBack(&args);      
+    Dispatch_GetTypeInfoCount_CallBack(&args);
     return hr;
-}                                    
+}
 
 struct GetTypeInfoArgs
 {
@@ -1177,7 +1089,7 @@ VOID __stdcall Dispatch_GetTypeInfo_CallBack (LPVOID ptr)
         *(pArgs->hr) = Dispatch_GetTypeInfo(pArgs->pUnk, pArgs->itinfo, pArgs->lcid, pArgs->pptinfo);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Dispatch_GetTypeInfo_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1191,7 +1103,6 @@ HRESULT __stdcall Dispatch_GetTypeInfo_Wrapper(IDispatch* pDisp, unsigned int it
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pptinfo, NULL_OK));
     }
@@ -1199,9 +1110,9 @@ HRESULT __stdcall Dispatch_GetTypeInfo_Wrapper(IDispatch* pDisp, unsigned int it
 
     HRESULT hr = S_OK;
     GetTypeInfoArgs args = {pDisp, itinfo, lcid, pptinfo, &hr};
-    Dispatch_GetTypeInfo_CallBack(&args);       
+    Dispatch_GetTypeInfo_CallBack(&args);
     return hr;
-}                                    
+}
 
 struct GetIDsOfNamesArgs
 {
@@ -1229,16 +1140,16 @@ VOID __stdcall Dispatch_GetIDsOfNames_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = Dispatch_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames, 
+        *(pArgs->hr) = Dispatch_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames,
                                     pArgs->cNames, pArgs->lcid, pArgs->rgdispid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Dispatch_GetIDsOfNames_CallBack, pArgs, pArgs->hr);
     }
 }
 
-HRESULT __stdcall Dispatch_GetIDsOfNames_Wrapper(IDispatch* pDisp, REFIID riid, __in_ecount(cNames) OLECHAR **rgszNames, 
+HRESULT __stdcall Dispatch_GetIDsOfNames_Wrapper(IDispatch* pDisp, REFIID riid, __in_ecount(cNames) OLECHAR **rgszNames,
                                unsigned int cNames, LCID lcid, DISPID *rgdispid)
 {
     SetupForComCallHR();
@@ -1248,7 +1159,6 @@ HRESULT __stdcall Dispatch_GetIDsOfNames_Wrapper(IDispatch* pDisp, REFIID riid, 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1257,9 +1167,9 @@ HRESULT __stdcall Dispatch_GetIDsOfNames_Wrapper(IDispatch* pDisp, REFIID riid, 
 
     HRESULT hr = S_OK;
     GetIDsOfNamesArgs args = {pDisp, &riid, rgszNames, cNames, lcid, rgdispid, &hr};
-    Dispatch_GetIDsOfNames_CallBack(&args);     
+    Dispatch_GetIDsOfNames_CallBack(&args);
     return hr;
-}   
+}
 
 VOID __stdcall InternalDispatchImpl_GetIDsOfNames_CallBack(LPVOID ptr)
 {
@@ -1276,11 +1186,11 @@ VOID __stdcall InternalDispatchImpl_GetIDsOfNames_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = InternalDispatchImpl_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames, 
+        *(pArgs->hr) = InternalDispatchImpl_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames,
                                                           pArgs->cNames, pArgs->lcid, pArgs->rgdispid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, InternalDispatchImpl_GetIDsOfNames_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1295,7 +1205,6 @@ HRESULT __stdcall InternalDispatchImpl_GetIDsOfNames_Wrapper(IDispatch* pDisp, R
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1304,7 +1213,7 @@ HRESULT __stdcall InternalDispatchImpl_GetIDsOfNames_Wrapper(IDispatch* pDisp, R
 
     HRESULT hr = S_OK;
     GetIDsOfNamesArgs args = {pDisp, &riid, rgszNames, cNames, lcid, rgdispid, &hr};
-    InternalDispatchImpl_GetIDsOfNames_CallBack(&args);     
+    InternalDispatchImpl_GetIDsOfNames_CallBack(&args);
     return hr;
 }
 
@@ -1337,12 +1246,12 @@ VOID __stdcall Dispatch_Invoke_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = Dispatch_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid, 
+        *(pArgs->hr) = Dispatch_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid,
                                     pArgs->lcid, pArgs->wFlags, pArgs->pdispparams, pArgs->pvarResult,
                                     pArgs->pexcepinfo, pArgs->puArgErr);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Dispatch_Invoke_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1352,28 +1261,13 @@ HRESULT __stdcall Dispatch_Invoke_Wrapper(IDispatch* pDisp, DISPID dispidMember,
 {
     HRESULT hrRetVal = S_OK;
 
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-    // SetupForComCallHR uses "SO_INTOLERANT_CODE_NOTHROW" to setup the SO-Intolerant transition
-    // for COM Interop. However, "SO_INTOLERANT_CODE_NOTHROW" expects that no exception can escape
-    // through this boundary but all it does is (in addition to checking that no exception has escaped it)
-    // do stack probing.
-    //
-    // However, Corrupting Exceptions [CE] can escape the COM Interop boundary. Thus, to address that scenario,
-    // we use the macro below that uses BEGIN_SO_INTOLERANT_CODE_NOTHROW to do the equivalent of 
-    // SO_INTOLERANT_CODE_NOTHROW and yet allow for CEs to escape through. Since there will be a corresponding
-    // END_SO_INTOLERANT_CODE, the call is splitted into two parts: the Begin and End (see below).
-    BeginSetupForComCallHRWithEscapingCorruptingExceptions();
-#else // !FEATURE_CORRUPTING_EXCEPTIONS
     SetupForComCallHR();
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-    
 
     CONTRACTL
     {
         THROWS; // Dispatch_Invoke_CallBack can throw
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1382,13 +1276,9 @@ HRESULT __stdcall Dispatch_Invoke_Wrapper(IDispatch* pDisp, DISPID dispidMember,
     }
     CONTRACTL_END;
 
-    InvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams, 
+    InvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams,
                        pvarResult, pexcepinfo, puArgErr, &hrRetVal};
-    Dispatch_Invoke_CallBack(&args);   
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-    EndSetupForComCallHRWithEscapingCorruptingExceptions();
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
+    Dispatch_Invoke_CallBack(&args);
 
     return hrRetVal;
 }
@@ -1408,12 +1298,12 @@ VOID __stdcall InternalDispatchImpl_Invoke_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = InternalDispatchImpl_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid, 
+        *(pArgs->hr) = InternalDispatchImpl_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid,
                                     pArgs->lcid, pArgs->wFlags, pArgs->pdispparams, pArgs->pvarResult,
                                     pArgs->pexcepinfo, pArgs->puArgErr);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, InternalDispatchImpl_Invoke_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1429,7 +1319,6 @@ HRESULT __stdcall InternalDispatchImpl_Invoke_Wrapper(IDispatch* pDisp, DISPID d
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1439,9 +1328,9 @@ HRESULT __stdcall InternalDispatchImpl_Invoke_Wrapper(IDispatch* pDisp, DISPID d
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    InvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams, 
+    InvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams,
                        pvarResult, pexcepinfo, puArgErr, &hr};
-    InternalDispatchImpl_Invoke_CallBack(&args);        
+    InternalDispatchImpl_Invoke_CallBack(&args);
     return hr;
 }
 
@@ -1473,7 +1362,7 @@ VOID __stdcall DispatchEx_GetTypeInfoCount_CallBack (LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetTypeInfoCount(pArgs->pUnk, pArgs->pctinfo);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetTypeInfoCount_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1487,7 +1376,6 @@ HRESULT __stdcall DispatchEx_GetTypeInfoCount_Wrapper(IDispatchEx* pDisp, unsign
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pctinfo, NULL_OK));
     }
@@ -1495,9 +1383,9 @@ HRESULT __stdcall DispatchEx_GetTypeInfoCount_Wrapper(IDispatchEx* pDisp, unsign
 
     HRESULT hr = S_OK;
     GetTypeInfoCountExArgs args = {pDisp, pctinfo, &hr};
-    DispatchEx_GetTypeInfoCount_CallBack(&args);        
+    DispatchEx_GetTypeInfoCount_CallBack(&args);
     return hr;
-}                                    
+}
 
 struct GetTypeInfoExArgs
 {
@@ -1526,7 +1414,7 @@ VOID __stdcall DispatchEx_GetTypeInfo_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetTypeInfo(pArgs->pUnk, pArgs->itinfo, pArgs->lcid, pArgs->pptinfo);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetTypeInfo_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1540,7 +1428,6 @@ HRESULT __stdcall DispatchEx_GetTypeInfo_Wrapper(IDispatchEx* pDisp, unsigned in
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pptinfo, NULL_OK));
     }
@@ -1548,9 +1435,9 @@ HRESULT __stdcall DispatchEx_GetTypeInfo_Wrapper(IDispatchEx* pDisp, unsigned in
 
     HRESULT hr = S_OK;
     GetTypeInfoExArgs args = {pDisp, itinfo, lcid, pptinfo, &hr};
-    DispatchEx_GetTypeInfo_CallBack(&args);     
+    DispatchEx_GetTypeInfo_CallBack(&args);
     return hr;
-}                                    
+}
 
 struct GetIDsOfNamesExArgs
 {
@@ -1578,11 +1465,11 @@ VOID __stdcall DispatchEx_GetIDsOfNames_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = DispatchEx_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames, 
+        *(pArgs->hr) = DispatchEx_GetIDsOfNames(pArgs->pUnk, *pArgs->riid, pArgs->rgszNames,
                                     pArgs->cNames, pArgs->lcid, pArgs->rgdispid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetIDsOfNames_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1597,7 +1484,6 @@ HRESULT __stdcall DispatchEx_GetIDsOfNames_Wrapper(IDispatchEx* pDisp, REFIID ri
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(rgszNames, NULL_OK));
         PRECONDITION(CheckPointer(rgdispid, NULL_OK));
@@ -1606,9 +1492,9 @@ HRESULT __stdcall DispatchEx_GetIDsOfNames_Wrapper(IDispatchEx* pDisp, REFIID ri
 
     HRESULT hr = S_OK;
     GetIDsOfNamesExArgs args = {pDisp, &riid, rgszNames, cNames, lcid, rgdispid, &hr};
-    DispatchEx_GetIDsOfNames_CallBack(&args);       
+    DispatchEx_GetIDsOfNames_CallBack(&args);
     return hr;
-}   
+}
 
 struct DispExInvokeArgs
 {
@@ -1639,12 +1525,12 @@ VOID __stdcall DispatchEx_Invoke_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = DispatchEx_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid, 
+        *(pArgs->hr) = DispatchEx_Invoke(pArgs->pUnk, pArgs->dispidMember, *pArgs->riid,
                                     pArgs->lcid, pArgs->wFlags, pArgs->pdispparams, pArgs->pvarResult,
                                     pArgs->pexcepinfo, pArgs->puArgErr);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_Invoke_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1660,7 +1546,6 @@ HRESULT __stdcall DispatchEx_Invoke_Wrapper(IDispatchEx* pDisp, DISPID dispidMem
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdispparams, NULL_OK));
         PRECONDITION(CheckPointer(pvarResult, NULL_OK));
@@ -1670,9 +1555,9 @@ HRESULT __stdcall DispatchEx_Invoke_Wrapper(IDispatchEx* pDisp, DISPID dispidMem
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    DispExInvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams, 
+    DispExInvokeArgs args = {pDisp, dispidMember, &riid, lcid, wFlags, pdispparams,
                                 pvarResult, pexcepinfo, puArgErr, &hr};
-    DispatchEx_Invoke_CallBack(&args);      
+    DispatchEx_Invoke_CallBack(&args);
     return hr;
 }
 
@@ -1701,7 +1586,7 @@ VOID __stdcall DispatchEx_DeleteMemberByDispID_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_DeleteMemberByDispID(pArgs->pDisp, pArgs->id);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_DeleteMemberByDispID_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1715,14 +1600,13 @@ HRESULT __stdcall DispatchEx_DeleteMemberByDispID_Wrapper(IDispatchEx* pDisp, DI
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
     DeleteMemberByDispIDArgs args = {pDisp, id, &hr};
-    DispatchEx_DeleteMemberByDispID_CallBack(&args);        
+    DispatchEx_DeleteMemberByDispID_CallBack(&args);
     return hr;
 }
 
@@ -1752,7 +1636,7 @@ VOID __stdcall DispatchEx_DeleteMemberByName_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_DeleteMemberByName(pArgs->pDisp, pArgs->bstrName, pArgs->grfdex);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_DeleteMemberByName_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1763,26 +1647,25 @@ HRESULT __stdcall DispatchEx_DeleteMemberByName_Wrapper(IDispatchEx* pDisp, BSTR
 
     CONTRACTL
     {
-        NOTHROW; 
+        NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
     DeleteMemberByNameArgs args = {pDisp, bstrName, grfdex, &hr};
-    DispatchEx_DeleteMemberByName_CallBack(&args);      
+    DispatchEx_DeleteMemberByName_CallBack(&args);
     return hr;
 }
-                                    
+
 struct GetMemberNameArgs
 {
     IDispatchEx* pDisp;
     DISPID id;
     BSTR *pbstrName;
-    HRESULT* hr;    
+    HRESULT* hr;
 };
 
 VOID __stdcall DispatchEx_GetMemberName_CallBack(LPVOID ptr)
@@ -1803,7 +1686,7 @@ VOID __stdcall DispatchEx_GetMemberName_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetMemberName(pArgs->pDisp, pArgs->id, pArgs->pbstrName);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetMemberName_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1817,7 +1700,6 @@ HRESULT __stdcall DispatchEx_GetMemberName_Wrapper(IDispatchEx* pDisp, DISPID id
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pbstrName, NULL_OK));
     }
@@ -1825,17 +1707,17 @@ HRESULT __stdcall DispatchEx_GetMemberName_Wrapper(IDispatchEx* pDisp, DISPID id
 
     HRESULT hr = S_OK;
     GetMemberNameArgs args = {pDisp, id, pbstrName, &hr};
-    DispatchEx_GetMemberName_CallBack(&args);       
+    DispatchEx_GetMemberName_CallBack(&args);
     return hr;
 }
-                            
+
 struct GetDispIDArgs
 {
     IDispatchEx* pDisp;
     BSTR bstrName;
     DWORD grfdex;
     DISPID *pid;
-    HRESULT* hr;    
+    HRESULT* hr;
 };
 
 VOID __stdcall DispatchEx_GetDispID_CallBack(LPVOID ptr)
@@ -1856,7 +1738,7 @@ VOID __stdcall DispatchEx_GetDispID_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetDispID(pArgs->pDisp, pArgs->bstrName, pArgs->grfdex, pArgs->pid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetDispID_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1870,7 +1752,6 @@ HRESULT __stdcall DispatchEx_GetDispID_Wrapper(IDispatchEx* pDisp, BSTR bstrName
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pid, NULL_OK));
     }
@@ -1878,7 +1759,7 @@ HRESULT __stdcall DispatchEx_GetDispID_Wrapper(IDispatchEx* pDisp, BSTR bstrName
 
     HRESULT hr = S_OK;
     GetDispIDArgs args = {pDisp, bstrName, grfdex, pid, &hr};
-    DispatchEx_GetDispID_CallBack(&args);       
+    DispatchEx_GetDispID_CallBack(&args);
     return hr;
 }
 
@@ -1906,11 +1787,11 @@ VOID __stdcall DispatchEx_GetMemberProperties_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pDisp);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = DispatchEx_GetMemberProperties(pArgs->pDisp, pArgs->id, pArgs->grfdexFetch, 
+        *(pArgs->hr) = DispatchEx_GetMemberProperties(pArgs->pDisp, pArgs->id, pArgs->grfdexFetch,
                                     pArgs->pgrfdex);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetMemberProperties_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1924,7 +1805,6 @@ HRESULT __stdcall DispatchEx_GetMemberProperties_Wrapper(IDispatchEx* pDisp, DIS
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pgrfdex, NULL_OK));
     }
@@ -1932,7 +1812,7 @@ HRESULT __stdcall DispatchEx_GetMemberProperties_Wrapper(IDispatchEx* pDisp, DIS
 
     HRESULT hr = S_OK;
     GetMemberPropertiesArgs args = {pDisp, id, grfdexFetch, pgrfdex, &hr};
-    DispatchEx_GetMemberProperties_CallBack(&args);     
+    DispatchEx_GetMemberProperties_CallBack(&args);
     return hr;
 }
 
@@ -1961,7 +1841,7 @@ VOID __stdcall DispatchEx_GetNameSpaceParent_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetNameSpaceParent(pArgs->pDisp, pArgs->ppunk);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetNameSpaceParent_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -1975,7 +1855,6 @@ HRESULT __stdcall DispatchEx_GetNameSpaceParent_Wrapper(IDispatchEx* pDisp, IUnk
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(ppunk, NULL_OK));
     }
@@ -1983,7 +1862,7 @@ HRESULT __stdcall DispatchEx_GetNameSpaceParent_Wrapper(IDispatchEx* pDisp, IUnk
 
     HRESULT hr = S_OK;
     GetNameSpaceParentArgs args = {pDisp, ppunk, &hr};
-    DispatchEx_GetNameSpaceParent_CallBack(&args);      
+    DispatchEx_GetNameSpaceParent_CallBack(&args);
     return hr;
 }
 
@@ -2014,7 +1893,7 @@ VOID __stdcall DispatchEx_GetNextDispID_CallBack(LPVOID ptr)
         *(pArgs->hr) = DispatchEx_GetNextDispID(pArgs->pDisp, pArgs->grfdex, pArgs->id, pArgs->pid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_GetNextDispID_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2028,7 +1907,6 @@ HRESULT __stdcall DispatchEx_GetNextDispID_Wrapper(IDispatchEx* pDisp, DWORD grf
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pid, NULL_OK));
     }
@@ -2036,7 +1914,7 @@ HRESULT __stdcall DispatchEx_GetNextDispID_Wrapper(IDispatchEx* pDisp, DWORD grf
 
     HRESULT hr = S_OK;
     GetNextDispIDArgs args = {pDisp, grfdex, id, pid, &hr};
-    DispatchEx_GetNextDispID_CallBack(&args);       
+    DispatchEx_GetNextDispID_CallBack(&args);
     return hr;
 }
 
@@ -2047,7 +1925,7 @@ struct DispExInvokeExArgs
     LCID lcid;
     WORD wFlags;
     DISPPARAMS *pdp;
-    VARIANT *pVarRes; 
+    VARIANT *pVarRes;
     EXCEPINFO *pei;
     IServiceProvider *pspCaller;
     HRESULT* hr;
@@ -2068,12 +1946,12 @@ VOID __stdcall DispatchEx_InvokeEx_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pDisp);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = DispatchEx_InvokeEx(pArgs->pDisp, pArgs->id,  
+        *(pArgs->hr) = DispatchEx_InvokeEx(pArgs->pDisp, pArgs->id,
                                     pArgs->lcid, pArgs->wFlags, pArgs->pdp, pArgs->pVarRes,
                                     pArgs->pei, pArgs->pspCaller);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, DispatchEx_InvokeEx_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2088,7 +1966,6 @@ HRESULT __stdcall DispatchEx_InvokeEx_Wrapper(IDispatchEx* pDisp, DISPID id, LCI
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pDisp));
         PRECONDITION(CheckPointer(pdp, NULL_OK));
         PRECONDITION(CheckPointer(pVarRes, NULL_OK));
@@ -2099,7 +1976,7 @@ HRESULT __stdcall DispatchEx_InvokeEx_Wrapper(IDispatchEx* pDisp, DISPID id, LCI
 
     HRESULT hr = S_OK;
     DispExInvokeExArgs args = {pDisp, id, lcid, wFlags, pdp, pVarRes, pei, pspCaller, &hr};
-    DispatchEx_InvokeEx_CallBack(&args);        
+    DispatchEx_InvokeEx_CallBack(&args);
     return hr;
 }
 
@@ -2132,7 +2009,7 @@ VOID __stdcall Inspectable_GetIIDs_CallBack(LPVOID ptr)
         *(pArgs->hr) = Inspectable_GetIIDs(pArgs->pInsp, pArgs->iidCount, pArgs->iids);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Inspectable_GetIIDs_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2146,7 +2023,6 @@ HRESULT __stdcall Inspectable_GetIIDs_Wrapper(IInspectable *pInsp, ULONG *iidCou
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2182,9 +2058,9 @@ VOID Inspectable_GetRuntimeClassName_Callback(LPVOID ptr)
         *(pArgs->hr) = Inspectable_GetRuntimeClassName(pArgs->pInsp, pArgs->className);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Inspectable_GetRuntimeClassName_Callback, pArgs, pArgs->hr);
-    }    
+    }
 }
 
 HRESULT __stdcall Inspectable_GetRuntimeClassName_Wrapper(IInspectable *pInsp, HSTRING *className)
@@ -2196,7 +2072,6 @@ HRESULT __stdcall Inspectable_GetRuntimeClassName_Wrapper(IInspectable *pInsp, H
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2204,7 +2079,7 @@ HRESULT __stdcall Inspectable_GetRuntimeClassName_Wrapper(IInspectable *pInsp, H
     HRESULT hr = S_OK;
     InspectableGetRuntimeClassNameArgs args = { pInsp, className, &hr };
     Inspectable_GetRuntimeClassName_Callback(&args);
-    
+
     return hr;
 }
 
@@ -2217,7 +2092,6 @@ HRESULT __stdcall Inspectable_GetTrustLevel_Wrapper(IInspectable *pInsp, TrustLe
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pInsp));
     }
     CONTRACTL_END;
@@ -2258,7 +2132,7 @@ VOID __stdcall WeakReferenceSource_GetWeakReference_CallBack(LPVOID ptr)
         *(pArgs->hr) = WeakReferenceSource_GetWeakReference(pArgs->pRefSrc, pArgs->weakReference);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, WeakReferenceSource_GetWeakReference_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2272,7 +2146,6 @@ HRESULT __stdcall WeakReferenceSource_GetWeakReference_Wrapper(IWeakReferenceSou
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pRefSrc));
     }
     CONTRACTL_END;
@@ -2289,14 +2162,14 @@ HRESULT __stdcall WeakReferenceSource_GetWeakReference_Wrapper(IWeakReferenceSou
 struct GetUnmarshalClassArgs
 {
     IMarshal* pUnk;
-    const IID* riid; 
-    void * pv; 
-    ULONG dwDestContext; 
+    const IID* riid;
+    void * pv;
+    ULONG dwDestContext;
     void * pvDestContext;
     ULONG mshlflags;
     LPCLSID pclsid;
-    HRESULT* hr;                            
-    
+    HRESULT* hr;
+
 };
 
 VOID __stdcall Marshal_GetUnmarshalClass_CallBack(LPVOID ptr)
@@ -2314,17 +2187,17 @@ VOID __stdcall Marshal_GetUnmarshalClass_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = Marshal_GetUnmarshalClass(pArgs->pUnk, *(pArgs->riid), pArgs->pv, 
-                                    pArgs->dwDestContext, pArgs->pvDestContext, pArgs->mshlflags, 
+        *(pArgs->hr) = Marshal_GetUnmarshalClass(pArgs->pUnk, *(pArgs->riid), pArgs->pv,
+                                    pArgs->dwDestContext, pArgs->pvDestContext, pArgs->mshlflags,
                                     pArgs->pclsid);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_GetUnmarshalClass_CallBack, pArgs, pArgs->hr);
     }
 }
-                    
-HRESULT __stdcall Marshal_GetUnmarshalClass_Wrapper(IMarshal* pMarsh, REFIID riid, void * pv, ULONG dwDestContext, 
+
+HRESULT __stdcall Marshal_GetUnmarshalClass_Wrapper(IMarshal* pMarsh, REFIID riid, void * pv, ULONG dwDestContext,
                                   void * pvDestContext, ULONG mshlflags, LPCLSID pclsid)
 {
     SetupForComCallHR();
@@ -2334,7 +2207,6 @@ HRESULT __stdcall Marshal_GetUnmarshalClass_Wrapper(IMarshal* pMarsh, REFIID rii
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2343,23 +2215,23 @@ HRESULT __stdcall Marshal_GetUnmarshalClass_Wrapper(IMarshal* pMarsh, REFIID rii
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    GetUnmarshalClassArgs args = {pMarsh, &riid, pv, dwDestContext, pvDestContext, 
+    GetUnmarshalClassArgs args = {pMarsh, &riid, pv, dwDestContext, pvDestContext,
                                         mshlflags, pclsid, &hr};
-    Marshal_GetUnmarshalClass_CallBack(&args);      
+    Marshal_GetUnmarshalClass_CallBack(&args);
     return hr;
 }
-                            
+
 struct GetMarshalSizeMaxArgs
 {
     IMarshal* pUnk;
     const IID* riid;
-    void * pv; 
-    ULONG dwDestContext; 
+    void * pv;
+    ULONG dwDestContext;
     void * pvDestContext;
     ULONG mshlflags;
     ULONG * pSize;
-    HRESULT* hr;                            
-    
+    HRESULT* hr;
+
 };
 
 VOID __stdcall Marshal_GetMarshalSizeMax_CallBack(LPVOID ptr)
@@ -2377,18 +2249,18 @@ VOID __stdcall Marshal_GetMarshalSizeMax_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = Marshal_GetMarshalSizeMax(pArgs->pUnk, *(pArgs->riid), pArgs->pv, 
+        *(pArgs->hr) = Marshal_GetMarshalSizeMax(pArgs->pUnk, *(pArgs->riid), pArgs->pv,
                                     pArgs->dwDestContext, pArgs->pvDestContext, pArgs->mshlflags,
                                     pArgs->pSize);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_GetMarshalSizeMax_CallBack, pArgs, pArgs->hr);
     }
 }
 
 
-HRESULT __stdcall Marshal_GetMarshalSizeMax_Wrapper(IMarshal* pMarsh, REFIID riid, void * pv, ULONG dwDestContext, 
+HRESULT __stdcall Marshal_GetMarshalSizeMax_Wrapper(IMarshal* pMarsh, REFIID riid, void * pv, ULONG dwDestContext,
                                   void * pvDestContext, ULONG mshlflags, ULONG * pSize)
 {
     SetupForComCallHR();
@@ -2398,7 +2270,6 @@ HRESULT __stdcall Marshal_GetMarshalSizeMax_Wrapper(IMarshal* pMarsh, REFIID rii
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2407,23 +2278,23 @@ HRESULT __stdcall Marshal_GetMarshalSizeMax_Wrapper(IMarshal* pMarsh, REFIID rii
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    GetMarshalSizeMaxArgs args = {pMarsh, &riid, pv, dwDestContext, pvDestContext, 
+    GetMarshalSizeMaxArgs args = {pMarsh, &riid, pv, dwDestContext, pvDestContext,
                                   mshlflags, pSize, &hr};
-    Marshal_GetMarshalSizeMax_CallBack(&args);      
+    Marshal_GetMarshalSizeMax_CallBack(&args);
     return hr;
 }
 
 struct MarshalInterfaceArgs
 {
     IMarshal* pUnk;
-    LPSTREAM pStm;  
-    const IID* riid; 
-    void * pv; 
-    ULONG dwDestContext; 
+    LPSTREAM pStm;
+    const IID* riid;
+    void * pv;
+    ULONG dwDestContext;
     void * pvDestContext;
     ULONG mshlflags;
-    HRESULT* hr;                            
-    
+    HRESULT* hr;
+
 };
 
 VOID __stdcall Marshal_MarshalInterface_CallBack(LPVOID ptr)
@@ -2441,11 +2312,11 @@ VOID __stdcall Marshal_MarshalInterface_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = Marshal_MarshalInterface(pArgs->pUnk, pArgs->pStm, *(pArgs->riid), pArgs->pv, 
+        *(pArgs->hr) = Marshal_MarshalInterface(pArgs->pUnk, pArgs->pStm, *(pArgs->riid), pArgs->pv,
                                     pArgs->dwDestContext, pArgs->pvDestContext, pArgs->mshlflags);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_MarshalInterface_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2460,7 +2331,6 @@ HRESULT __stdcall Marshal_MarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM pS
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pv, NULL_OK));
         PRECONDITION(CheckPointer(pvDestContext, NULL_OK));
@@ -2468,20 +2338,20 @@ HRESULT __stdcall Marshal_MarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM pS
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    MarshalInterfaceArgs args = {pMarsh, pStm, &riid, pv, dwDestContext, pvDestContext, 
+    MarshalInterfaceArgs args = {pMarsh, pStm, &riid, pv, dwDestContext, pvDestContext,
                                         mshlflags, &hr};
-    Marshal_MarshalInterface_CallBack(&args);       
+    Marshal_MarshalInterface_CallBack(&args);
     return hr;
 }
 
 struct UnmarshalInterfaceArgs
 {
     IMarshal* pUnk;
-    LPSTREAM pStm;  
-    const IID* riid; 
-    void ** ppvObj; 
-    HRESULT* hr;                            
-    
+    LPSTREAM pStm;
+    const IID* riid;
+    void ** ppvObj;
+    HRESULT* hr;
+
 };
 
 VOID __stdcall Marshal_UnmarshalInterface_CallBack(LPVOID ptr)
@@ -2502,7 +2372,7 @@ VOID __stdcall Marshal_UnmarshalInterface_CallBack(LPVOID ptr)
         *(pArgs->hr) = Marshal_UnmarshalInterface(pArgs->pUnk, pArgs->pStm, *(pArgs->riid), pArgs->ppvObj);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_UnmarshalInterface_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2516,7 +2386,6 @@ HRESULT __stdcall Marshal_UnmarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pStm, NULL_OK));
         PRECONDITION(CheckPointer(ppvObj, NULL_OK));
@@ -2525,17 +2394,17 @@ HRESULT __stdcall Marshal_UnmarshalInterface_Wrapper(IMarshal* pMarsh, LPSTREAM 
 
     HRESULT hr = S_OK;
     UnmarshalInterfaceArgs args = {pMarsh, pStm, &riid, ppvObj, &hr};
-    Marshal_UnmarshalInterface_CallBack(&args);     
+    Marshal_UnmarshalInterface_CallBack(&args);
     return hr;
 }
 
 struct ReleaseMarshalDataArgs
 {
     IMarshal* pUnk;
-    LPSTREAM pStm;      
-    HRESULT* hr;                            
-    
-};                      
+    LPSTREAM pStm;
+    HRESULT* hr;
+
+};
 
 VOID __stdcall Marshal_ReleaseMarshalData_CallBack(LPVOID ptr)
 {
@@ -2555,7 +2424,7 @@ VOID __stdcall Marshal_ReleaseMarshalData_CallBack(LPVOID ptr)
         *(pArgs->hr) = Marshal_ReleaseMarshalData(pArgs->pUnk, pArgs->pStm);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_ReleaseMarshalData_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2569,7 +2438,6 @@ HRESULT __stdcall Marshal_ReleaseMarshalData_Wrapper(IMarshal* pMarsh, LPSTREAM 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
         PRECONDITION(CheckPointer(pStm, NULL_OK));
     }
@@ -2577,15 +2445,15 @@ HRESULT __stdcall Marshal_ReleaseMarshalData_Wrapper(IMarshal* pMarsh, LPSTREAM 
 
     HRESULT hr = S_OK;
     ReleaseMarshalDataArgs args = {pMarsh, pStm, &hr};
-    Marshal_ReleaseMarshalData_CallBack(&args);     
+    Marshal_ReleaseMarshalData_CallBack(&args);
     return hr;
 }
 
 struct DisconnectObjectArgs
 {
     IMarshal* pUnk;
-    ULONG dwReserved; 
-    HRESULT* hr;                                
+    ULONG dwReserved;
+    HRESULT* hr;
 };
 
 VOID __stdcall Marshal_DisconnectObject_CallBack(LPVOID ptr)
@@ -2606,7 +2474,7 @@ VOID __stdcall Marshal_DisconnectObject_CallBack(LPVOID ptr)
         *(pArgs->hr) = Marshal_DisconnectObject(pArgs->pUnk, pArgs->dwReserved);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, Marshal_DisconnectObject_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2620,128 +2488,15 @@ HRESULT __stdcall Marshal_DisconnectObject_Wrapper(IMarshal* pMarsh, ULONG dwRes
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMarsh));
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
     DisconnectObjectArgs args = {pMarsh, dwReserved, &hr};
-    Marshal_DisconnectObject_CallBack(&args);       
+    Marshal_DisconnectObject_CallBack(&args);
     return hr;
 }
-
-
-// ---------------------------------------------------------------------------
-//  Interface IManagedObject
-
-struct GetObjectIdentityArgs
-{
-    IManagedObject *pUnk; 
-    BSTR* pBSTRGUID; 
-    DWORD* pAppDomainID;
-    void** pCCW;
-    HRESULT* hr;
-};
-
-VOID __stdcall ManagedObject_GetObjectIdentity_CallBack(LPVOID ptr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(ptr));
-    }
-    CONTRACTL_END;
-
-    GetObjectIdentityArgs* pArgs = (GetObjectIdentityArgs*)ptr;
-    ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
-    if (IsCurrentDomainValid(pWrap))
-    {
-        *(pArgs->hr) = ManagedObject_GetObjectIdentity(pArgs->pUnk, pArgs->pBSTRGUID, pArgs->pAppDomainID,
-                                                       pArgs->pCCW);
-    }
-    else
-    {       
-        AppDomainDoCallBack(pWrap, ManagedObject_GetObjectIdentity_CallBack, pArgs, pArgs->hr);
-    }
-}
-
-HRESULT __stdcall ManagedObject_GetObjectIdentity_Wrapper(IManagedObject *pUnk, BSTR* pBSTRGUID, DWORD* pAppDomainID, void** pCCW) 
-{
-    SetupForComCallHR();
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pUnk));
-        PRECONDITION(CheckPointer(pBSTRGUID, NULL_OK));
-        PRECONDITION(CheckPointer(pAppDomainID, NULL_OK));
-        PRECONDITION(CheckPointer(pCCW, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    GetObjectIdentityArgs args = {pUnk, pBSTRGUID, pAppDomainID, pCCW, &hr};
-    ManagedObject_GetObjectIdentity_CallBack(&args);        
-    return hr;
-}
-
-struct GetSerializedBufferArgs
-{
-    IManagedObject *pUnk; 
-    BSTR* pBStr;    
-    HRESULT* hr;
-};
-
-VOID __stdcall ManagedObject_GetSerializedBuffer_CallBack(LPVOID ptr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(ptr));
-    }
-    CONTRACTL_END;
-
-    GetSerializedBufferArgs* pArgs = (GetSerializedBufferArgs*)ptr;
-    ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
-    if (IsCurrentDomainValid(pWrap))
-    {
-        *(pArgs->hr) = ManagedObject_GetSerializedBuffer(pArgs->pUnk, pArgs->pBStr);
-    }
-    else
-    {       
-        AppDomainDoCallBack(pWrap, ManagedObject_GetSerializedBuffer_CallBack, pArgs, pArgs->hr);
-    }
-}
-
-HRESULT __stdcall ManagedObject_GetSerializedBuffer_Wrapper(IManagedObject *pUnk, BSTR* pBStr)
-{
-    SetupForComCallHR();
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pUnk));
-        PRECONDITION(CheckPointer(pBStr, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    GetSerializedBufferArgs args = {pUnk, pBStr, &hr};
-    ManagedObject_GetSerializedBuffer_CallBack(&args);
-    return hr;
-}
-
 
 // ---------------------------------------------------------------------------
 //  Interface IConnectionPointContainer
@@ -2771,7 +2526,7 @@ VOID __stdcall ConnectionPointContainer_EnumConnectionPoints_CallBack(LPVOID ptr
         *(pArgs->hr) = ConnectionPointContainer_EnumConnectionPoints(pArgs->pUnk, pArgs->ppEnum);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ConnectionPointContainer_EnumConnectionPoints_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2785,7 +2540,6 @@ HRESULT __stdcall ConnectionPointContainer_EnumConnectionPoints_Wrapper(IUnknown
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppEnum, NULL_OK));
     }
@@ -2793,14 +2547,14 @@ HRESULT __stdcall ConnectionPointContainer_EnumConnectionPoints_Wrapper(IUnknown
 
     HRESULT hr = S_OK;
     EnumConnectionPointsArgs args = {pUnk, ppEnum, &hr};
-    ConnectionPointContainer_EnumConnectionPoints_CallBack(&args);      
+    ConnectionPointContainer_EnumConnectionPoints_CallBack(&args);
     return hr;
 }
 
 struct FindConnectionPointArgs
 {
     IUnknown* pUnk;
-    const IID* riid;                                                               
+    const IID* riid;
     IConnectionPoint **ppCP;
     HRESULT*    hr;
 };
@@ -2820,11 +2574,11 @@ VOID __stdcall ConnectionPointContainer_FindConnectionPoint_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = ConnectionPointContainer_FindConnectionPoint(pArgs->pUnk, *(pArgs->riid), 
+        *(pArgs->hr) = ConnectionPointContainer_FindConnectionPoint(pArgs->pUnk, *(pArgs->riid),
                                                             pArgs->ppCP);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ConnectionPointContainer_FindConnectionPoint_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2838,7 +2592,6 @@ HRESULT __stdcall ConnectionPointContainer_FindConnectionPoint_Wrapper(IUnknown*
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(ppCP, NULL_OK));
     }
@@ -2846,7 +2599,7 @@ HRESULT __stdcall ConnectionPointContainer_FindConnectionPoint_Wrapper(IUnknown*
 
     HRESULT hr = S_OK;
     FindConnectionPointArgs args = {pUnk, &riid, ppCP, &hr};
-    ConnectionPointContainer_FindConnectionPoint_CallBack(&args);       
+    ConnectionPointContainer_FindConnectionPoint_CallBack(&args);
     return hr;
 }
 
@@ -2878,12 +2631,12 @@ VOID __stdcall ObjectSafety_GetInterfaceSafetyOptions_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = ObjectSafety_GetInterfaceSafetyOptions(pArgs->pUnk, *(pArgs->riid), 
+        *(pArgs->hr) = ObjectSafety_GetInterfaceSafetyOptions(pArgs->pUnk, *(pArgs->riid),
                                                               pArgs->pdwSupportedOptions,
                                                               pArgs->pdwEnabledOptions);
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ObjectSafety_GetInterfaceSafetyOptions_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2899,7 +2652,6 @@ HRESULT __stdcall ObjectSafety_GetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(CheckPointer(pdwSupportedOptions, NULL_OK));
         PRECONDITION(CheckPointer(pdwEnabledOptions, NULL_OK));
@@ -2908,7 +2660,7 @@ HRESULT __stdcall ObjectSafety_GetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
 
     HRESULT hr = S_OK;
     GetInterfaceSafetyArgs args = {pUnk, &riid, pdwSupportedOptions, pdwEnabledOptions, &hr};
-    ObjectSafety_GetInterfaceSafetyOptions_CallBack(&args);     
+    ObjectSafety_GetInterfaceSafetyOptions_CallBack(&args);
     return hr;
 }
 
@@ -2936,13 +2688,13 @@ VOID __stdcall ObjectSafety_SetInterfaceSafetyOptions_CallBack(LPVOID ptr)
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pArgs->pUnk);
     if (IsCurrentDomainValid(pWrap))
     {
-        *(pArgs->hr) = ObjectSafety_SetInterfaceSafetyOptions(pArgs->pUnk, *(pArgs->riid), 
+        *(pArgs->hr) = ObjectSafety_SetInterfaceSafetyOptions(pArgs->pUnk, *(pArgs->riid),
                                                               pArgs->dwOptionSetMask,
                                                               pArgs->dwEnabledOptions
                                                               );
     }
     else
-    {       
+    {
         AppDomainDoCallBack(pWrap, ObjectSafety_SetInterfaceSafetyOptions_CallBack, pArgs, pArgs->hr);
     }
 }
@@ -2958,14 +2710,13 @@ HRESULT __stdcall ObjectSafety_SetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
     SetInterfaceSafetyArgs args = {pUnk, &riid, dwOptionSetMask, dwEnabledOptions, &hr};
-    ObjectSafety_SetInterfaceSafetyOptions_CallBack(&args);     
+    ObjectSafety_SetInterfaceSafetyOptions_CallBack(&args);
     return hr;
 }
 
@@ -3008,14 +2759,13 @@ HRESULT __stdcall ICustomPropertyProvider_GetProperty_Wrapper(IUnknown *pPropert
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
 
     if (ppProperty == NULL)
         return E_POINTER;
-        
+
 
     HRESULT hr = S_OK;
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pPropertyProvider);
@@ -3024,7 +2774,7 @@ HRESULT __stdcall ICustomPropertyProvider_GetProperty_Wrapper(IUnknown *pPropert
         hr = ICustomPropertyProvider_GetProperty(pPropertyProvider, hstrName, ppProperty);
     }
     else
-    {       
+    {
         ICustomPropertyProvider_GetProperty_Args args = { pPropertyProvider, hstrName, ppProperty, &hr };
         AppDomainDoCallBack(pWrap, ICustomPropertyProvider_GetProperty_Callback, &args, &hr);
     }
@@ -3048,8 +2798,8 @@ VOID __stdcall ICustomPropertyProvider_GetIndexedProperty_Callback(LPVOID ptr)
     *(pArgs->pHR) = ICustomPropertyProvider_GetIndexedProperty(pArgs->pPropertyProvider, pArgs->hstrName, pArgs->indexedParamType, pArgs->ppProperty);
 }
 
-HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *pPropertyProvider, 
-                                                                     HSTRING hstrName, 
+HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *pPropertyProvider,
+                                                                     HSTRING hstrName,
                                                                      TypeNameNative indexedParamType,
                                                                      /* [out, retval] */ IUnknown **ppProperty)
 {
@@ -3060,7 +2810,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *p
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -3073,7 +2822,7 @@ HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *p
         hr = ICustomPropertyProvider_GetIndexedProperty(pPropertyProvider, hstrName, indexedParamType, ppProperty);
     }
     else
-    {       
+    {
         ICustomPropertyProvider_GetIndexedProperty_Args args = { pPropertyProvider, hstrName, indexedParamType, ppProperty, &hr };
         AppDomainDoCallBack(pWrap, ICustomPropertyProvider_GetIndexedProperty_Callback, &args, &hr);
     }
@@ -3096,7 +2845,7 @@ VOID __stdcall ICustomPropertyProvider_GetStringRepresentation_Callback(LPVOID p
     *(pArgs->pHR) = ICustomPropertyProvider_GetStringRepresentation(pArgs->pPropertyProvider, pArgs->phstrStringRepresentation);
 }
 
-HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnknown *pPropertyProvider,
                                                                   /* [out, retval] */ HSTRING *phstrStringRepresentation)
 {
     SetupThreadForComCall(E_OUTOFMEMORY);
@@ -3106,7 +2855,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnkno
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -3129,7 +2877,7 @@ HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnkno
 struct ICustomPropertyProvider_GetType_Args
 {
     IUnknown             *pPropertyProvider;
-    TypeNameNative       *pTypeIdentifier;   
+    TypeNameNative       *pTypeIdentifier;
     HRESULT              *pHR;
 };
 
@@ -3141,7 +2889,7 @@ VOID __stdcall ICustomPropertyProvider_GetType_Callback(LPVOID ptr)
     *(pArgs->pHR) = ICustomPropertyProvider_GetType(pArgs->pPropertyProvider, pArgs->pTypeIdentifier);
 }
 
-HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyProvider,
                                                   /* [out, retval] */ TypeNameNative *pTypeIdentifier)
 {
     SetupThreadForComCall(E_OUTOFMEMORY);
@@ -3151,7 +2899,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyPro
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
     }
     CONTRACTL_END;
@@ -3186,7 +2933,7 @@ VOID __stdcall IStringable_ToString_Callback(LPVOID ptr)
     *(pArgs->pHR) = IStringable_ToString(pArgs->pStringable, pArgs->pResult);
 }
 
-HRESULT __stdcall  IStringable_ToString_Wrapper(IUnknown *pStringable, 
+HRESULT __stdcall  IStringable_ToString_Wrapper(IUnknown *pStringable,
                                                                   /* [out, retval] */ HSTRING *pResult)
 {
     SetupThreadForComCall(E_OUTOFMEMORY);
@@ -3196,7 +2943,6 @@ HRESULT __stdcall  IStringable_ToString_Wrapper(IUnknown *pStringable,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pStringable));
     }
     CONTRACTL_END;
@@ -3219,46 +2965,34 @@ HRESULT __stdcall  IStringable_ToString_Wrapper(IUnknown *pStringable,
 
 ULONG __stdcall ICCW_AddRefFromJupiter_Wrapper(IUnknown *pUnk)
 {
-    // We do not need to hook with host here
-    SetupForComCallDWORDNoHostNotif();
+    SetupForComCallDWORD();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_AddRefFromJupiter(pUnk);
 }
 
 ULONG __stdcall ICCW_ReleaseFromJupiter_Wrapper(IUnknown *pUnk)
 {
-    // We do not need to hook with host here
-    SetupForComCallDWORDNoHostNotif();
+    SetupForComCallDWORD();
 
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_ReleaseFromJupiter(pUnk);
 }
 
 HRESULT __stdcall ICCW_Peg_Wrapper(IUnknown *pUnk)
 {
-    // We do not need to hook with host here and we cannot do CanRunManagedCode check
-    // as we are most likely in the middle of a GC
-    SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode();
-
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    SetupForComCallHR();
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_Peg(pUnk);
 }
 
 HRESULT __stdcall ICCW_Unpeg_Wrapper(IUnknown *pUnk)
 {
-    // We do not need to hook with host here and we cannot do CanRunManagedCode check
-    // as we are most likely in the middle of a GC
-    SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode();
-
-    WRAPPER_NO_CONTRACT;    
-    STATIC_CONTRACT_SO_TOLERANT;
+    SetupForComCallHR();
+    WRAPPER_NO_CONTRACT;
 
     return ICCW_Unpeg(pUnk);
 }

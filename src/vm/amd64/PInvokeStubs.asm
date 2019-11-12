@@ -13,17 +13,22 @@ include AsmConstants.inc
 
 extern GenericPInvokeCalliStubWorker:proc
 extern VarargPInvokeStubWorker:proc
+extern JIT_PInvokeEndRarePath:proc
+
+extern s_gsCookie:QWORD
+extern ??_7InlinedCallFrame@@6B@:QWORD
+extern g_TrapReturningThreads:DWORD
 
 ;
 ; in:
 ; PINVOKE_CALLI_TARGET_REGISTER (r10) = unmanaged target
-; PINVOKE_CALLI_SIGTOKEN_REGNUM (r11) = sig token       
+; PINVOKE_CALLI_SIGTOKEN_REGNUM (r11) = sig token
 ;
 ; out:
 ; METHODDESC_REGISTER           (r10) = unmanaged target
 ;
 LEAF_ENTRY GenericPInvokeCalliHelper, _TEXT
-        
+
         ;
         ; check for existing IL stub
         ;
@@ -47,7 +52,7 @@ LEAF_ENTRY GenericPInvokeCalliHelper, _TEXT
 LEAF_END GenericPInvokeCalliHelper, _TEXT
 
 NESTED_ENTRY GenericPInvokeCalliGenILStub, _TEXT
-        
+
         PROLOG_WITH_TRANSITION_BLOCK
 
         ;
@@ -79,7 +84,7 @@ LEAF_ENTRY VarargPInvokeStub, _TEXT
         mov             PINVOKE_CALLI_SIGTOKEN_REGISTER, rcx
         jmp             VarargPInvokeStubHelper
 LEAF_END VarargPInvokeStub, _TEXT
-        
+
 LEAF_ENTRY VarargPInvokeStub_RetBuffArg, _TEXT
         mov             PINVOKE_CALLI_SIGTOKEN_REGISTER, rdx
         jmp             VarargPInvokeStubHelper
@@ -97,7 +102,7 @@ LEAF_ENTRY VarargPInvokeStubHelper, _TEXT
         ; jump to existing IL stub
         ;
         jmp             rax
-        
+
 LEAF_END VarargPInvokeStubHelper, _TEXT
 
 ;
@@ -108,7 +113,7 @@ LEAF_END VarargPInvokeStubHelper, _TEXT
 ;
 NESTED_ENTRY VarargPInvokeGenILStub, _TEXT
 
-        PROLOG_WITH_TRANSITION_BLOCK 
+        PROLOG_WITH_TRANSITION_BLOCK
 
         ;
         ; save target
@@ -134,5 +139,79 @@ NESTED_ENTRY VarargPInvokeGenILStub, _TEXT
         jmp             VarargPInvokeStubHelper
 
 NESTED_END VarargPInvokeGenILStub, _TEXT
+
+;
+; in:
+; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right
+;                          before actual InlinedCallFrame data)
+;
+;
+LEAF_ENTRY JIT_PInvokeBegin, _TEXT
+
+        mov             rax, qword ptr [s_gsCookie]
+        mov             qword ptr [rcx], rax
+        add             rcx, SIZEOF_GSCookie
+
+        ;; set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
+        lea             rax,[??_7InlinedCallFrame@@6B@]
+        mov             qword ptr [rcx], rax
+
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_Datum], 0
+
+        mov             rax, rsp
+        add             rax, 8
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallSiteSP], rax
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP], rbp
+
+        mov             rax, [rsp]
+        mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], rax
+
+        INLINE_GETTHREAD rax
+        ;; pFrame->m_Next = pThread->m_pFrame;
+        mov             rdx, qword ptr [rax + OFFSETOF__Thread__m_pFrame]
+        mov             qword ptr [rcx + OFFSETOF__Frame__m_Next], rdx
+
+        ;; pThread->m_pFrame = pFrame;
+        mov             qword ptr [rax + OFFSETOF__Thread__m_pFrame], rcx
+
+        ;; pThread->m_fPreemptiveGCDisabled = 0
+        mov             dword ptr [rax + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 0
+
+        ret
+
+LEAF_END JIT_PInvokeBegin, _TEXT
+
+;
+; in:
+; InlinedCallFrame (rcx) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right
+;                          before actual InlinedCallFrame data)
+;
+;
+LEAF_ENTRY JIT_PInvokeEnd, _TEXT
+
+        add             rcx, SIZEOF_GSCookie
+
+        INLINE_GETTHREAD rdx
+
+        ;; rcx = pFrame
+        ;; rdx = pThread
+
+        ;; pThread->m_fPreemptiveGCDisabled = 1
+        mov             dword ptr [rdx + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 1
+
+        ;; Check return trap
+        cmp             [g_TrapReturningThreads], 0
+        jnz             RarePath
+
+        ;; pThread->m_pFrame = pFrame->m_Next
+        mov             rax, qword ptr [rcx + OFFSETOF__Frame__m_Next]
+        mov             qword ptr [rdx + OFFSETOF__Thread__m_pFrame], rax
+
+        ret
+
+RarePath:
+        jmp             JIT_PInvokeEndRarePath
+
+LEAF_END JIT_PInvokeEnd, _TEXT
 
         end

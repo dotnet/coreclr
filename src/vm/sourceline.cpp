@@ -16,15 +16,15 @@ class CCallback : public IDiaLoadCallback
 {
     int m_nRefCount;
 public:
-    CCallback() { 
-        CONTRACTL 
+    CCallback() {
+        CONTRACTL
         {
             MODE_ANY;
             GC_NOTRIGGER;
             NOTHROW;
         }CONTRACTL_END;
 
-        m_nRefCount = 0; 
+        m_nRefCount = 0;
     }
 
     //IUnknown
@@ -35,25 +35,21 @@ public:
     }
 
     ULONG STDMETHODCALLTYPE Release() {
-        CONTRACTL 
+        CONTRACTL
         {
             THROWS;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
         } CONTRACTL_END;
 
-        BEGIN_SO_INTOLERANT_CODE(GetThread());
         if ( (--m_nRefCount) == 0 )
             delete this;
-        END_SO_INTOLERANT_CODE;
-        
+
         return m_nRefCount;
     }
 
     HRESULT STDMETHODCALLTYPE QueryInterface( REFIID rid, void **ppUnk ) {
         WRAPPER_NO_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         if ( ppUnk == NULL ) {
             return E_INVALIDARG;
         }
@@ -75,17 +71,16 @@ public:
     }
 
     HRESULT STDMETHODCALLTYPE NotifyDebugDir(
-        BOOL fExecutable, 
+        BOOL fExecutable,
         DWORD cbData,
         BYTE data[]) // really a const struct _IMAGE_DEBUG_DIRECTORY *
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         return S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE NotifyOpenDBG(
-        LPCOLESTR dbgPath, 
+        LPCOLESTR dbgPath,
         HRESULT resultCode)
     {
         LIMITED_METHOD_CONTRACT;
@@ -93,7 +88,7 @@ public:
     }
 
     HRESULT STDMETHODCALLTYPE NotifyOpenPDB(
-        LPCOLESTR pdbPath, 
+        LPCOLESTR pdbPath,
         HRESULT resultCode)
     {
         LIMITED_METHOD_CONTRACT;
@@ -152,23 +147,23 @@ bool SourceLine::LoadDataFromPdb( __in_z LPWSTR wszFilename )
     }
 
     // Obtain Access To The Provider
-    hResult = CoCreateInstance(CLSID_DiaSource, 
-        NULL, 
-        CLSCTX_INPROC_SERVER, 
+    hResult = CoCreateInstance(CLSID_DiaSource,
+        NULL,
+        CLSCTX_INPROC_SERVER,
         IID_IDiaDataSource,
         (void **) &pSource_);
 
-    if (FAILED(hResult)){   
+    if (FAILED(hResult)){
         return FALSE;
     }
 
     CCallback callback;
     callback.AddRef();
 
-    if ( FAILED( pSource_->loadDataFromPdb( wszFilename ) ) 
-        && FAILED( pSource_->loadDataForExe( wszFilename, W("symsrv*symsrv.dll*\\\\symbols\\\\symbols"), &callback ) ) ) 
+    if ( FAILED( pSource_->loadDataFromPdb( wszFilename ) )
+        && FAILED( pSource_->loadDataForExe( wszFilename, W("symsrv*symsrv.dll*\\\\symbols\\\\symbols"), &callback ) ) )
         return FALSE;
-    if ( FAILED( pSource_->openSession(&pSession_) ) ) 
+    if ( FAILED( pSource_->openSession(&pSession_) ) )
         return FALSE;
     if ( FAILED( pSession_->get_globalScope(&pGlobal_) ) )
         return FALSE;
@@ -178,7 +173,7 @@ bool SourceLine::LoadDataFromPdb( __in_z LPWSTR wszFilename )
 
 //////////////////////////////////////////////////////////////////
 
-SourceLine::SourceLine( __in_z LPWSTR pszFileName ) 
+SourceLine::SourceLine( __in_z LPWSTR pszFileName )
 {
     WRAPPER_NO_CONTRACT;
     if (LoadDataFromPdb(pszFileName)) {
@@ -313,7 +308,7 @@ HRESULT SourceLine::GetLocalName( DWORD dwFunctionToken, DWORD dwSlot, __out_eco
 }
 
 #else // !ENABLE_DIAGNOSTIC_SYMBOL_READING
-SourceLine::SourceLine( __in_z LPWSTR pszFileName ) 
+SourceLine::SourceLine( __in_z LPWSTR pszFileName )
 {
     LIMITED_METHOD_CONTRACT;
     initialized_ = false;

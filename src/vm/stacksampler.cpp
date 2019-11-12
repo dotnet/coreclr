@@ -8,7 +8,7 @@
 //
 // StackSampler is intended to identify methods where the process is spending most of its time
 // and to re-JIT such methods in the background. Call these methods hot.
-// 
+//
 // Identifying hot methods:
 // ========================
 //
@@ -25,7 +25,7 @@
 //
 // We track this information on a per method basis, the count of its occurrences in each sample
 // using a hash map.
-// 
+//
 // Note:
 // =====
 // o Using the above technique we have only identified top methods at a given point in the execution.
@@ -143,7 +143,7 @@ StackSampler::StackSampler()
     }
 }
 
-// Is "pMD" a good method, that is suitable for tracking as HOT and 
+// Is "pMD" a good method, that is suitable for tracking as HOT and
 // JITting in the background.
 bool IsGoodMethodDesc(MethodDesc* pMD)
 {
@@ -172,32 +172,13 @@ void StackSampler::RecordJittingInfo(MethodDesc* pMD, CORJIT_FLAGS flags)
 
 void StackSampler::RecordJittingInfoInternal(MethodDesc* pMD, CORJIT_FLAGS flags)
 {
-    ADID dwDomainId = GetThread()->GetDomain()->GetId();
-    JitInfoHashEntry entry(pMD, dwDomainId);
+    JitInfoHashEntry entry(pMD, flags);
 
     // Record the domain in the hash map.
     {
         CrstHolder ch(&m_crstJitInfo);
         m_jitInfo.AddOrReplace(entry);
     }
-}
-
-// Obtain the domain ID in which the method was originally JITted, if
-// it was never JITted (Ngened) or the original app domain was unloaded
-// use the "defaultId" supplied.
-ADID StackSampler::GetDomainId(MethodDesc* pMD, const ADID& defaultId)
-{
-    ADID adId;
-    BOOL bPresent = FALSE;
-    {
-        CrstHolder ch(&m_crstJitInfo);
-        bPresent = m_jitInfo.Lookup(pMD, &adId);
-    }
-    if (bPresent != FALSE)
-    {
-        return adId;
-    }
-    return defaultId;
 }
 
 // Stack walk callback data.
@@ -227,7 +208,6 @@ StackWalkAction StackSampler::CrawlFrameVisitor(CrawlFrame* pCf, Thread* pMdThre
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -241,13 +221,11 @@ StackWalkAction StackSampler::CrawlFrameVisitor(CrawlFrame* pCf, Thread* pMdThre
     }
 
     // Lookup the method desc and obtain info.
-    ADID adId = pMdThread->GetDomain()->GetId();
-    CountInfo info(adId);
+    CountInfo info;
     m_countInfo.Lookup(pMD, &info);
 
     // Record the current domain ID of the method's thread, i.e.,
     // the method is last known to be executing.
-    info.adDomainId = adId;
     info.uCount++;
 
     // Put the info back.
@@ -267,7 +245,6 @@ void StackSampler::ThreadProc()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -277,8 +254,6 @@ void StackSampler::ThreadProc()
         return;
     }
 
-    BEGIN_SO_INTOLERANT_CODE(m_pThread);
- 
     // User asked us to sample after certain time.
     m_pThread->UserSleep(m_nSampleAfter);
 
@@ -322,8 +297,6 @@ void StackSampler::ThreadProc()
         // TODO: Measure time to JIT using CycleTimer and subtract from the time we sleep every time.
         m_pThread->UserSleep(m_nSampleEvery);
     }
-    
-    END_SO_INTOLERANT_CODE;
 }
 
 // Find the most frequent method in the samples and JIT them.
@@ -343,7 +316,7 @@ void StackSampler::JitFrequentMethodsInSamples()
     // We want to keep a max-heap of the top frequent methods in the samples.
     NewHolder<Count> freq(new (nothrow) Count[m_nNumMethods]);
 
-    // 
+    //
     // For each element in the samples, call it incoming, add to the "frequent" list
     // if the list has space to hold the incoming element.
     //
@@ -403,14 +376,13 @@ void StackSampler::JitFrequentMethodsInSamples()
         {
             // Try to get the original app domain ID in which the method was JITTed, if not
             // use the app domain ID the method was last seen executing.
-            ADID adId = GetDomainId(freq[i].pMD, freq[i].info.adDomainId);
-            JitAndCollectTrace(freq[i].pMD, adId);
+            JitAndCollectTrace(freq[i].pMD);
         }
     }
 }
 
 // Invoke the JIT for the method desc. Switch to the appropriate domain.
-void StackSampler::JitAndCollectTrace(MethodDesc* pMD, const ADID& adId)
+void StackSampler::JitAndCollectTrace(MethodDesc* pMD)
 {
     CONTRACTL
     {
@@ -428,7 +400,6 @@ void StackSampler::JitAndCollectTrace(MethodDesc* pMD, const ADID& adId)
 
     EX_TRY
     {
-        ENTER_DOMAIN_ID(adId)
         {
             GCX_PREEMP();
 
@@ -440,15 +411,14 @@ void StackSampler::JitAndCollectTrace(MethodDesc* pMD, const ADID& adId)
 
 #ifdef _DEBUG
             LOG((LF_JIT, LL_INFO100000, "Jitting the hot method desc using SuperPMI in the background thread -> "));
-            LOG((LF_JIT, LL_INFO100000, "%s:%s\n", pMD->GetMethodTable()->GetClass()->GetDebugClassName(), pMD->GetName())); 
+            LOG((LF_JIT, LL_INFO100000, "%s:%s\n", pMD->GetMethodTable()->GetClass()->GetDebugClassName(), pMD->GetName()));
 #endif
 
-            PCODE pCode = UnsafeJitFunction(pMD, pDecoder, flags);
+            PCODE pCode = UnsafeJitFunction(NativeCodeVersion(pMD), pDecoder, flags);
         }
-        END_DOMAIN_TRANSITION;
 
         // Update that this method has been already JITted.
-        CountInfo info((ADID) DefaultADID);
+        CountInfo info;
         m_countInfo.Lookup(pMD, &info);
         info.fJitted = true;
         m_countInfo.AddOrReplace(CountInfoHashEntry(pMD, info));

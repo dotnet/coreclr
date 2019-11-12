@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
@@ -12,7 +13,7 @@ namespace R2RDump
 {
     /// <summary>
     /// Represents the debug information for a single method in the ready-to-run image.
-    /// See <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/cordebuginfo.h">src\inc\cordebuginfo.h</a> for 
+    /// See <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/cordebuginfo.h">src\inc\cordebuginfo.h</a> for
     /// the fundamental types this is based on.
     /// </summary>
     public class DebugInfo
@@ -20,10 +21,12 @@ namespace R2RDump
         private List<DebugInfoBoundsEntry> _boundsList = new List<DebugInfoBoundsEntry>();
         private List<NativeVarInfo> _variablesList = new List<NativeVarInfo>();
         private Machine _machine;
+        private bool _normalize;
 
-        public DebugInfo(byte[] image, int offset, Machine machine)
+        public DebugInfo(byte[] image, int offset, Machine machine, bool normalize)
         {
             _machine = machine;
+            _normalize = normalize;
 
             // Get the id of the runtime function from the NativeArray
             uint lookback = 0;
@@ -52,76 +55,77 @@ namespace R2RDump
             }
         }
 
-        public override string ToString()
+        public void WriteTo(TextWriter writer, DumpOptions dumpOptions)
         {
-            StringBuilder sb = new StringBuilder();
-
             if (_boundsList.Count > 0)
-                sb.AppendLine("Debug Info");
+                writer.WriteLine("Debug Info");
 
-            sb.AppendLine("\tBounds:");
+            writer.WriteLine("\tBounds:");
             for (int i = 0; i < _boundsList.Count; ++i)
             {
-                sb.AppendLine($"\tNative Offset: 0x{_boundsList[i].NativeOffset:X}, IL Offset: 0x{_boundsList[i].ILOffset:X}, Source Types: {_boundsList[i].SourceTypes}");
+                writer.Write('\t');
+                if (!dumpOptions.Naked)
+                {
+                    writer.Write($"Native Offset: 0x{_boundsList[i].NativeOffset:X}, ");
+                }
+                writer.WriteLine($"IL Offset: 0x{_boundsList[i].ILOffset:X}, Source Types: {_boundsList[i].SourceTypes}");
             }
 
-            sb.AppendLine("");
+            writer.WriteLine("");
 
             if (_variablesList.Count > 0)
-                sb.AppendLine("\tVariable Locations:");
+                writer.WriteLine("\tVariable Locations:");
 
             for (int i = 0; i < _variablesList.Count; ++i)
             {
                 var varLoc = _variablesList[i];
-                sb.AppendLine($"\tVariable Number: {varLoc.VariableNumber}");
-                sb.AppendLine($"\tStart Offset: 0x{varLoc.StartOffset:X}");
-                sb.AppendLine($"\tEnd Offset: 0x{varLoc.EndOffset:X}");
-                sb.AppendLine($"\tLoc Type: {varLoc.VariableLocation.VarLocType}");
+                writer.WriteLine($"\tVariable Number: {varLoc.VariableNumber}");
+                writer.WriteLine($"\tStart Offset: 0x{varLoc.StartOffset:X}");
+                writer.WriteLine($"\tEnd Offset: 0x{varLoc.EndOffset:X}");
+                writer.WriteLine($"\tLoc Type: {varLoc.VariableLocation.VarLocType}");
 
                 switch (varLoc.VariableLocation.VarLocType)
                 {
                     case VarLocType.VLT_REG:
                     case VarLocType.VLT_REG_FP:
                     case VarLocType.VLT_REG_BYREF:
-                        sb.AppendLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
                         break;
                     case VarLocType.VLT_STK:
                     case VarLocType.VLT_STK_BYREF:
-                        sb.AppendLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
-                        sb.AppendLine($"\tStack Offset: {varLoc.VariableLocation.Data2}");
+                        writer.WriteLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tStack Offset: {varLoc.VariableLocation.Data2}");
                         break;
                     case VarLocType.VLT_REG_REG:
-                        sb.AppendLine($"\tRegister 1: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
-                        sb.AppendLine($"\tRegister 2: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
+                        writer.WriteLine($"\tRegister 1: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tRegister 2: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
                         break;
                     case VarLocType.VLT_REG_STK:
-                        sb.AppendLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
-                        sb.AppendLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
-                        sb.AppendLine($"\tStack Offset: {varLoc.VariableLocation.Data3}");
+                        writer.WriteLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
+                        writer.WriteLine($"\tStack Offset: {varLoc.VariableLocation.Data3}");
                         break;
                     case VarLocType.VLT_STK_REG:
-                        sb.AppendLine($"\tStack Offset: {varLoc.VariableLocation.Data1}");
-                        sb.AppendLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
-                        sb.AppendLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data3)}");                        
+                        writer.WriteLine($"\tStack Offset: {varLoc.VariableLocation.Data1}");
+                        writer.WriteLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data2)}");
+                        writer.WriteLine($"\tRegister: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data3)}");
                         break;
                     case VarLocType.VLT_STK2:
-                        sb.AppendLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
-                        sb.AppendLine($"\tStack Offset: {varLoc.VariableLocation.Data2}");
+                        writer.WriteLine($"\tBase Register: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tStack Offset: {varLoc.VariableLocation.Data2}");
                         break;
                     case VarLocType.VLT_FPSTK:
-                        sb.AppendLine($"\tOffset: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tOffset: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
                         break;
                     case VarLocType.VLT_FIXED_VA:
-                        sb.AppendLine($"\tOffset: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
+                        writer.WriteLine($"\tOffset: {GetPlatformSpecificRegister(_machine, varLoc.VariableLocation.Data1)}");
                         break;
                     default:
                         throw new BadImageFormatException("Unexpected var loc type");
                 }
 
-                sb.AppendLine("");
+                writer.WriteLine("");
             }
-
-            return sb.ToString();
         }
 
         /// <summary>
@@ -170,9 +174,9 @@ namespace R2RDump
         private void ParseNativeVarInfo(byte[] image, int offset)
         {
             // Each Varinfo has a:
-            // - native start +End offset. We can use a delta for the end offset. 
+            // - native start +End offset. We can use a delta for the end offset.
             // - Il variable number. These are usually small.
-            // - VarLoc information. This is a tagged variant. 
+            // - VarLoc information. This is a tagged variant.
             // The entries aren't sorted in any particular order.
             NibbleReader reader = new NibbleReader(image, offset);
             uint nativeVarCount = reader.ReadUInt();
@@ -228,6 +232,35 @@ namespace R2RDump
 
                 entry.VariableLocation = varLoc;
                 _variablesList.Add(entry);
+            }
+
+            if (_normalize)
+            {
+                _variablesList.Sort(CompareNativeVarInfo);
+            }
+        }
+
+        private static int CompareNativeVarInfo(NativeVarInfo left, NativeVarInfo right)
+        {
+            if (left.VariableNumber < right.VariableNumber)
+            {
+                return -1;
+            }
+            else if (left.VariableNumber > right.VariableNumber)
+            {
+                return 1;
+            }
+            else if (left.StartOffset < right.StartOffset)
+            {
+                return -1;
+            }
+            else if (left.StartOffset > right.StartOffset)
+            {
+                return 1;
+            }
+            else
+            {
+                return 0;
             }
         }
 

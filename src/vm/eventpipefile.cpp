@@ -3,38 +3,96 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
-#include "eventpipebuffer.h"
 #include "eventpipeblock.h"
-#include "eventpipeconfiguration.h"
+#include "eventpipeeventinstance.h"
 #include "eventpipefile.h"
 #include "sampleprofiler.h"
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeFile::EventPipeFile(
-    SString &outputFilePath
-#ifdef _DEBUG
-    ,
-    bool lockOnWrite
-#endif // _DEBUG
-)
+
+StackHashEntry* StackHashEntry::CreateNew(StackContents* pStack, ULONG id, ULONG hash)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    StackHashEntry* pEntry = (StackHashEntry*) new (nothrow) BYTE[offsetof(StackHashEntry, StackBytes) + pStack->GetSize()];
+    if (pEntry == NULL)
+    {
+        return NULL;
+    }
+    pEntry->Id = id;
+    pEntry->Hash = hash;
+    pEntry->StackSizeInBytes = pStack->GetSize();
+    memcpy_s(pEntry->StackBytes, pStack->GetSize(), pStack->GetPointer(), pStack->GetSize());
+    return pEntry;
+}
+
+StackHashKey StackHashEntry::GetKey() const
+{
+    LIMITED_METHOD_CONTRACT;
+    StackHashKey key((BYTE*)StackBytes, StackSizeInBytes, Hash);
+    return key;
+}
+
+StackHashKey::StackHashKey(StackContents* pStack) :
+    pStackBytes(pStack->GetPointer()),
+    Hash(HashBytes(pStack->GetPointer(), pStack->GetSize())),
+    StackSizeInBytes(pStack->GetSize())
+{}
+
+StackHashKey::StackHashKey(BYTE* pStackBytes, ULONG stackSizeInBytes, ULONG hash) :
+    pStackBytes(pStackBytes),
+    Hash(hash),
+    StackSizeInBytes(stackSizeInBytes)
+{}
+
+DWORD GetFileVersion(EventPipeSerializationFormat format)
+{
+    LIMITED_METHOD_CONTRACT;
+    switch(format)
+    {
+    case EventPipeSerializationFormat::NetPerfV3:
+        return 3;
+    case EventPipeSerializationFormat::NetTraceV4:
+        return 4;
+    default:
+        _ASSERTE(!"Unrecognized EventPipeSerializationFormat");
+        return 0;
+    }
+}
+
+DWORD GetFileMinVersion(EventPipeSerializationFormat format)
+{
+    LIMITED_METHOD_CONTRACT;
+    switch (format)
+    {
+    case EventPipeSerializationFormat::NetPerfV3:
+        return 0;
+    case EventPipeSerializationFormat::NetTraceV4:
+        return 4;
+    default:
+        _ASSERTE(!"Unrecognized EventPipeSerializationFormat");
+        return 0;
+    }
+}
+
+EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerializationFormat format) :
+    FastSerializableObject(GetFileVersion(format), GetFileMinVersion(format), format >= EventPipeSerializationFormat::NetTraceV4),
+    m_pSerializer(nullptr),
+    m_pStreamWriter(pStreamWriter)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
-    SetObjectVersion(3);
-    SetMinReaderVersion(0);
-
-    m_pBlock = new EventPipeBlock(100 * 1024);
-
-#ifdef _DEBUG
-    m_lockOnWrite = lockOnWrite;
-#endif // _DEBUG
+    m_format = format;
+    m_pBlock = new EventPipeEventBlock(100 * 1024, format);
+    m_pMetadataBlock = new EventPipeMetadataBlock(100 * 1024);
+    m_pStackBlock = new EventPipeStackBlock(100 * 1024);
 
     // File start time information.
     GetSystemTime(&m_fileOpenSystemTime);
@@ -51,17 +109,52 @@ EventPipeFile::EventPipeFile(
 
     m_samplingRateInNs = SampleProfiler::GetSamplingRate();
 
-    // Create the file stream and write the header.
-    m_pSerializer = new FastSerializer(outputFilePath);
+
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
+
     m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
 
-    // Start and 0 - The value is always incremented prior to use, so the first ID will be 1.
+    // Start at 0 - The value is always incremented prior to use, so the first ID will be 1.
     m_metadataIdCounter = 0;
 
-    // Write the first object to the file.
-    m_pSerializer->WriteObject(this);
+    // Start at 0 - The value is always incremented prior to use, so the first ID will be 1.
+    m_stackIdCounter = 0;
+
+#ifdef DEBUG
+    QueryPerformanceCounter(&m_lastSortedTimestamp);
+#endif
+
+
+}
+
+void EventPipeFile::InitializeFile()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(m_pStreamWriter != nullptr);
+        PRECONDITION(m_pSerializer == nullptr);
+    }
+    CONTRACTL_END;
+
+    bool fSuccess = true;
+    if (m_format >= EventPipeSerializationFormat::NetTraceV4)
+    {
+        const char* pHeader = "Nettrace";
+        uint32_t bytesWritten = 0;
+        fSuccess = m_pStreamWriter->Write(pHeader, 8, bytesWritten) && bytesWritten == 8;
+    }
+    if (fSuccess)
+    {
+        // Create the file stream and write the FastSerialization header.
+        m_pSerializer = new FastSerializer(m_pStreamWriter);
+
+        // Write the first object to the file.
+        m_pSerializer->WriteObject(this);
+    }
 }
 
 EventPipeFile::~EventPipeFile()
@@ -75,32 +168,56 @@ EventPipeFile::~EventPipeFile()
     CONTRACTL_END;
 
     if (m_pBlock != NULL && m_pSerializer != NULL)
-    {
         WriteEnd();
+
+    for (EventPipeStackHash::Iterator pCur = m_stackHash.Begin(); pCur != m_stackHash.End(); pCur++)
+    {
+        delete *pCur;
     }
 
-    if (m_pBlock != NULL)
-    {
-        delete(m_pBlock);
-        m_pBlock = NULL;
-    }
-
-    if(m_pSerializer != NULL)
-    {
-        delete(m_pSerializer);
-        m_pSerializer = NULL;
-    }
+    delete m_pBlock;
+    delete m_pMetadataBlock;
+    delete m_pStackBlock;
+    delete m_pSerializer;
+    delete m_pMetadataIds;
 }
 
-void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
+EventPipeSerializationFormat EventPipeFile::GetSerializationFormat() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_format;
+}
+
+bool EventPipeFile::HasErrors() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return (m_pSerializer == nullptr) || m_pSerializer->HasWriteErrors();
+}
+
+void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, ULONGLONG captureThreadId, unsigned int sequenceNumber, BOOL isSortedEvent)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(m_pSerializer != nullptr);
     }
     CONTRACTL_END;
+
+#ifdef DEBUG
+    _ASSERTE(instance.GetTimeStamp()->QuadPart >= m_lastSortedTimestamp.QuadPart);
+    if (isSortedEvent)
+    {
+        m_lastSortedTimestamp = *(instance.GetTimeStamp());
+    }
+#endif
+
+    unsigned int stackId = 0;
+    if (m_format >= EventPipeSerializationFormat::NetTraceV4)
+    {
+        stackId = GetStackId(instance);
+    }
 
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.
@@ -109,17 +226,83 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     {
         metadataId = GenerateMetadataId();
 
-        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
-        
-        WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
+        EventPipeEventInstance* pMetadataInstance = EventPipe::BuildEventMetadataEvent(instance, metadataId);
+
+        WriteEventToBlock(*pMetadataInstance, 0); // metadataId=0 breaks recursion and represents the metadata event.
 
         SaveMetadataId(*instance.GetEvent(), metadataId);
 
-        delete[] (pMetadataInstance->GetData());
-        delete (pMetadataInstance);
+        delete[] pMetadataInstance->GetData();
+        delete pMetadataInstance;
     }
 
-    WriteToBlock(instance, metadataId);
+    WriteEventToBlock(instance, metadataId, captureThreadId, sequenceNumber, stackId, isSortedEvent);
+}
+
+void EventPipeFile::WriteSequencePoint(EventPipeSequencePoint* pSequencePoint)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(pSequencePoint != nullptr);
+        PRECONDITION(m_pSerializer != nullptr);
+    }
+    CONTRACTL_END;
+
+    if (m_format < EventPipeSerializationFormat::NetTraceV4)
+    {
+        // sequence points aren't used in NetPerf format
+        return;
+    }
+
+    Flush(FlushAllBlocks);
+    EventPipeSequencePointBlock sequencePointBlock(pSequencePoint);
+    m_pSerializer->WriteObject(&sequencePointBlock);
+
+    // stack cache resets on sequence points
+    m_stackIdCounter = 0;
+    for (EventPipeStackHash::Iterator pCur = m_stackHash.Begin(); pCur != m_stackHash.End(); pCur++)
+    {
+        delete *pCur;
+    }
+    m_stackHash.RemoveAll();
+}
+
+void EventPipeFile::Flush(FlushFlags flags)
+{
+    // Write existing buffer to the stream/file regardless of whether it is full or not.
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(m_pSerializer != nullptr);
+        PRECONDITION(m_pMetadataBlock != nullptr);
+        PRECONDITION(m_pStackBlock != nullptr);
+        PRECONDITION(m_pBlock != nullptr);
+    }
+    CONTRACTL_END;
+
+    // we write current blocks to the disk, whether they are full or not
+    if ((m_pMetadataBlock->GetBytesWritten() != 0) && ((flags & FlushMetadataBlock) != 0))
+    {
+        _ASSERTE(m_format >= EventPipeSerializationFormat::NetTraceV4);
+        m_pSerializer->WriteObject(m_pMetadataBlock);
+        m_pMetadataBlock->Clear();
+    }
+    if ((m_pStackBlock->GetBytesWritten() != 0) && ((flags & FlushStackBlock) != 0))
+    {
+        _ASSERTE(m_format >= EventPipeSerializationFormat::NetTraceV4);
+        m_pSerializer->WriteObject(m_pStackBlock);
+        m_pStackBlock->Clear();
+    }
+    if ((m_pBlock->GetBytesWritten() != 0) && ((flags & FlushEventBlock) != 0))
+    {
+        m_pSerializer->WriteObject(m_pBlock);
+        m_pBlock->Clear();
+    }
 }
 
 void EventPipeFile::WriteEnd()
@@ -129,52 +312,55 @@ void EventPipeFile::WriteEnd()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(m_pSerializer != nullptr);
     }
     CONTRACTL_END;
 
-    m_pSerializer->WriteObject(m_pBlock); // we write current block to the disk, whether it's full or not
-
-    m_pBlock->Clear();
+    Flush();
 
     // "After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read."
     // see https://github.com/Microsoft/perfview/blob/master/src/TraceEvent/EventPipe/EventPipeFormat.md for more
-    m_pSerializer->WriteTag(FastSerializerTags::NullReference); 
+    m_pSerializer->WriteTag(FastSerializerTags::NullReference);
 }
 
-void EventPipeFile::WriteToBlock(EventPipeEventInstance &instance, unsigned int metadataId)
+void EventPipeFile::WriteEventToBlock(EventPipeEventInstance &instance,
+                                      unsigned int metadataId,
+                                      ULONGLONG captureThreadId,
+                                      unsigned int sequenceNumber,
+                                      unsigned int stackId,
+                                      BOOL isSortedEvent)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(m_pBlock != nullptr);
+        PRECONDITION(m_pMetadataBlock != nullptr);
     }
     CONTRACTL_END;
 
     instance.SetMetadataId(metadataId);
 
-    if (m_pBlock->WriteEvent(instance))
+    // If we are flushing events we need to flush metadata and stacks as well
+    // to ensure referenced metadata/stacks were written to the file before the
+    // event which referenced them.
+    FlushFlags flags = FlushAllBlocks;
+    EventPipeEventBlockBase* pBlock = m_pBlock;
+    if(metadataId == 0 && m_format >= EventPipeSerializationFormat::NetTraceV4)
     {
-        return; // the block is not full, we added the event and continue
+        flags = FlushMetadataBlock;
+        pBlock = m_pMetadataBlock;
     }
 
-#ifdef _DEBUG
-    if (m_lockOnWrite)
-    {
-        // Take the serialization lock.
-        // This is used for synchronous file writes.
-        // The circular buffer path only writes from one thread.
-        SpinLockHolder _slh(&m_serializationLock);
-    }
-#endif // _DEBUG
+    if (pBlock->WriteEvent(instance, captureThreadId, sequenceNumber, stackId, isSortedEvent))
+        return; // the block is not full, we added the event and continue
 
     // we can't write this event to the current block (it's full)
     // so we write what we have in the block to the serializer
-    m_pSerializer->WriteObject(m_pBlock);
+    Flush(flags);
 
-    m_pBlock->Clear();
-
-    bool result = m_pBlock->WriteEvent(instance);
+    bool result = pBlock->WriteEvent(instance, captureThreadId, sequenceNumber, stackId, isSortedEvent);
 
     _ASSERTE(result == true); // we should never fail to add event to a clear block (if we do the max size is too small)
 }
@@ -202,6 +388,7 @@ unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(m_pMetadataIds != nullptr);
     }
     CONTRACTL_END;
 
@@ -223,18 +410,67 @@ void EventPipeFile::SaveMetadataId(EventPipeEvent &event, unsigned int metadataI
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(metadataId > 0);
+        PRECONDITION(m_pMetadataIds != nullptr);
     }
     CONTRACTL_END;
 
     // If a pre-existing metadata label exists, remove it.
     unsigned int oldId;
     if(m_pMetadataIds->Lookup(&event, &oldId))
-    {
         m_pMetadataIds->Remove(&event);
-    }
 
     // Add the metadata label.
     m_pMetadataIds->Add(&event, metadataId);
+}
+
+unsigned int EventPipeFile::GetStackId(EventPipeEventInstance &instance)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(m_format >= EventPipeSerializationFormat::NetTraceV4);
+        PRECONDITION(m_pStackBlock != nullptr);
+    }
+    CONTRACTL_END;
+
+    unsigned int stackId = 0;
+    StackHashEntry* pEntry = NULL;
+    StackHashKey key(instance.GetStack());
+    if (NULL == (pEntry = m_stackHash.Lookup(key)))
+    {
+        stackId = ++m_stackIdCounter;
+
+        pEntry = StackHashEntry::CreateNew(instance.GetStack(), stackId, key.Hash);
+        if (pEntry != NULL)
+        {
+            EX_TRY
+            {
+                m_stackHash.Add(pEntry);
+            }
+            EX_CATCH
+            {
+            }
+            EX_END_CATCH(SwallowAllExceptions);
+        }
+
+        if (m_pStackBlock->WriteStack(stackId, instance.GetStack()))
+            return stackId;
+
+        // we can't write this stack to the current block (it's full)
+        // so we write what we have in the block to the serializer
+        Flush(FlushStackBlock);
+
+        bool result = m_pStackBlock->WriteStack(stackId, instance.GetStack());
+        _ASSERTE(result == true); // we should never fail to add event to a clear block (if we do the max size is too small)
+    }
+    else
+    {
+        stackId = pEntry->Id;
+    }
+
+    return stackId;
 }
 
 #endif // FEATURE_PERFTRACING

@@ -21,7 +21,6 @@ CompMemKindMacro(fgArgInfoPtrArr)
 CompMemKindMacro(FlowList)
 CompMemKindMacro(TreeStatementList)
 CompMemKindMacro(SiScope)
-CompMemKindMacro(FlatFPStateX87)
 CompMemKindMacro(DominatorMemory)
 CompMemKindMacro(LSRA)
 CompMemKindMacro(LSRA_Interval)
@@ -54,6 +53,10 @@ CompMemKindMacro(Unknown)
 CompMemKindMacro(RangeCheck)
 CompMemKindMacro(CopyProp)
 CompMemKindMacro(SideEffects)
+CompMemKindMacro(ObjectAllocator)
+CompMemKindMacro(VariableLiveRanges)
+CompMemKindMacro(ClassLayout)
+CompMemKindMacro(TailMergeThrows)
 //clang-format on
 
 #undef CompMemKindMacro

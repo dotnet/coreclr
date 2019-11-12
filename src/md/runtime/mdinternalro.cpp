@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 //  File: MDInternalRO.CPP
-// 
+//
 
 //  Notes:
 //
@@ -19,7 +19,7 @@
 
 #ifdef FEATURE_METADATA_INTERNAL_APIS
 
-__checkReturn 
+__checkReturn
 HRESULT _FillMDDefaultValue(
     BYTE        bType,
     void const *pValue,
@@ -27,7 +27,7 @@ HRESULT _FillMDDefaultValue(
     MDDefaultValue  *pMDDefaultValue);
 
 #ifndef DACCESS_COMPILE
-__checkReturn 
+__checkReturn
 HRESULT TranslateSigHelper(                 // S_OK or error.
     IMDInternalImport       *pImport,       // [IN] import scope.
     IMDInternalImport       *pAssemImport,  // [IN] import assembly scope.
@@ -41,16 +41,16 @@ HRESULT TranslateSigHelper(                 // S_OK or error.
     ULONG                   *pcbSig);       // [OUT] count of bytes in the translated signature
 #endif //!DACCESS_COMPILE
 
-__checkReturn 
+__checkReturn
 HRESULT GetInternalWithRWFormat(
-    LPVOID      pData, 
-    ULONG       cbData, 
+    LPVOID      pData,
+    ULONG       cbData,
     DWORD       flags,                  // [IN] MDInternal_OpenForRead or MDInternal_OpenForENC
     REFIID      riid,                   // [in] The interface desired.
     void        **ppIUnk);              // [out] Return interface on success.
 
 // forward declaration
-__checkReturn 
+__checkReturn
 HRESULT MDApplyEditAndContinue(         // S_OK or error.
     IMDInternalImport **ppIMD,          // [in, out] The metadata to be updated.
     IMDInternalImportENC *pDeltaMD);    // [in] The delta metadata.
@@ -94,7 +94,7 @@ ULONG MDInternalRO::Release()
     return cRef;
 } // MDInternalRO::Release
 
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::QueryInterface(REFIID riid, void **ppUnk)
 {
     *ppUnk = 0;
@@ -113,15 +113,15 @@ HRESULT MDInternalRO::QueryInterface(REFIID riid, void **ppUnk)
 
 
 //*****************************************************************************
-// Initialize 
+// Initialize
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::Init(
     LPVOID      pData,                  // points to meta data section in memory
     ULONG       cbData)                 // count of bytes in pData
 {
     m_tdModule = COR_GLOBAL_PARENT_TOKEN;
-    
+
     extern HRESULT _CallInitOnMemHelper(CLiteWeightStgdb<CMiniMd> *pStgdb, ULONG cbData, LPCVOID pData);
 
     return _CallInitOnMemHelper(&m_LiteWeightStgdb, cbData, (BYTE*) pData);
@@ -131,7 +131,7 @@ HRESULT MDInternalRO::Init(
 //*****************************************************************************
 // Given a scope, determine whether imported from a typelib.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::TranslateSigWithScope(
     IMDInternalImport*      pAssemImport,   // [IN] import assembly scope.
     const void*             pbHashValue,    // [IN] hash value for the import assembly.
@@ -157,7 +157,7 @@ HRESULT MDInternalRO::TranslateSigWithScope(
 } // MDInternalRO::TranslateSigWithScope
 #endif // DACCESS_COMPILE
 
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetTypeDefRefTokenInTypeSpec(// return S_FALSE if enclosing type does not have a token
                                                     mdTypeSpec  tkTypeSpec,             // [IN] TypeSpec token to look at
                                                     mdToken    *tkEnclosedToken)       // [OUT] The enclosed type token
@@ -167,10 +167,10 @@ HRESULT MDInternalRO::GetTypeDefRefTokenInTypeSpec(// return S_FALSE if enclosin
 
 #ifndef DACCESS_COMPILE
 //*****************************************************************************
-// Given a scope, return the number of tokens in a given table 
+// Given a scope, return the number of tokens in a given table
 //*****************************************************************************
 ULONG MDInternalRO::GetCountWithTokenKind(     // return hresult
-    DWORD       tkKind)                 // [IN] pass in the kind of token. 
+    DWORD       tkKind)                 // [IN] pass in the kind of token.
 {
     ULONG ulCount = m_LiteWeightStgdb.m_MiniMd.CommonGetRowCount(tkKind);
     if (tkKind == mdtTypeDef)
@@ -191,7 +191,7 @@ ULONG MDInternalRO::GetCountWithTokenKind(     // return hresult
 //*****************************************************************************
 // enumerator init for typedef
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::EnumTypeDefInit( // return hresult
     HENUMInternal *phEnum)              // [OUT] buffer to fill for enumerator data
 {
@@ -199,7 +199,7 @@ HRESULT MDInternalRO::EnumTypeDefInit( // return hresult
 
     _ASSERTE(phEnum);
 
-    memset(phEnum, 0, sizeof(HENUMInternal));
+    HENUMInternal::ZeroEnum(phEnum);
     phEnum->m_tkKind = mdtTypeDef;
     phEnum->m_EnumType = MDSimpleEnum;
     phEnum->m_ulCount = m_LiteWeightStgdb.m_MiniMd.getCountTypeDefs();
@@ -217,66 +217,11 @@ HRESULT MDInternalRO::EnumTypeDefInit( // return hresult
     return hr;
 } // MDInternalRO::EnumTypeDefInit
 
-
-//*****************************************************************************
-// get the number of typedef in a scope
-//*****************************************************************************
-ULONG MDInternalRO::EnumTypeDefGetCount(
-    HENUMInternal *phEnum)              // [IN] the enumerator to retrieve information
-{
-    _ASSERTE(phEnum->m_tkKind == mdtTypeDef);
-    return phEnum->m_ulCount;
-} // MDInternalRO::EnumTypeDefGetCount
-
-
-//*****************************************************************************
-// enumerator for typedef
-//*****************************************************************************
-bool MDInternalRO::EnumTypeDefNext( // return hresult
-    HENUMInternal *phEnum,              // [IN] input enum
-    mdTypeDef   *ptd)                   // [OUT] return token
-{
-    _ASSERTE(phEnum && ptd);
-
-    if (phEnum->u.m_ulCur >= phEnum->u.m_ulEnd)
-        return false;
-
-    *ptd = phEnum->u.m_ulCur++;
-    RidToToken(*ptd, mdtTypeDef);
-    return true;
-} // MDInternalRO::EnumTypeDefNext
-
-
-//*****************************************
-// Reset the enumerator to the beginning.
-//***************************************** 
-void MDInternalRO::EnumTypeDefReset(
-    HENUMInternal *phEnum)              // [IN] the enumerator to be reset
-{
-    _ASSERTE(phEnum);
-    _ASSERTE( phEnum->m_EnumType == MDSimpleEnum );
-
-    // not using CRCURSOR 
-    phEnum->u.m_ulCur = phEnum->u.m_ulStart;
-} // MDInternalRO::EnumTypeDefReset
-
-
-//*****************************************
-// Close the enumerator. Only for read/write mode that we need to close the cursor.
-// Hopefully with readonly mode, it will be a no-op
-//***************************************** 
-void MDInternalRO::EnumTypeDefClose(
-    HENUMInternal *phEnum)              // [IN] the enumerator to be closed
-{
-    _ASSERTE( phEnum->m_EnumType == MDSimpleEnum );
-} // MDInternalRO::EnumTypeDefClose
-
-
 //*****************************************************************************
 // Enumerator init for MethodImpl.  The second HENUMInternal* parameter is
 // only used for the R/W version of the MetaData.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::EnumMethodImplInit( // return hresult
     mdTypeDef       td,                   // [IN] TypeDef over which to scope the enumeration.
     HENUMInternal   *phEnumBody,          // [OUT] buffer to fill for enumerator data for MethodBody tokens.
@@ -300,8 +245,8 @@ ULONG MDInternalRO::EnumMethodImplGetCount(
 //*****************************************************************************
 // enumerator for MethodImpl.
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::EnumMethodImplNext(  // return hresult
     HENUMInternal   *phEnumBody,        // [IN] input enum for MethodBody
     HENUMInternal   *phEnumDecl,        // [IN] input enum for MethodDecl
@@ -310,26 +255,26 @@ MDInternalRO::EnumMethodImplNext(  // return hresult
 {
     HRESULT hr;
     MethodImplRec   *pRecord;
-    
+
     _ASSERTE(phEnumBody && ((phEnumBody->m_tkKind >> 24) == TBL_MethodImpl));
     _ASSERTE(ptkBody && ptkDecl);
-    
+
     if (phEnumBody->u.m_ulCur >= phEnumBody->u.m_ulEnd)
     {
         return S_FALSE;
     }
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodImplRecord(phEnumBody->u.m_ulCur, &pRecord));
     *ptkBody = m_LiteWeightStgdb.m_MiniMd.getMethodBodyOfMethodImpl(pRecord);
     *ptkDecl = m_LiteWeightStgdb.m_MiniMd.getMethodDeclarationOfMethodImpl(pRecord);
     phEnumBody->u.m_ulCur++;
-    
+
     return S_OK;
 } // MDInternalRO::EnumMethodImplNext
 
 //*****************************************
 // Reset the enumerator to the beginning.
-//***************************************** 
+//*****************************************
 void MDInternalRO::EnumMethodImplReset(
     HENUMInternal   *phEnumBody,        // [IN] MethodBody enumerator.
     HENUMInternal   *phEnumDecl)        // [IN] MethodDecl enumerator.
@@ -343,7 +288,7 @@ void MDInternalRO::EnumMethodImplReset(
 
 //*****************************************
 // Close the enumerator.
-//***************************************** 
+//*****************************************
 void MDInternalRO::EnumMethodImplClose(
     HENUMInternal   *phEnumBody,        // [IN] MethodBody enumerator.
     HENUMInternal   *phEnumDecl)        // [IN] MethodDecl enumerator.
@@ -356,7 +301,7 @@ void MDInternalRO::EnumMethodImplClose(
 //******************************************************************************
 // enumerator for global functions
 //******************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::EnumGlobalFunctionsInit(  // return hresult
     HENUMInternal   *phEnum)            // [OUT] buffer to fill for enumerator data
 {
@@ -367,7 +312,7 @@ HRESULT MDInternalRO::EnumGlobalFunctionsInit(  // return hresult
 //******************************************************************************
 // enumerator for global Fields
 //******************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::EnumGlobalFieldsInit(  // return hresult
     HENUMInternal   *phEnum)            // [OUT] buffer to fill for enumerator data
 {
@@ -377,12 +322,12 @@ HRESULT MDInternalRO::EnumGlobalFieldsInit(  // return hresult
 
 //*****************************************
 // Enumerator initializer
-//***************************************** 
-__checkReturn 
+//*****************************************
+__checkReturn
 HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
     DWORD       tkKind,                 // [IN] which table to work on
     mdToken     tkParent,               // [IN] token to scope the search
-    HENUMInternal *phEnum)              // [OUT] the enumerator to fill 
+    HENUMInternal *phEnum)              // [OUT] the enumerator to fill
 {
     HRESULT     hr = S_OK;
     ULONG       ulMax = 0;
@@ -417,30 +362,30 @@ HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
 
         if (TypeFromToken(tkParent) != mdtTypeDef && TypeFromToken(tkParent) != mdtMethodDef)
             IfFailGo(CLDB_E_FILE_CORRUPT);
-        
+
         if (TypeFromToken(tkParent) == mdtTypeDef)
         {
             IfFailGo(m_LiteWeightStgdb.m_MiniMd.getGenericParamsForTypeDef(
-                RidFromToken(tkParent), 
-                &phEnum->u.m_ulEnd, 
+                RidFromToken(tkParent),
+                &phEnum->u.m_ulEnd,
                 &(phEnum->u.m_ulStart)));
         }
         else
         {
             IfFailGo(m_LiteWeightStgdb.m_MiniMd.getGenericParamsForMethodDef(
-                RidFromToken(tkParent), 
-                &phEnum->u.m_ulEnd, 
+                RidFromToken(tkParent),
+                &phEnum->u.m_ulEnd,
                 &(phEnum->u.m_ulStart)));
         }
         break;
-    
+
     case mdtGenericParamConstraint:
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getGenericParamConstraintsForGenericParam(
-            RidFromToken(tkParent), 
-            &phEnum->u.m_ulEnd, 
+            RidFromToken(tkParent),
+            &phEnum->u.m_ulEnd,
             &phEnum->u.m_ulStart));
         break;
-    
+
     case mdtInterfaceImpl:
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getInterfaceImplsForTypeDef(RidFromToken(tkParent), &phEnum->u.m_ulEnd, &phEnum->u.m_ulStart));
         break;
@@ -522,8 +467,8 @@ HRESULT MDInternalRO::EnumInit(     // return S_FALSE if record not found
     case (TBL_MethodImpl << 24):
         _ASSERTE(! IsNilToken(tkParent));
         IfFailGo(m_LiteWeightStgdb.m_MiniMd.getMethodImplsForClass(
-            RidFromToken(tkParent), 
-            &phEnum->u.m_ulEnd, 
+            RidFromToken(tkParent),
+            &phEnum->u.m_ulEnd,
             &phEnum->u.m_ulStart));
         break;
     default:
@@ -547,17 +492,17 @@ ErrExit:
 
 //*****************************************
 // Enumerator initializer
-//***************************************** 
-__checkReturn 
+//*****************************************
+__checkReturn
 HRESULT MDInternalRO::EnumAllInit(      // return S_FALSE if record not found
     DWORD       tkKind,                 // [IN] which table to work on
-    HENUMInternal *phEnum)              // [OUT] the enumerator to fill 
+    HENUMInternal *phEnum)              // [OUT] the enumerator to fill
 {
     HRESULT hr = S_OK;
 
     // Vars for query.
     _ASSERTE(phEnum);
-    memset(phEnum, 0, sizeof(HENUMInternal));
+    HENUMInternal::ZeroEnum(phEnum);
 
     // cache the tkKind and the scope
     phEnum->m_tkKind = TypeFromToken(tkKind);
@@ -609,6 +554,10 @@ HRESULT MDInternalRO::EnumAllInit(      // return S_FALSE if record not found
         phEnum->m_ulCount = m_LiteWeightStgdb.m_MiniMd.getCountFiles();
         break;
 
+    case mdtCustomAttribute:
+        phEnum->m_ulCount = m_LiteWeightStgdb.m_MiniMd.getCountCustomAttributes();
+        break;
+
     default:
         _ASSERTE(!"Bad token kind!");
         break;
@@ -620,201 +569,17 @@ HRESULT MDInternalRO::EnumAllInit(      // return S_FALSE if record not found
     return hr;
 } // MDInternalRO::EnumAllInit
 
-
-//*****************************************
-// get the count
-//***************************************** 
-ULONG MDInternalRO::EnumGetCount(
-    HENUMInternal *phEnum)              // [IN] the enumerator to retrieve information
-{
-    _ASSERTE(phEnum);
-    return phEnum->m_ulCount;
-}
-
-//*****************************************
-// Get next value contained in the enumerator
-//***************************************** 
-bool MDInternalRO::EnumNext(
-    HENUMInternal *phEnum,              // [IN] the enumerator to retrieve information
-    mdToken     *ptk)                   // [OUT] token to scope the search
-{
-    _ASSERTE(phEnum && ptk);
-    if (phEnum->u.m_ulCur >= phEnum->u.m_ulEnd)
-        return false;
-
-    if ( phEnum->m_EnumType == MDSimpleEnum )
-    {
-        *ptk = phEnum->u.m_ulCur | phEnum->m_tkKind;
-        phEnum->u.m_ulCur++;
-    }
-    else 
-    {
-        TOKENLIST       *pdalist = (TOKENLIST *)&(phEnum->m_cursor);
-
-        _ASSERTE( phEnum->m_EnumType == MDDynamicArrayEnum );
-        *ptk = *( pdalist->Get(phEnum->u.m_ulCur++) );
-    }
-    return true;
-} // MDInternalRO::EnumNext
-
-
-//*****************************************
-// Reset the enumerator to the beginning.
-//*****************************************
-void MDInternalRO::EnumReset(
-    HENUMInternal *phEnum)              // [IN] the enumerator to be reset
-{
-    _ASSERTE(phEnum);
-    _ASSERTE( phEnum->m_EnumType == MDSimpleEnum || phEnum->m_EnumType == MDDynamicArrayEnum);
-
-    phEnum->u.m_ulCur = phEnum->u.m_ulStart;
-} // MDInternalRO::EnumReset
-
-
-//*****************************************
-// Close the enumerator. Only for read/write mode that we need to close the cursor.
-// Hopefully with readonly mode, it will be a no-op
-//***************************************** 
-void MDInternalRO::EnumClose(
-    HENUMInternal *phEnum)              // [IN] the enumerator to be closed
-{
-    _ASSERTE( phEnum->m_EnumType == MDSimpleEnum || 
-              phEnum->m_EnumType == MDDynamicArrayEnum || 
-              phEnum->m_EnumType == MDCustomEnum );
-    if (phEnum->m_EnumType == MDDynamicArrayEnum)
-        HENUMInternal::ClearEnum(phEnum);
-} // MDInternalRO::EnumClose
-
-
-//---------------------------------------------------------------------------------------
-// 
-// Initialize enumerator of PermissionSets.
-// 
-// Return Value:
-//     CLDB_E_RECORD_NOTFOUND     ... If record not found.
-//     S_OK and empty enumeration ... If tkParent is nil token and Action is dclActionNil.
-// 
-__checkReturn 
-HRESULT 
-MDInternalRO::EnumPermissionSetsInit(
-    mdToken         tkParent,   // [IN] Token to scope the search.
-    CorDeclSecurity Action,     // [IN] Action to scope the search.
-    HENUMInternal  *phEnum)     // [OUT] Enumerator to fill.
-{
-    HRESULT hr = S_OK;
-    
-    _ASSERTE(phEnum != NULL);
-    HENUMInternal::ZeroEnum(phEnum);
-    
-    // cache the tkKind
-    phEnum->m_tkKind = mdtPermission;
-    
-    DeclSecurityRec *pDecl;
-    RID              ridCur;
-    RID              ridEnd;
-    
-    phEnum->m_EnumType = MDSimpleEnum;
-    
-    IfFailGo(m_LiteWeightStgdb.m_MiniMd.getDeclSecurityForToken(tkParent, &ridEnd, &ridCur));
-    if (Action != dclActionNil)
-    {
-        for (; ridCur < ridEnd; ridCur++)
-        {
-            IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetDeclSecurityRecord(ridCur, &pDecl));
-            if (Action == m_LiteWeightStgdb.m_MiniMd.getActionOfDeclSecurity(pDecl))
-            {
-                // found a match
-                phEnum->u.m_ulStart = phEnum->u.m_ulCur = ridCur;
-                phEnum->u.m_ulEnd = ridCur + 1;
-                phEnum->m_ulCount = 1;
-                goto ErrExit;
-            }
-        }
-        hr = CLDB_E_RECORD_NOTFOUND;
-    }
-    else
-    {
-        phEnum->u.m_ulStart = phEnum->u.m_ulCur = ridCur;
-        phEnum->u.m_ulEnd = ridEnd;
-        phEnum->m_ulCount = ridEnd - ridCur;
-    }
-    
-ErrExit:
-    return hr;
-} // MDInternalRO::EnumPermissionSetInit
-
-
 //*****************************************
 // Enumerator initializer for CustomAttributes
-//***************************************** 
-__checkReturn 
+//*****************************************
+__checkReturn
 HRESULT MDInternalRO::EnumCustomAttributeByNameInit(// return S_FALSE if record not found
     mdToken     tkParent,               // [IN] token to scope the search
     LPCSTR      szName,                 // [IN] CustomAttribute's name to scope the search
-    HENUMInternal *phEnum)              // [OUT] the enumerator to fill 
+    HENUMInternal *phEnum)              // [OUT] the enumerator to fill
 {
     return m_LiteWeightStgdb.m_MiniMd.CommonEnumCustomAttributeByName(tkParent, szName, false, phEnum);
 }   // MDInternalRO::EnumCustomAttributeByNameInit
-
-//***************************************** 
-// Enumerator for CustomAttributes which doesn't
-// allocate any memory
-//***************************************** 
-__checkReturn 
-HRESULT MDInternalRO::SafeAndSlowEnumCustomAttributeByNameInit(// return S_FALSE if record not found
-    mdToken     tkParent,               // [IN] token to scope the search
-    LPCSTR      szName,                 // [IN] CustomAttribute's name to scope the search
-    HENUMInternal *phEnum)              // [OUT] The enumerator
-{
-    _ASSERTE(phEnum);
-    
-    HRESULT hr;
-    ULONG   ridStart, ridEnd;       // Loop start and endpoints.
-    
-    // Get the list of custom values for the parent object.
-    IfFailRet(m_LiteWeightStgdb.m_MiniMd.getCustomAttributeForToken(tkParent, &ridEnd, &ridStart));
-    // If found none, done.
-    if (ridStart == 0)
-        goto NoMatch;
-    
-    phEnum->m_EnumType = MDCustomEnum;
-    phEnum->m_tkKind = mdtCustomAttribute;
-    phEnum->u.m_ulStart = ridStart;
-    phEnum->u.m_ulEnd = ridEnd;
-    phEnum->u.m_ulCur = ridStart;
-    
-    return S_OK;
-
-NoMatch:
-    return S_FALSE;
-}   // MDInternalRO::SafeAndSlowEnumCustomAttributeByNameInit
-
-__checkReturn 
-HRESULT MDInternalRO::SafeAndSlowEnumCustomAttributeByNameNext(// return S_FALSE if record not found
-    mdToken     tkParent,               // [IN] token to scope the search
-    LPCSTR      szName,                 // [IN] CustomAttribute's name to scope the search
-    HENUMInternal *phEnum,              // [IN] The enumerator
-    mdCustomAttribute *mdAttribute)     // [OUT] The custom attribute that was found 
-{
-    _ASSERTE(phEnum);
-    _ASSERTE(phEnum->m_EnumType == MDCustomEnum);
-    _ASSERTE(phEnum->m_tkKind == mdtCustomAttribute);
-    
-    // Look for one with the given name.
-    for (;  phEnum->u.m_ulCur < phEnum->u.m_ulEnd; ++phEnum->u.m_ulCur)
-    {
-        if (S_OK == m_LiteWeightStgdb.m_MiniMd.CompareCustomAttribute( tkParent, szName, phEnum->u.m_ulCur))
-        {
-            // If here, found a match.
-            *mdAttribute = TokenFromRid(phEnum->u.m_ulCur, mdtCustomAttribute);
-            phEnum->u.m_ulCur++;
-            return S_OK;
-        }
-    }
-    // No match...
-    return S_FALSE;
-}   // MDInternalRO::SafeAndSlowEnumCustomAttributeByNameNext
-
 
 //*****************************************
 // Nagivator helper to navigate back to the parent token given a token.
@@ -829,16 +594,16 @@ HRESULT MDInternalRO::SafeAndSlowEnumCustomAttributeByNameNext(// return S_FALSE
 //  mdProperty                  mdTypeDef
 //  mdEvent                     mdTypeDef
 //
-//***************************************** 
-__checkReturn 
+//*****************************************
+__checkReturn
 HRESULT MDInternalRO::GetParentToken(
     mdToken     tkChild,                // [IN] given child token
     mdToken     *ptkParent)             // [OUT] returning parent
 {
     HRESULT hr = NOERROR;
-    
+
     _ASSERTE(ptkParent);
-    
+
     switch (TypeFromToken(tkChild))
     {
     case mdtTypeDef:
@@ -849,12 +614,12 @@ HRESULT MDInternalRO::GetParentToken(
             hr = S_OK;
         }
         break;
-        
+
     case mdtMethodDef:
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindParentOfMethod(RidFromToken(tkChild), (RID *)ptkParent));
         RidToToken(*ptkParent, mdtTypeDef);
         break;
-        
+
     case mdtMethodSpec:
         {
             MethodSpecRec    *pRec;
@@ -862,17 +627,17 @@ HRESULT MDInternalRO::GetParentToken(
             *ptkParent = m_LiteWeightStgdb.m_MiniMd.getMethodOfMethodSpec(pRec);
             break;
         }
-        
+
     case mdtFieldDef:
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindParentOfField(RidFromToken(tkChild), (RID *)ptkParent));
         RidToToken(*ptkParent, mdtTypeDef);
         break;
-        
+
     case mdtParamDef:
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindParentOfParam(RidFromToken(tkChild), (RID *)ptkParent));
         RidToToken(*ptkParent, mdtMethodDef);
         break;
-        
+
     case mdtMemberRef:
         {
             MemberRefRec    *pRec;
@@ -880,7 +645,7 @@ HRESULT MDInternalRO::GetParentToken(
             *ptkParent = m_LiteWeightStgdb.m_MiniMd.getClassOfMemberRef(pRec);
             break;
         }
-        
+
     case mdtCustomAttribute:
         {
             CustomAttributeRec    *pRec;
@@ -888,15 +653,15 @@ HRESULT MDInternalRO::GetParentToken(
             *ptkParent = m_LiteWeightStgdb.m_MiniMd.getParentOfCustomAttribute(pRec);
             break;
         }
-        
+
     case mdtEvent:
         hr = m_LiteWeightStgdb.m_MiniMd.FindParentOfEventHelper(tkChild, ptkParent);
         break;
-        
+
     case mdtProperty:
         hr = m_LiteWeightStgdb.m_MiniMd.FindParentOfPropertyHelper(tkChild, ptkParent);
         break;
-        
+
     default:
         _ASSERTE(!"NYI: for compressed format!");
         break;
@@ -909,8 +674,8 @@ HRESULT MDInternalRO::GetParentToken(
 //*****************************************************************************
 // Get information about a CustomAttribute.
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetCustomAttributeProps(  // S_OK or error.
     mdCustomAttribute at,               // The attribute.
     mdToken     *ptkType)               // Put attribute type here.
@@ -922,7 +687,7 @@ MDInternalRO::GetCustomAttributeProps(  // S_OK or error.
     // depends on ICR.
     //
     CustomAttributeRec *pCustomAttributeRec;
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetCustomAttributeRecord(RidFromToken(at), &pCustomAttributeRec));
     *ptkType = m_LiteWeightStgdb.m_MiniMd.getTypeOfCustomAttribute(pCustomAttributeRec);
     return S_OK;
@@ -931,8 +696,8 @@ MDInternalRO::GetCustomAttributeProps(  // S_OK or error.
 //*****************************************************************************
 // return custom value
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetCustomAttributeAsBlob(
     mdCustomAttribute cv,               // [IN] given custom attribute token
     void const  **ppBlob,               // [OUT] return the pointer to internal blob
@@ -952,21 +717,21 @@ MDInternalRO::GetCustomAttributeAsBlob(
 //*****************************************************************************
 // Helper function to lookup and retrieve a CustomAttribute.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetCustomAttributeByName( // S_OK or error.
     mdToken     tkObj,                  // [IN] Object with Custom Attribute.
     LPCUTF8     szName,                 // [IN] Name of desired Custom Attribute.
     __deref_out_bcount(*pcbData) const void  **ppData, // [OUT] Put pointer to data here.
     __out ULONG *pcbData)               // [OUT] Put size of data here.
 {
-    return m_LiteWeightStgdb.m_MiniMd.CommonGetCustomAttributeByName(tkObj, szName, ppData, pcbData);
+    return m_LiteWeightStgdb.m_MiniMd.CommonGetCustomAttributeByNameEx(tkObj, szName, NULL, ppData, pcbData);
 } // MDInternalRO::GetCustomAttributeByName
 
 
 //*****************************************************************************
 // return the name of a custom attribute
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetNameOfCustomAttribute( // S_OK or error.
     mdCustomAttribute mdAttribute,      // [IN] The Custom Attribute
     LPCUTF8          *pszNamespace,     // [OUT] Namespace of Custom Attribute.
@@ -981,19 +746,19 @@ HRESULT MDInternalRO::GetNameOfCustomAttribute( // S_OK or error.
 //*****************************************************************************
 // return scope properties
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetScopeProps(
     LPCSTR *pszName,    // [OUT] scope name
     GUID   *pmvid)      // [OUT] version id
 {
     HRESULT hr;
-    
+
     ModuleRec *pModuleRec;
-    
+
     // there is only one module record
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetModuleRecord(1, &pModuleRec));
-    
+
     if (pmvid != NULL)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getMvidOfModule(pModuleRec, pmvid));
@@ -1002,7 +767,7 @@ MDInternalRO::GetScopeProps(
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfModule(pModuleRec, pszName));
     }
-    
+
     return S_OK;
 } // MDInternalRO::GetScopeProps
 
@@ -1012,9 +777,9 @@ MDInternalRO::GetScopeProps(
 // preprocessed so they only contain the fixed part.
 //*****************************************************************************
 BOOL  MDInternalRO::CompareSignatures(PCCOR_SIGNATURE           pvFirstSigBlob,       // First signature
-                                      DWORD                     cbFirstSigBlob,       // 
+                                      DWORD                     cbFirstSigBlob,       //
                                       PCCOR_SIGNATURE           pvSecondSigBlob,      // Second signature
-                                      DWORD                     cbSecondSigBlob,      // 
+                                      DWORD                     cbSecondSigBlob,      //
                                       void *                    SigArguments)         // No additional arguments required
 {
     if (cbFirstSigBlob != cbSecondSigBlob || memcmp(pvFirstSigBlob, pvSecondSigBlob, cbSecondSigBlob))
@@ -1026,7 +791,7 @@ BOOL  MDInternalRO::CompareSignatures(PCCOR_SIGNATURE           pvFirstSigBlob, 
 //*****************************************************************************
 // Find a given member in a TypeDef (typically a class).
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::FindMethodDef(    // S_OK or error.
     mdTypeDef   classdef,               // The owning class of the member.
     LPCSTR      szName,                 // Name of the member in utf8.
@@ -1047,7 +812,7 @@ HRESULT MDInternalRO::FindMethodDef(    // S_OK or error.
 //*****************************************************************************
 // Find a given member in a TypeDef (typically a class).
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::FindMethodDefUsingCompare(    // S_OK or error.
     mdTypeDef   classdef,               // The owning class of the member.
     LPCSTR      szName,                 // Name of the member in utf8.
@@ -1074,7 +839,7 @@ HRESULT MDInternalRO::FindMethodDefUsingCompare(    // S_OK or error.
         pvSigBlob = (PCCOR_SIGNATURE) qbSig.Ptr();
     }
 
-    // Do a linear search on compressed version 
+    // Do a linear search on compressed version
     //
     RID         ridMax;
     MethodRec   *pMethodRec;
@@ -1127,7 +892,7 @@ ErrExit:
 //*****************************************************************************
 // Find a given param of a Method.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::FindParamOfMethod(// S_OK or error.
     mdMethodDef md,                     // [IN] The owning method of the param.
     ULONG       iSeq,                   // [IN] The sequence # of the param.
@@ -1171,18 +936,18 @@ HRESULT MDInternalRO::FindParamOfMethod(// S_OK or error.
 
 
 //*****************************************************************************
-// return a pointer which points to meta data's internal string 
+// return a pointer which points to meta data's internal string
 // return the the type name in utf8
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameOfTypeDef(     // return hresult
     mdTypeDef   classdef,           // given typedef
     LPCSTR*     pszname,            // pointer to an internal UTF8 string
     LPCSTR*     psznamespace)       // pointer to the namespace.
 {
     HRESULT hr;
-    
+
     if (pszname != NULL)
     {
         *pszname = NULL;
@@ -1191,7 +956,7 @@ MDInternalRO::GetNameOfTypeDef(     // return hresult
     {
         *psznamespace = NULL;
     }
-    
+
     if (TypeFromToken(classdef) == mdtTypeDef)
     {
         TypeDefRec *pTypeDefRec;
@@ -1201,20 +966,20 @@ MDInternalRO::GetNameOfTypeDef(     // return hresult
         {
             IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfTypeDef(pTypeDefRec, pszname));
         }
-        
+
         if (psznamespace != NULL)
         {
             IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNamespaceOfTypeDef(pTypeDefRec, psznamespace));
         }
         return S_OK;
     }
-    
+
     _ASSERTE(!"Invalid argument(s) of GetNameOfTypeDef");
     return CLDB_E_INTERNALERROR;
 } // MDInternalRO::GetNameOfTypeDef
 
 
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetIsDualOfTypeDef(// return hresult
     mdTypeDef   classdef,               // given classdef
     ULONG       *pDual)                 // [OUT] return dual flag here.
@@ -1231,7 +996,7 @@ HRESULT MDInternalRO::GetIsDualOfTypeDef(// return hresult
     return hr;
 } // MDInternalRO::GetIsDualOfTypeDef
 
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetIfaceTypeOfTypeDef(
     mdTypeDef   classdef,               // [IN] given classdef.
     ULONG       *pIface)                // [OUT] 0=dual, 1=vtable, 2=dispinterface
@@ -1265,10 +1030,10 @@ HRESULT MDInternalRO::GetIfaceTypeOfTypeDef(
 //*****************************************************************************
 // Given a methoddef, return a pointer to methoddef's name
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameOfMethodDef(
-    mdMethodDef md, 
+    mdMethodDef md,
     LPCSTR     *pszMethodName)
 {
     HRESULT hr;
@@ -1282,8 +1047,8 @@ MDInternalRO::GetNameOfMethodDef(
 //*****************************************************************************
 // Given a methoddef, return a pointer to methoddef's signature and methoddef's name
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameAndSigOfMethodDef(
     mdMethodDef      methoddef,         // [IN] given memberdef
     PCCOR_SIGNATURE *ppvSigBlob,        // [OUT] point to a blob value of COM+ signature
@@ -1301,17 +1066,17 @@ MDInternalRO::GetNameAndSigOfMethodDef(
     *pcbSigBlob = 0;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodRecord(RidFromToken(methoddef), &pMethodRec));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getSignatureOfMethod(pMethodRec, (PCCOR_SIGNATURE *)ppvSigBlob, pcbSigBlob));
-    
+
     return GetNameOfMethodDef(methoddef, pszMethodName);
 } // MDInternalRO::GetNameAndSigOfMethodDef
 
 //*****************************************************************************
 // Given a FieldDef, return a pointer to FieldDef's name in UTF8
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameOfFieldDef(    // return hresult
-    mdFieldDef fd,                  // given field 
+    mdFieldDef fd,                  // given field
     LPCSTR    *pszFieldName)
 {
     HRESULT hr;
@@ -1326,8 +1091,8 @@ MDInternalRO::GetNameOfFieldDef(    // return hresult
 //*****************************************************************************
 // Given a classdef, return the name and namespace of the typeref
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameOfTypeRef(     // return TypeDef's name
     mdTypeRef   classref,           // [IN] given typeref
     LPCSTR      *psznamespace,      // [OUT] return typeref name
@@ -1335,13 +1100,13 @@ MDInternalRO::GetNameOfTypeRef(     // return TypeDef's name
 
 {
     _ASSERTE(TypeFromToken(classref) == mdtTypeRef);
-    
+
     HRESULT hr;
     TypeRefRec *pTypeRefRec;
-    
+
     *psznamespace = NULL;
     *pszname = NULL;
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetTypeRefRecord(RidFromToken(classref), &pTypeRefRec));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNamespaceOfTypeRef(pTypeRefRec, psznamespace));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfTypeRef(pTypeRefRec, pszname));
@@ -1351,17 +1116,17 @@ MDInternalRO::GetNameOfTypeRef(     // return TypeDef's name
 //*****************************************************************************
 // return the resolutionscope of typeref
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetResolutionScopeOfTypeRef(
     mdTypeRef classref,               // given classref
     mdToken  *ptkResolutionScope)
 {
     _ASSERTE(TypeFromToken(classref) == mdtTypeRef && RidFromToken(classref));
     HRESULT hr;
-    
+
     TypeRefRec *pTypeRefRec;
-    
+
     *ptkResolutionScope = mdTokenNil;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetTypeRefRecord(RidFromToken(classref), &pTypeRefRec));
     *ptkResolutionScope = m_LiteWeightStgdb.m_MiniMd.getResolutionScopeOfTypeRef(pTypeRefRec);
@@ -1371,7 +1136,7 @@ MDInternalRO::GetResolutionScopeOfTypeRef(
 //*****************************************************************************
 // Given a name, find the corresponding TypeRef.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::FindTypeRefByName(  // S_OK or error.
         LPCSTR      szNamespace,            // [IN] Namespace for the TypeRef.
         LPCSTR      szName,                 // [IN] Name of the TypeRef.
@@ -1384,7 +1149,7 @@ HRESULT MDInternalRO::FindTypeRefByName(  // S_OK or error.
 
     // initialize the output parameter
     *ptk = mdTypeRefNil;
-    
+
     // Treat no namespace as empty string.
     if (!szNamespace)
         szNamespace = "";
@@ -1432,7 +1197,7 @@ ErrExit:
 //*****************************************************************************
 // return flags for a given class
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetTypeDefProps(
     mdTypeDef   td,                     // given classdef
     DWORD       *pdwAttr,               // return flags on class
@@ -1458,7 +1223,7 @@ HRESULT MDInternalRO::GetTypeDefProps(
 //*****************************************************************************
 // return guid pointer to MetaData internal guid pool given a given class
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetItemGuid(      // return hresult
     mdToken     tkObj,                  // given item
     CLSID       *pGuid)
@@ -1488,7 +1253,7 @@ HRESULT MDInternalRO::GetItemGuid(      // return hresult
     }
     else
         *pGuid = GUID_NULL;
-    
+
 ErrExit:
     return hr;
 } // MDInternalRO::GetItemGuid
@@ -1496,8 +1261,8 @@ ErrExit:
 
 //*****************************************************************************
 // // get enclosing class of NestedClass
-//***************************************************************************** 
-__checkReturn 
+//*****************************************************************************
+__checkReturn
 HRESULT MDInternalRO::GetNestedClassProps(  // S_OK or error
     mdTypeDef   tkNestedClass,      // [IN] NestedClass token.
     mdTypeDef   *ptkEnclosingClass) // [OUT] EnclosingClass token.
@@ -1507,7 +1272,7 @@ HRESULT MDInternalRO::GetNestedClassProps(  // S_OK or error
 
     RID rid;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindNestedClassFor(RidFromToken(tkNestedClass), &rid));
-    
+
     if (InvalidRid(rid))
     {
         return CLDB_E_RECORD_NOTFOUND;
@@ -1524,8 +1289,8 @@ HRESULT MDInternalRO::GetNestedClassProps(  // S_OK or error
 //*******************************************************************************
 // Get count of Nested classes given the enclosing class.
 //*******************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetCountNestedClasses(    // return count of Nested classes.
     mdTypeDef   tkEnclosingClass,       // [IN]Enclosing class.
     ULONG      *pcNestedClassesCount)
@@ -1534,13 +1299,13 @@ MDInternalRO::GetCountNestedClasses(    // return count of Nested classes.
     ULONG       ulCount;
     ULONG       ulRetCount = 0;
     NestedClassRec *pRecord;
-    
+
     _ASSERTE(TypeFromToken(tkEnclosingClass) == mdtTypeDef && !IsNilToken(tkEnclosingClass));
-    
+
     *pcNestedClassesCount = 0;
-    
+
     ulCount = m_LiteWeightStgdb.m_MiniMd.getCountNestedClasss();
-    
+
     for (ULONG i = 1; i <= ulCount; i++)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetNestedClassRecord(i, &pRecord));
@@ -1554,8 +1319,8 @@ MDInternalRO::GetCountNestedClasses(    // return count of Nested classes.
 //*******************************************************************************
 // Return array of Nested classes given the enclosing class.
 //*******************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNestedClasses(     // Return actual count.
     mdTypeDef   tkEnclosingClass,       // [IN] Enclosing class.
     mdTypeDef   *rNestedClasses,        // [OUT] Array of nested class tokens.
@@ -1566,14 +1331,14 @@ MDInternalRO::GetNestedClasses(     // Return actual count.
     ULONG       ulCount;
     ULONG       ulRetCount = 0;
     NestedClassRec *pRecord;
-    
+
     _ASSERTE(TypeFromToken(tkEnclosingClass) == mdtTypeDef &&
              !IsNilToken(tkEnclosingClass));
-    
+
     *pcNestedClasses = 0;
-    
+
     ulCount = m_LiteWeightStgdb.m_MiniMd.getCountNestedClasss();
-    
+
     for (ULONG i = 1; i <= ulCount; i++)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetNestedClassRecord(i, &pRecord));
@@ -1591,27 +1356,27 @@ MDInternalRO::GetNestedClasses(     // Return actual count.
 //*******************************************************************************
 // return the ModuleRef properties
 //*******************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetModuleRefProps(   // return hresult
     mdModuleRef mur,                    // [IN] moduleref token
     LPCSTR      *pszName)               // [OUT] buffer to fill with the moduleref name
 {
     _ASSERTE(TypeFromToken(mur) == mdtModuleRef);
     _ASSERTE(pszName);
-    
+
     HRESULT hr;
-    
+
     // Is it a valid token?
     if (!IsValidToken(mur))
     {
         *pszName = NULL;             // Not every caller checks returned HRESULT, allow to fail fast in that case
         return COR_E_BADIMAGEFORMAT; // Invalid Token
     }
-    
+
     ModuleRefRec *pModuleRefRec;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetModuleRefRecord(RidFromToken(mur), &pModuleRefRec));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfModuleRef(pModuleRefRec, pszName));
-    
+
     return S_OK;
 }
 
@@ -1620,17 +1385,17 @@ HRESULT MDInternalRO::GetModuleRefProps(   // return hresult
 //*****************************************************************************
 // Given a scope and a methoddef, return a pointer to methoddef's signature
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetSigOfMethodDef(
-    mdMethodDef      methoddef,     // given a methoddef 
+    mdMethodDef      methoddef,     // given a methoddef
     ULONG           *pcbSigBlob,    // [OUT] count of bytes in the signature blob
     PCCOR_SIGNATURE *ppSig)
 {
     // Output parameter should not be NULL
     _ASSERTE(pcbSigBlob);
     _ASSERTE(TypeFromToken(methoddef) == mdtMethodDef);
-    
+
     HRESULT hr;
     MethodRec *pMethodRec;
     *ppSig = NULL;
@@ -1644,16 +1409,16 @@ MDInternalRO::GetSigOfMethodDef(
 //*****************************************************************************
 // Given a scope and a fielddef, return a pointer to fielddef's signature
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetSigOfFieldDef(
-    mdFieldDef       fielddef,      // given a methoddef 
+    mdFieldDef       fielddef,      // given a methoddef
     ULONG           *pcbSigBlob,    // [OUT] count of bytes in the signature blob
     PCCOR_SIGNATURE *ppSig)
 {
     _ASSERTE(pcbSigBlob);
     _ASSERTE(TypeFromToken(fielddef) == mdtFieldDef);
-    
+
     HRESULT hr;
     FieldRec *pFieldRec;
     *ppSig = NULL;
@@ -1666,15 +1431,15 @@ MDInternalRO::GetSigOfFieldDef(
 //*****************************************************************************
 // Get signature for the token (FieldDef, MethodDef, Signature, or TypeSpec).
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetSigFromToken(
-    mdToken           tk, 
-    ULONG *           pcbSig, 
+    mdToken           tk,
+    ULONG *           pcbSig,
     PCCOR_SIGNATURE * ppSig)
 {
     HRESULT hr;
-    
+
     *ppSig = NULL;
     *pcbSig = 0;
     switch (TypeFromToken(tk))
@@ -1704,7 +1469,7 @@ MDInternalRO::GetSigFromToken(
             return S_OK;
         }
     }
-    
+
     // not a known token type.
     *pcbSig = 0;
     return META_E_INVALID_TOKEN_TYPE;
@@ -1714,26 +1479,26 @@ MDInternalRO::GetSigFromToken(
 //*****************************************************************************
 // Given methoddef, return the flags
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetMethodDefProps(
-    mdMethodDef md, 
+    mdMethodDef md,
     DWORD      *pdwFlags)   // return mdPublic, mdAbstract, etc
 {
     HRESULT hr;
     MethodRec *pMethodRec;
-    
+
     *pdwFlags = (DWORD)-1;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodRecord(RidFromToken(md), &pMethodRec));
     *pdwFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfMethod(pMethodRec);
-    
+
     return S_OK;
 } // MDInternalRO::GetMethodDefProps
 
 //*****************************************************************************
 // Given a scope and a methoddef/methodimpl, return RVA and impl flags
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetMethodImplProps(
     mdMethodDef tk,                     // [IN] MethodDef
     ULONG       *pulCodeRVA,            // [OUT] CodeRVA
@@ -1762,7 +1527,7 @@ HRESULT MDInternalRO::GetMethodImplProps(
 //*****************************************************************************
 // return the field RVA
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetFieldRVA(
     mdToken     fd,                     // [IN] FieldDef
     ULONG       *pulCodeRVA)            // [OUT] CodeRVA
@@ -1791,28 +1556,28 @@ HRESULT MDInternalRO::GetFieldRVA(
 //*****************************************************************************
 // Given a fielddef, return the flags. Such as fdPublic, fdStatic, etc
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetFieldDefProps(
     mdFieldDef fd,          // given memberdef
     DWORD     *pdwFlags)    // [OUT] return fdPublic, fdPrive, etc flags
 {
     HRESULT hr;
     _ASSERTE(TypeFromToken(fd) == mdtFieldDef);
-    
+
     FieldRec *pFieldRec;
-    
+
     *pdwFlags = (DWORD)-1;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetFieldRecord(RidFromToken(fd), &pFieldRec));
     *pdwFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfField(pFieldRec);
-    
+
     return S_OK;
 } // MDInternalRO::GetFieldDefProps
 
 //*****************************************************************************
 // return default value of a token(could be paramdef, fielddef, or property)
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetDefaultValue(   // return hresult
     mdToken     tk,                     // [IN] given FieldDef, ParamDef, or Property
     MDDefaultValue  *pMDDefaultValue)   // [OUT] default value
@@ -1846,7 +1611,7 @@ HRESULT MDInternalRO::GetDefaultValue(   // return hresult
 //*****************************************************************************
 // Given a scope and a methoddef/fielddef, return the dispid
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetDispIdOfMemberDef(     // return hresult
     mdToken     tk,                     // given methoddef or fielddef
     ULONG       *pDispid)               // Put the dispid here.
@@ -1869,7 +1634,7 @@ HRESULT MDInternalRO::GetDispIdOfMemberDef(     // return hresult
         IfFailGo(cap.GetU4(&dispid));
         *pDispid = dispid;
     }
-    
+
 ErrExit:
     return hr;
 #else // FEATURE_COMINTEROP
@@ -1881,17 +1646,17 @@ ErrExit:
 //*****************************************************************************
 // Given interfaceimpl, return the TypeRef/TypeDef and flags
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetTypeOfInterfaceImpl( // return hresult
     mdInterfaceImpl iiImpl,             // given a interfaceimpl
     mdToken        *ptkType)
 {
     HRESULT hr;
     _ASSERTE(TypeFromToken(iiImpl) == mdtInterfaceImpl);
-    
+
     *ptkType = mdTypeDefNil;
-    
+
     InterfaceImplRec *pIIRec;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetInterfaceImplRecord(RidFromToken(iiImpl), &pIIRec));
     *ptkType = m_LiteWeightStgdb.m_MiniMd.getInterfaceOfInterfaceImpl(pIIRec);
@@ -1901,7 +1666,7 @@ MDInternalRO::GetTypeOfInterfaceImpl( // return hresult
 //*****************************************************************************
 // This routine gets the properties for the given MethodSpec token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetMethodSpecProps(         // S_OK or error.
         mdMethodSpec mi,           // [IN] The method instantiation
         mdToken *tkParent,                  // [OUT] MethodDef or MemberRef
@@ -1911,11 +1676,11 @@ HRESULT MDInternalRO::GetMethodSpecProps(         // S_OK or error.
     HRESULT         hr = NOERROR;
     MethodSpecRec  *pMethodSpecRec;
 
-    LOG((LOGMD, "MD RegMeta::GetMethodSpecProps(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "MD RegMeta::GetMethodSpecProps(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
         mi, tkParent, ppvSigBlob, pcbSigBlob));
 
     _ASSERTE(TypeFromToken(mi) == mdtMethodSpec);
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodSpecRecord(RidFromToken(mi), &pMethodSpecRec));
 
     if (tkParent)
@@ -1942,8 +1707,8 @@ HRESULT MDInternalRO::GetMethodSpecProps(         // S_OK or error.
 //*****************************************************************************
 // Given a classname, return the typedef
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::FindTypeDef(
     LPCSTR      szTypeDefNamespace, // [IN] Namespace for the TypeDef.
     LPCSTR      szTypeDefName,      // [IN] Name of the TypeDef.
@@ -1951,53 +1716,53 @@ MDInternalRO::FindTypeDef(
     mdTypeDef * ptkTypeDef)         // [OUT] return typedef
 {
     HRESULT hr = S_OK;
-    
+
     _ASSERTE((szTypeDefName != NULL) && (ptkTypeDef != NULL));
-    _ASSERTE((TypeFromToken(tkEnclosingClass) == mdtTypeRef) || 
-             (TypeFromToken(tkEnclosingClass) == mdtTypeDef) || 
+    _ASSERTE((TypeFromToken(tkEnclosingClass) == mdtTypeRef) ||
+             (TypeFromToken(tkEnclosingClass) == mdtTypeDef) ||
              IsNilToken(tkEnclosingClass));
-    
+
     // initialize the output parameter
     *ptkTypeDef = mdTypeDefNil;
-    
+
     // Treat no namespace as empty string.
     if (szTypeDefNamespace == NULL)
         szTypeDefNamespace = "";
-    
+
     // Do a linear search
     ULONG        cTypeDefRecs = m_LiteWeightStgdb.m_MiniMd.getCountTypeDefs();
     TypeDefRec * pTypeDefRec;
     LPCUTF8      szName;
     LPCUTF8      szNamespace;
     DWORD        dwFlags;
-    
+
     // Get TypeDef of the tkEnclosingClass passed in
     if (TypeFromToken(tkEnclosingClass) == mdtTypeRef)
     {
         TypeRefRec * pTypeRefRec;
         mdToken      tkResolutionScope;
-        
+
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetTypeRefRecord(RidFromToken(tkEnclosingClass), &pTypeRefRec));
         tkResolutionScope = m_LiteWeightStgdb.m_MiniMd.getResolutionScopeOfTypeRef(pTypeRefRec);
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNamespaceOfTypeRef(pTypeRefRec, &szNamespace));
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfTypeRef(pTypeRefRec, &szName));
-        
+
         // Update tkEnclosingClass to TypeDef
         IfFailRet(FindTypeDef(
-                    szNamespace, 
-                    szName, 
-                    (TypeFromToken(tkResolutionScope) == mdtTypeRef) ? tkResolutionScope : mdTokenNil, 
+                    szNamespace,
+                    szName,
+                    (TypeFromToken(tkResolutionScope) == mdtTypeRef) ? tkResolutionScope : mdTokenNil,
                     &tkEnclosingClass));
         _ASSERTE(TypeFromToken(tkEnclosingClass) == mdtTypeDef);
     }
-    
+
     // Search for the TypeDef
     for (ULONG i = 1; i <= cTypeDefRecs; i++)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetTypeDefRecord(i, &pTypeDefRec));
-        
+
         dwFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfTypeDef(pTypeDefRec);
-        
+
         if (!IsTdNested(dwFlags) && !IsNilToken(tkEnclosingClass))
         {
             // If the class is not Nested and EnclosingClass passed in is not nil
@@ -2011,11 +1776,11 @@ MDInternalRO::FindTypeDef(
         else if (!IsNilToken(tkEnclosingClass))
         {
             _ASSERTE(TypeFromToken(tkEnclosingClass) == mdtTypeDef);
-            
+
             RID              iNestedClassRec;
             NestedClassRec * pNestedClassRec;
             mdTypeDef        tkEnclosingClassTmp;
-            
+
             IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindNestedClassFor(i, &iNestedClassRec));
             if (InvalidRid(iNestedClassRec))
                 continue;
@@ -2024,7 +1789,7 @@ MDInternalRO::FindTypeDef(
             if (tkEnclosingClass != tkEnclosingClassTmp)
                 continue;
         }
-        
+
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfTypeDef(pTypeDefRec, &szName));
         if (strcmp(szTypeDefName, szName) == 0)
         {
@@ -2047,10 +1812,10 @@ MDInternalRO::FindTypeDef(
 // the metadata is corrupted! (e.g. if CPackedLen::GetLength returned -1).
 // TODO: consider returning a HRESULT to make errors evident to the caller.
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetNameAndSigOfMemberRef( // meberref's name
-    mdMemberRef      memberref,         // given a memberref 
+    mdMemberRef      memberref,         // given a memberref
     PCCOR_SIGNATURE *ppvSigBlob,        // [OUT] point to a blob value of COM+ signature
     ULONG           *pcbSigBlob,        // [OUT] count of bytes in the signature blob
     LPCSTR          *pszMemberRefName)
@@ -2078,29 +1843,29 @@ MDInternalRO::GetNameAndSigOfMemberRef( // meberref's name
 //*****************************************************************************
 // Given a memberref, return parent token. It can be a TypeRef, ModuleRef, or a MethodDef
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetParentOfMemberRef(
     mdMemberRef memberref,      // given a typedef
     mdToken    *ptkParent)      // return the parent token
 {
     HRESULT hr;
     _ASSERTE(TypeFromToken(memberref) == mdtMemberRef);
-    
+
     MemberRefRec *pMemberRefRec;
-    
+
     *ptkParent = mdTokenNil;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMemberRefRecord(RidFromToken(memberref), &pMemberRefRec));
     *ptkParent = m_LiteWeightStgdb.m_MiniMd.getClassOfMemberRef(pMemberRefRec);
-    
+
     return S_OK;
 } // MDInternalRO::GetParentOfMemberRef
 
 //*****************************************************************************
 // return properties of a paramdef
 //*****************************************************************************/
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetParamDefProps (
     mdParamDef paramdef,        // given a paramdef
     USHORT    *pusSequence,     // [OUT] slot number for this parameter
@@ -2110,7 +1875,7 @@ MDInternalRO::GetParamDefProps (
     _ASSERTE(TypeFromToken(paramdef) == mdtParamDef);
     HRESULT   hr;
     ParamRec *pParamRec;
-    
+
     *pszName = NULL;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetParamRecord(RidFromToken(paramdef), &pParamRec));
     if (pdwAttr != NULL)
@@ -2122,7 +1887,7 @@ MDInternalRO::GetParamDefProps (
         *pusSequence = m_LiteWeightStgdb.m_MiniMd.getSequenceOfParam(pParamRec);
     }
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfParam(pParamRec, pszName));
-    
+
     return S_OK;
 } // MDInternalRO::GetParamDefProps
 
@@ -2130,7 +1895,7 @@ MDInternalRO::GetParamDefProps (
 // Get property info for the method.
 //*****************************************************************************
 int MDInternalRO::CMethodSemanticsMapSearcher::Compare(
-    const CMethodSemanticsMap *psFirst, 
+    const CMethodSemanticsMap *psFirst,
     const CMethodSemanticsMap *psSecond)
 {
     if (psFirst->m_mdMethod < psSecond->m_mdMethod)
@@ -2142,7 +1907,7 @@ int MDInternalRO::CMethodSemanticsMapSearcher::Compare(
 
 #ifndef DACCESS_COMPILE
 int MDInternalRO::CMethodSemanticsMapSorter::Compare(
-    CMethodSemanticsMap *psFirst, 
+    CMethodSemanticsMap *psFirst,
     CMethodSemanticsMap *psSecond)
 {
     if (psFirst->m_mdMethod < psSecond->m_mdMethod)
@@ -2152,7 +1917,7 @@ int MDInternalRO::CMethodSemanticsMapSorter::Compare(
     return 0;
 } // MDInternalRO::CMethodSemanticsMapSorter::Compare
 
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
     mdMethodDef md,                     // [IN] memberdef
     mdProperty  *ppd,                   // [OUT] put property token here
@@ -2172,7 +1937,7 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
     // Lazy initialization of m_pMethodSemanticsMap
     if ((ridMax > 10) && (m_pMethodSemanticsMap == NULL))
     {
-        NewHolder<CMethodSemanticsMap> pMethodSemanticsMap = new (nothrow) CMethodSemanticsMap[ridMax];
+        NewArrayHolder<CMethodSemanticsMap> pMethodSemanticsMap = new (nothrow) CMethodSemanticsMap[ridMax];
         if (pMethodSemanticsMap != NULL)
         {
             // Fill the table in MethodSemantics order.
@@ -2186,7 +1951,7 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
             // Sort to MethodDef order.
             CMethodSemanticsMapSorter sorter(pMethodSemanticsMap, ridMax);
             sorter.Sort();
-            
+
             if (InterlockedCompareExchangeT<CMethodSemanticsMap *>(
                 &m_pMethodSemanticsMap, pMethodSemanticsMap, NULL) == NULL)
             {   // The exchange did happen, supress of the allocated map
@@ -2207,9 +1972,9 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
         // Was there at least one match?
         if (pMatchedMethod != NULL)
         {
-            _ASSERTE(pMatchedMethod >= m_pMethodSemanticsMap); 
-            _ASSERTE(pMatchedMethod < m_pMethodSemanticsMap+ridMax); 
-            _ASSERTE(pMatchedMethod->m_mdMethod == md); 
+            _ASSERTE(pMatchedMethod >= m_pMethodSemanticsMap);
+            _ASSERTE(pMatchedMethod < m_pMethodSemanticsMap+ridMax);
+            _ASSERTE(pMatchedMethod->m_mdMethod == md);
 
             ridCur = pMatchedMethod->m_ridSemantics;
             IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetMethodSemanticsRecord(ridCur, &pSemantics));
@@ -2219,8 +1984,8 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
             if (usSemantics == msGetter || usSemantics == msSetter)
                 pFound = pSemantics;
             else
-            {   // The semantics record was neither getter or setter.  Because there can be 
-                //  multiple semantics records for a given method, look for other semantics 
+            {   // The semantics record was neither getter or setter.  Because there can be
+                //  multiple semantics records for a given method, look for other semantics
                 //  records that match this record.
                 const CMethodSemanticsMap *pScan;
                 const CMethodSemanticsMap *pLo=m_pMethodSemanticsMap;
@@ -2276,14 +2041,14 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
             {   // The method matched, is this a property?
                 usSemantics = m_LiteWeightStgdb.m_MiniMd.getSemanticOfMethodSemantics(pSemantics);
                 if (usSemantics == msGetter || usSemantics == msSetter)
-                {   // found a match. 
+                {   // found a match.
                     pFound = pSemantics;
                     break;
                 }
             }
         }
     }
-    
+
     // Did the search find anything?
     if (pFound)
     {   // found a match. Fill out the output parameters
@@ -2311,10 +2076,10 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
 //*****************************************************************************
 // return the pack size of a class
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetClassPackSize(
     mdTypeDef   td,                     // [IN] give typedef
-    DWORD       *pdwPackSize)           // [OUT] 
+    DWORD       *pdwPackSize)           // [OUT]
 {
     HRESULT     hr = NOERROR;
 
@@ -2322,7 +2087,7 @@ HRESULT MDInternalRO::GetClassPackSize(
 
     ClassLayoutRec *pRec;
     RID         ridClassLayout;
-    
+
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.FindClassLayoutFor(RidFromToken(td), &ridClassLayout));
     if (InvalidRid(ridClassLayout))
     {
@@ -2340,7 +2105,7 @@ ErrExit:
 //*****************************************************************************
 // return the total size of a value class
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetClassTotalSize( // return error if a class does not have total size info
     mdTypeDef   td,                     // [IN] give typedef
     ULONG       *pulClassSize)          // [OUT] return the total size of the class
@@ -2350,7 +2115,7 @@ HRESULT MDInternalRO::GetClassTotalSize( // return error if a class does not hav
     ClassLayoutRec *pRec;
     HRESULT     hr = NOERROR;
     RID         ridClassLayout;
-    
+
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.FindClassLayoutFor(RidFromToken(td), &ridClassLayout));
     if (InvalidRid(ridClassLayout))
     {
@@ -2368,14 +2133,14 @@ ErrExit:
 //*****************************************************************************
 // init the layout enumerator of a class
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetClassLayoutInit(
     mdTypeDef   td,                     // [IN] give typedef
     MD_CLASS_LAYOUT *pmdLayout)         // [OUT] set up the status of query here
 {
     HRESULT     hr = NOERROR;
     _ASSERTE(TypeFromToken(td) == mdtTypeDef);
-    
+
     // initialize the output parameter
     _ASSERTE(pmdLayout);
     memset(pmdLayout, 0, sizeof(MD_CLASS_LAYOUT));
@@ -2395,9 +2160,9 @@ HRESULT MDInternalRO::GetClassLayoutInit(
 //*****************************************************************************
 // return the field offset for a given field
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetFieldOffset(
-    mdFieldDef  fd,                     // [IN] fielddef 
+    mdFieldDef  fd,                     // [IN] fielddef
     ULONG       *pulOffset)             // [OUT] FieldOffset
 {
     HRESULT     hr = S_OK;
@@ -2417,7 +2182,7 @@ HRESULT MDInternalRO::GetFieldOffset(
 
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetFieldLayoutRecord(iLayout, &pRec));
     *pulOffset = m_LiteWeightStgdb.m_MiniMd.getOffSetOfFieldLayout(pRec);
-    _ASSERTE(*pulOffset != ULONG_MAX);
+    _ASSERTE(*pulOffset != UINT32_MAX);
 
 ErrExit:
     return hr;
@@ -2425,9 +2190,9 @@ ErrExit:
 
 
 //*****************************************************************************
-// enum the next the field layout 
+// enum the next the field layout
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetClassLayoutNext(
     MD_CLASS_LAYOUT *pLayout,           // [IN|OUT] set up the status of query here
     mdFieldDef  *pfd,                   // [OUT] field def
@@ -2450,7 +2215,7 @@ HRESULT MDInternalRO::GetClassLayoutNext(
         {
             IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetFieldLayoutRecord(iLayout2, &pRec));
             *pulOffset = m_LiteWeightStgdb.m_MiniMd.getOffSetOfFieldLayout(pRec);
-            _ASSERTE(*pulOffset != ULONG_MAX);
+            _ASSERTE(*pulOffset != UINT32_MAX);
             *pfd = TokenFromRid(pLayout->m_ridFieldCur - 1, mdtFieldDef);
             goto ErrExit;
         }
@@ -2469,7 +2234,7 @@ ErrExit:
 //*****************************************************************************
 // return the field's native type signature
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetFieldMarshal(  // return error if no native type associate with the token
     mdToken     tk,                     // [IN] given fielddef or paramdef
     PCCOR_SIGNATURE *pSigNativeType,    // [OUT] the native type signature
@@ -2493,7 +2258,7 @@ HRESULT MDInternalRO::GetFieldMarshal(  // return error if no native type associ
     }
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.GetFieldMarshalRecord(rid, &pFieldMarshalRec));
 
-    // get the native type 
+    // get the native type
     IfFailGo(m_LiteWeightStgdb.m_MiniMd.getNativeTypeOfFieldMarshal(pFieldMarshalRec, pSigNativeType, pcbNativeType));
 ErrExit:
     return hr;
@@ -2508,7 +2273,7 @@ ErrExit:
 //*****************************************************************************
 // Find property by name
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT  MDInternalRO::FindProperty(
     mdTypeDef   td,                     // [IN] given a typdef
     LPCSTR      szPropName,             // [IN] property name
@@ -2564,7 +2329,7 @@ ErrExit:
 //*****************************************************************************
 // return the properties of a property
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT  MDInternalRO::GetPropertyProps(
     mdProperty  prop,                   // [IN] property token
     LPCSTR      *pszProperty,           // [OUT] property name
@@ -2574,34 +2339,34 @@ HRESULT  MDInternalRO::GetPropertyProps(
 {
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(prop) == mdtProperty);
-    
+
     HRESULT hr;
-    
+
     PropertyRec     *pProperty;
     ULONG           cbSig;
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetPropertyRecord(RidFromToken(prop), &pProperty));
-    
+
     // get name of the property
     if (pszProperty != NULL)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfProperty(pProperty, pszProperty));
     }
-    
+
     // get the flags of property
     if (pdwPropFlags)
         *pdwPropFlags = m_LiteWeightStgdb.m_MiniMd.getPropFlagsOfProperty(pProperty);
-    
+
     // get the type of the property
     if (ppvSig != NULL)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getTypeOfProperty(pProperty, ppvSig, &cbSig));
-        if (pcbSig != NULL) 
+        if (pcbSig != NULL)
         {
             *pcbSig = cbSig;
         }
     }
-    
+
     return S_OK;
 } // MDInternalRO::GetPropertyProps
 
@@ -2615,7 +2380,7 @@ HRESULT  MDInternalRO::GetPropertyProps(
 //*****************************************************************************
 // return an event by given the name
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::FindEvent(
     mdTypeDef   td,                     // [IN] given a typdef
     LPCSTR      szEventName,            // [IN] event name
@@ -2668,7 +2433,7 @@ ErrExit:
 //*****************************************************************************
 // return the properties of an event
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetEventProps(           // S_OK, S_FALSE, or error.
     mdEvent     ev,                     // [IN] event token
     LPCSTR      *pszEvent,                // [OUT] Event name
@@ -2697,12 +2462,12 @@ HRESULT MDInternalRO::GetEventProps(           // S_OK, S_FALSE, or error.
 //*****************************************************************************
 // return the properties of a generic param
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetGenericParamProps(        // S_OK or error.
         mdGenericParam rd,                  // [IN] The type parameter
         ULONG* pulSequence,                 // [OUT] Parameter sequence number
         DWORD* pdwAttr,                     // [OUT] Type parameter flags (for future use)
-        mdToken *ptOwner,                   // [OUT] The owner (TypeDef or MethodDef) 
+        mdToken *ptOwner,                   // [OUT] The owner (TypeDef or MethodDef)
         DWORD *reserved,                    // [OUT] The kind (TypeDef/Ref/Spec, for future use)
         LPCSTR *szName)                      // [OUT] The name
 {
@@ -2738,7 +2503,7 @@ ErrExit:
 //*****************************************************************************
 // This routine gets the properties for the given GenericParamConstraint token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetGenericParamConstraintProps(      // S_OK or error.
         mdGenericParamConstraint rd,        // [IN] The constraint token
         mdGenericParam *ptGenericParam,     // [OUT] GenericParam that is constrained
@@ -2771,11 +2536,11 @@ ErrExit:
 //*****************************************************************************
 // Find methoddef of a particular associate with a property or an event
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT  MDInternalRO::FindAssociate(
     mdToken     evprop,                 // [IN] given a property or event token
     DWORD       dwSemantics,            // [IN] given a associate semantics(setter, getter, testdefault, reset)
-    mdMethodDef *pmd)                   // [OUT] return method def token 
+    mdMethodDef *pmd)                   // [OUT] return method def token
 {
     HRESULT     hr = NOERROR;
 
@@ -2809,7 +2574,7 @@ ErrExit:
 //*****************************************************************************
 // get counts of methodsemantics associated with a particular property/event
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::EnumAssociateInit(
     mdToken     evprop,                 // [IN] given a property or an event token
     HENUMInternal *phEnum)              // [OUT] cursor to hold the query result
@@ -2817,10 +2582,10 @@ HRESULT MDInternalRO::EnumAssociateInit(
     HRESULT hr;
     _ASSERTE(phEnum);
 
-    memset(phEnum, 0, sizeof(HENUMInternal));
+    HENUMInternal::ZeroEnum(phEnum);
 
     // There is no token kind!!!
-    phEnum->m_tkKind = ULONG_MAX;
+    phEnum->m_tkKind = UINT32_MAX;
 
     // output parameters have to be supplied
     _ASSERTE(TypeFromToken(evprop) == mdtEvent || TypeFromToken(evprop) == mdtProperty);
@@ -2837,7 +2602,7 @@ HRESULT MDInternalRO::EnumAssociateInit(
 //*****************************************************************************
 // get all methodsemantics associated with a particular property/event
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetAllAssociates(
     HENUMInternal *phEnum,              // [OUT] cursor to hold the query result
     ASSOCIATE_RECORD *pAssociateRec,    // [OUT] struct to fill for output
@@ -2866,7 +2631,7 @@ HRESULT MDInternalRO::GetAllAssociates(
 //*****************************************************************************
 // Get the Action and Permissions blob for a given PermissionSet.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetPermissionSetProps(
     mdPermission pm,                    // [IN] the permission token.
     DWORD       *pdwAction,             // [OUT] CorDeclSecurity.
@@ -2890,8 +2655,8 @@ HRESULT MDInternalRO::GetPermissionSetProps(
 // Get the String given the String token.
 // Return a pointer to the string, or NULL in case of error.
 //*****************************************************************************
-__checkReturn 
-HRESULT 
+__checkReturn
+HRESULT
 MDInternalRO::GetUserString(    // Offset into the string blob heap.
     mdString stk,               // [IN] the string token.
     ULONG   *pcchStringSize,    // [OUT] count of characters in the string.
@@ -2900,28 +2665,28 @@ MDInternalRO::GetUserString(    // Offset into the string blob heap.
 {
     HRESULT hr;
     LPWSTR  wszTmp;
-    
+
     if (pfIs80Plus != NULL)
     {
         *pfIs80Plus = FALSE;
     }
     *pwszUserString = NULL;
     *pcchStringSize = 0;
-    
+
     _ASSERTE(pcchStringSize != NULL);
     MetaData::DataBlob userString;
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetUserString(RidFromToken(stk), &userString));
-    
+
     wszTmp = reinterpret_cast<LPWSTR>(userString.GetDataPointer());
-    
+
     *pcchStringSize = userString.GetSize() / sizeof(WCHAR);
-    
-    if (userString.IsEmpty()) 
+
+    if (userString.IsEmpty())
     {
         *pwszUserString = NULL;
         return S_OK;
     }
-    
+
     if (pfIs80Plus != NULL)
     {
         if (userString.GetSize() % sizeof(WCHAR) == 0)
@@ -2931,15 +2696,15 @@ MDInternalRO::GetUserString(    // Offset into the string blob heap.
         // Return the user string terminator (contains value fIs80Plus)
         *pfIs80Plus = *(reinterpret_cast<PBYTE>(wszTmp + *pcchStringSize));
     }
-    
+
     *pwszUserString = wszTmp;
     return S_OK;
 } // MDInternalRO::GetUserString
 
 //*****************************************************************************
 // Return contents of Pinvoke given the forwarded member token.
-//***************************************************************************** 
-__checkReturn 
+//*****************************************************************************
+__checkReturn
 HRESULT MDInternalRO::GetPinvokeMap(
     mdToken     tk,                     // [IN] FieldDef or MethodDef.
     DWORD       *pdwMappingFlags,       // [OUT] Flags used for mapping.
@@ -2949,7 +2714,7 @@ HRESULT MDInternalRO::GetPinvokeMap(
     HRESULT     hr;
     ImplMapRec *pRecord;
     RID         iRecord;
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.FindImplMapFor(RidFromToken(tk), TypeFromToken(tk), &iRecord));
     if (InvalidRid(iRecord))
     {
@@ -2959,7 +2724,7 @@ HRESULT MDInternalRO::GetPinvokeMap(
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetImplMapRecord(iRecord, &pRecord));
     }
-    
+
     if (pdwMappingFlags)
         *pdwMappingFlags = m_LiteWeightStgdb.m_MiniMd.getMappingFlagsOfImplMap(pRecord);
     if (pszImportName != NULL)
@@ -2968,14 +2733,14 @@ HRESULT MDInternalRO::GetPinvokeMap(
     }
     if (pmrImportDLL)
         *pmrImportDLL = m_LiteWeightStgdb.m_MiniMd.getImportScopeOfImplMap(pRecord);
-    
+
     return S_OK;
 } // MDInternalRO::GetPinvokeMap
 
 //*****************************************************************************
 // Get the properties for the given Assembly token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetAssemblyProps(
     mdAssembly  mda,                    // [IN] The Assembly for which to get the properties.
     const void  **ppbPublicKey,         // [OUT] Pointer to the public key.
@@ -3015,33 +2780,12 @@ HRESULT MDInternalRO::GetAssemblyProps(
     {
         *pdwAssemblyFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfAssembly(pRecord);
 
-#ifdef FEATURE_WINDOWSPHONE
         // Turn on the afPublicKey if PublicKey blob is not empty
         DWORD cbPublicKey;
         const BYTE *pbPublicKey;
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getPublicKeyOfAssembly(pRecord, &pbPublicKey, &cbPublicKey));
         if (cbPublicKey != 0)
             *pdwAssemblyFlags |= afPublicKey;
-#else
-        if (ppbPublicKey)
-        {
-            if (pcbPublicKey && *pcbPublicKey)
-                *pdwAssemblyFlags |= afPublicKey;
-        }
-        else
-        {
-#ifdef _DEBUG
-            // Assert that afPublicKey is set if PublicKey blob is not empty
-            DWORD cbPublicKey;
-            const BYTE *pPublicKey;
-            IfFailRet(m_LiteWeightStgdb.m_MiniMd.getPublicKeyOfAssembly(pRecord, &pPublicKey, &cbPublicKey));
-            bool hasPublicKey = cbPublicKey != 0;
-            bool hasPublicKeyFlag = ( *pdwAssemblyFlags & afPublicKey ) != 0;
-            if(REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AssertOnBadImageFormat, 0))
-                _ASSERTE( hasPublicKey == hasPublicKeyFlag );
-#endif
-        }
-#endif // FEATURE_WINDOWSPHONE
     }
 
     return S_OK;
@@ -3050,7 +2794,7 @@ HRESULT MDInternalRO::GetAssemblyProps(
 //*****************************************************************************
 // Get the properties for the given AssemblyRef token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetAssemblyRefProps(
     mdAssemblyRef mdar,                 // [IN] The AssemblyRef for which to get the properties.
     const void  **ppbPublicKeyOrToken,  // [OUT] Pointer to the public key or token.
@@ -3100,7 +2844,7 @@ HRESULT MDInternalRO::GetAssemblyRefProps(
 //*****************************************************************************
 // Get the properties for the given File token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetFileProps(
     mdFile      mdf,                    // [IN] The File for which to get the properties.
     LPCSTR      *pszName,               // [OUT] Buffer to fill with name.
@@ -3110,10 +2854,10 @@ HRESULT MDInternalRO::GetFileProps(
 {
     HRESULT  hr;
     FileRec *pRecord;
-    
+
     _ASSERTE(TypeFromToken(mdf) == mdtFile && RidFromToken(mdf));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetFileRecord(RidFromToken(mdf), &pRecord));
-    
+
     if (pszName != NULL)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getNameOfFile(pRecord, pszName));
@@ -3126,14 +2870,14 @@ HRESULT MDInternalRO::GetFileProps(
     {
         *pdwFileFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfFile(pRecord);
     }
-    
+
     return S_OK;
 } // MDInternalRO::GetFileProps
 
 //*****************************************************************************
 // Get the properties for the given ExportedType token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetExportedTypeProps(
     mdExportedType   mdct,                   // [IN] The ExportedType for which to get the properties.
     LPCSTR      *pszNamespace,          // [OUT] Buffer to fill with namespace.
@@ -3147,7 +2891,7 @@ HRESULT MDInternalRO::GetExportedTypeProps(
 
     _ASSERTE(TypeFromToken(mdct) == mdtExportedType && RidFromToken(mdct));
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.GetExportedTypeRecord(RidFromToken(mdct), &pRecord));
-    
+
     if (pszNamespace != NULL)
     {
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getTypeNamespaceOfExportedType(pRecord, pszNamespace));
@@ -3169,7 +2913,7 @@ HRESULT MDInternalRO::GetExportedTypeProps(
 //*****************************************************************************
 // Get the properties for the given Resource token.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetManifestResourceProps(
     mdManifestResource  mdmr,           // [IN] The ManifestResource for which to get the properties.
     LPCSTR      *pszName,               // [OUT] Buffer to fill with name.
@@ -3200,7 +2944,7 @@ HRESULT MDInternalRO::GetManifestResourceProps(
 //*****************************************************************************
 // Find the ExportedType given the name.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 STDMETHODIMP MDInternalRO::FindExportedTypeByName( // S_OK or error
     LPCSTR      szNamespace,            // [IN] Namespace of the ExportedType.
     LPCSTR      szName,                 // [IN] Name of the ExportedType.
@@ -3214,21 +2958,21 @@ STDMETHODIMP MDInternalRO::FindExportedTypeByName( // S_OK or error
 //*****************************************************************************
 // Find the ManifestResource given the name.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 STDMETHODIMP MDInternalRO::FindManifestResourceByName(  // S_OK or error
     LPCSTR      szName,                 // [IN] Name of the resource.
     mdManifestResource *pmmr)           // [OUT] Put ManifestResource token here.
 {
     _ASSERTE(szName && pmmr);
-    
+
     HRESULT     hr;
     ManifestResourceRec *pRecord;
     ULONG       cRecords;               // Count of records.
     LPCUTF8     szNameTmp = 0;          // Name obtained from the database.
     ULONG       i;
-    
+
     cRecords = m_LiteWeightStgdb.m_MiniMd.getCountManifestResources();
-    
+
     // Search for the ExportedType.
     for (i = 1; i <= cRecords; i++)
     {
@@ -3246,7 +2990,7 @@ STDMETHODIMP MDInternalRO::FindManifestResourceByName(  // S_OK or error
 //*****************************************************************************
 // Get the Assembly token from the given scope.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetAssemblyFromScope( // S_OK or error
     mdAssembly  *ptkAssembly)           // [OUT] Put token here.
 {
@@ -3264,7 +3008,7 @@ HRESULT MDInternalRO::GetAssemblyFromScope( // S_OK or error
 //*******************************************************************************
 // return properties regarding a TypeSpec
 //*******************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetTypeSpecFromToken(   // S_OK or error.
     mdTypeSpec typespec,                // [IN] Signature token.
     PCCOR_SIGNATURE *ppvSig,            // [OUT] return pointer to token.
@@ -3291,9 +3035,9 @@ HRESULT MDInternalRO::GetTypeSpecFromToken(   // S_OK or error.
         *pcbSig = 0;
         return CLDB_E_FILE_CORRUPT;
     }
-    
+
     IfFailRet(m_LiteWeightStgdb.m_MiniMd.getSignatureOfTypeSpec(pRec, ppvSig, pcbSig));
-   
+
     return hr;
 } // MDInternalRO::GetTypeSpecFromToken
 
@@ -3302,7 +3046,7 @@ HRESULT MDInternalRO::GetTypeSpecFromToken(   // S_OK or error.
 //  NOTE: if the scope has never been saved, it will not have a built-for
 //  version, and an empty string will be returned.
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetVersionString(
     LPCSTR * pVer)                      // [OUT] Put version string here.
 {
@@ -3325,7 +3069,7 @@ HRESULT MDInternalRO::GetVersionString(
 //*****************************************************************************
 // convert a text signature to com format
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::ConvertTextSigToComSig(// Return hresult.
     BOOL        fCreateTrIfNotFound,    // create typeref if not found or not
     LPCSTR      pSignature,             // class file format signature
@@ -3412,10 +3156,10 @@ mdModule MDInternalRO::GetModuleFromScope(void)
 // Fill a variant given a MDDefaultValue
 // This routine will create a bstr if the ELEMENT_TYPE of default value is STRING
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT _FillVariant(
     MDDefaultValue  *pMDDefaultValue,
-    VARIANT     *pvar) 
+    VARIANT     *pvar)
 {
     HRESULT     hr = NOERROR;
 
@@ -3494,7 +3238,7 @@ HRESULT _FillVariant(
 // Fill a variant given a MDDefaultValue
 // This routine will create a bstr if the ELEMENT_TYPE of default value is STRING
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT _FillMDDefaultValue(
     BYTE        bType,
     void const *pValue,
@@ -3638,9 +3382,9 @@ ErrExit:
 } // _FillMDDefaultValue
 
 //*****************************************************************************
-// Given a scope, return the table size and table ptr for a given index 
+// Given a scope, return the table size and table ptr for a given index
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::GetTableInfoWithIndex(     // return size
     ULONG  index,                // [IN] pass in the index
     void **pTable,               // [OUT] pointer to table at index
@@ -3653,10 +3397,10 @@ HRESULT MDInternalRO::GetTableInfoWithIndex(     // return size
 
 
 //*****************************************************************************
-// Given a delta metadata byte stream, apply the changes to the current metadata 
+// Given a delta metadata byte stream, apply the changes to the current metadata
 // object returning the resulting metadata object in ppv
 //*****************************************************************************
-__checkReturn 
+__checkReturn
 HRESULT MDInternalRO::ApplyEditAndContinue(
     void        *pDeltaMD,              // [IN] the delta metadata
     ULONG       cbDeltaMD,              // [IN] length of pData
@@ -3668,7 +3412,7 @@ HRESULT MDInternalRO::ApplyEditAndContinue(
     HRESULT hr = E_FAIL;
 
     IMDInternalImportENC *pDeltaMDImport = NULL;
-    
+
     IfFailGo(GetInternalWithRWFormat(pDeltaMD, cbDeltaMD, 0, IID_IMDInternalImportENC, (void**)&pDeltaMDImport));
 
     *ppv = this;

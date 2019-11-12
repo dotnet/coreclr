@@ -52,6 +52,7 @@ struct fgm_history
     }
 };
 
+// These values should be in sync with the GC_REASONs (in eventtrace.h) used for ETW.
 // TODO : it would be easier to make this an ORed value
 enum gc_reason
 {
@@ -67,6 +68,11 @@ enum gc_reason
     reason_lowmemory_blocking = 9,
     reason_induced_compacting = 10,
     reason_lowmemory_host = 11,
+    reason_pm_full_gc = 12, // provisional mode requested to trigger full GC
+    reason_lowmemory_host_blocking = 13,
+    reason_bgc_tuning_soh = 14,
+    reason_bgc_tuning_loh = 15,
+    reason_bgc_stepping = 16,
     reason_max
 };
 
@@ -138,8 +144,6 @@ extern "C" uint32_t g_num_processors;
 
 extern VOLATILE(int32_t) g_fSuspensionPending;
 
-extern uint32_t g_yieldProcessorScalingFactor;
-
 ::IGCHandleManager*  CreateGCHandleManager();
 
 namespace WKS {
@@ -204,7 +208,7 @@ void record_changed_seg (uint8_t* start, uint8_t* end,
 void record_global_mechanism (int mech_index);
 #endif //GC_CONFIG_DRIVEN
 
-struct alloc_context : gc_alloc_context 
+struct alloc_context : gc_alloc_context
 {
 #ifdef FEATURE_SVR_GC
     inline SVR::GCHeap* get_alloc_heap()
@@ -237,7 +241,7 @@ public:
 private:
     virtual Object* AllocAlign8Common (void* hp, alloc_context* acontext, size_t size, uint32_t flags) = 0;
 public:
-    virtual int GetNumberOfHeaps () = 0; 
+    virtual int GetNumberOfHeaps () = 0;
     virtual int GetHomeHeapNumber () = 0;
     virtual size_t GetPromotedBytes(int heap_index) = 0;
 
@@ -261,13 +265,6 @@ public:
     {
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
     }
-
-protected: 
-public:
-#if defined(FEATURE_BASICFREEZE) && defined(VERIFY_HEAP)
-    // Return TRUE if object lives in frozen segment
-    virtual BOOL IsInFrozenSegment (Object * object) = 0;
-#endif // defined(FEATURE_BASICFREEZE) && defined(VERIFY_HEAP)
 };
 
 // Go through and touch (read) each page straddled by a memory block.

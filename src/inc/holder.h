@@ -8,7 +8,6 @@
 
 #include <wincrypt.h>
 #include "cor.h"
-#include "genericstackprobe.h"
 #include "staticcontract.h"
 #include "volatile.h"
 #include "palclr.h"
@@ -62,16 +61,14 @@
         _NAME & operator=(_NAME const &);
 #endif
 
-
 #ifdef _DEBUG
-
 
 //------------------------------------------------------------------------------------------------
 // This is used to make Visual Studio autoexp.dat work sensibly with holders again.
 // The problem is that certain codebases (particulary Fusion) implement key data structures
 // using a class but refer to it using a holder to an interface type. This combination prevents
 // autoexp rules from working as desired.
-// 
+//
 // Example: Take this useful autoexp rule for CAssemblyName.
 //
 //   CAssemblyName=<_rProp._rProp[3].asStr>
@@ -101,7 +98,7 @@ struct AutoExpVisibleValue
 
 //-----------------------------------------------------------------------------
 // Holder is the base class of all holder objects.  Any backout object should derive from it.
-// (Eventually some additional bookeeping and exception handling code will be placed in this 
+// (Eventually some additional bookeeping and exception handling code will be placed in this
 // base class.)
 //
 // There are several ways to use this class:
@@ -111,15 +108,15 @@ struct AutoExpVisibleValue
 //  3. Instantiate the Wrapper template with your type and functions.  The Wrapper adds some additional
 //      operator overloads to provide "smart pointer" like behavior
 //  4. Use a prebaked Holder.  This is ALWAYS the preferable strategy.  It is expected that
-//      the general design patter is that Holders will be provided as part of a typical data abstraction. 
+//      the general design patter is that Holders will be provided as part of a typical data abstraction.
 //      (See Crst for an example of this.)
 //-----------------------------------------------------------------------------
 
 
 
 //-----------------------------------------------------------------------------
-// HolderBase defines the base holder functionality. You can subtype and plug in 
-// a different base if you need to add more members for access during 
+// HolderBase defines the base holder functionality. You can subtype and plug in
+// a different base if you need to add more members for access during
 // acquire & release
 //-----------------------------------------------------------------------------
 template <typename TYPE>
@@ -127,15 +124,10 @@ class HolderBase
 {
   protected:
     TYPE    m_value;
-  
+
     HolderBase(TYPE value)
       : m_value(value)
     {
-        // TODO: Find a way to enable this check.
-        // We can have a holder in SO tolerant, then probe, then acquire a value.  This works
-        // because the dtor is guaranteed to run with enough stack.
-        // EnsureSOIntolerantOK(__FUNCTION__, __FILE__, __LINE__);
-
 #ifdef _DEBUG
         m_pAutoExpVisibleValue = (const AutoExpVisibleValue *)(&m_value);
 #endif //_DEBUG
@@ -166,7 +158,7 @@ class HolderBase
 template <typename TYPE>
 BOOL CompareDefault(TYPE value, TYPE defaultValue)
 {
-    STATIC_CONTRACT_SUPPORTS_DAC; 
+    STATIC_CONTRACT_SUPPORTS_DAC;
     return value == defaultValue;
 }
 
@@ -188,17 +180,17 @@ BOOL NoNull(TYPE value, TYPE defaultValue)
 }
 
 // Used e.g. for retail version of code:SyncAccessHolder
-template <typename TYPE> 
+template <typename TYPE>
 class NoOpBaseHolder
 {
   public:
-    FORCEINLINE NoOpBaseHolder() 
+    FORCEINLINE NoOpBaseHolder()
     {
     }
-    FORCEINLINE NoOpBaseHolder(TYPE value, BOOL take = TRUE) 
+    FORCEINLINE NoOpBaseHolder(TYPE value, BOOL take = TRUE)
     {
     }
-    FORCEINLINE ~NoOpBaseHolder() 
+    FORCEINLINE ~NoOpBaseHolder()
     {
     }
     FORCEINLINE void Assign(TYPE value, BOOL fTake = TRUE)
@@ -238,8 +230,7 @@ template
         typename TYPE,
         typename BASE,
         UINT_PTR DEFAULTVALUE = 0,
-        BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq
+        BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>
     >
 class BaseHolder : protected BASE
 {
@@ -250,26 +241,26 @@ class BaseHolder : protected BASE
                   "DEFAULTVALUE must be NULL for pointer holders and wrappers.");
 
   public:
-    FORCEINLINE BaseHolder() 
-      : BASE(TYPE(DEFAULTVALUE)), 
+    FORCEINLINE BaseHolder()
+      : BASE(TYPE(DEFAULTVALUE)),
         m_acquired(FALSE)
     {
     }
     FORCEINLINE BaseHolder(TYPE value)
-      : BASE(value), 
+      : BASE(value),
         m_acquired(FALSE)
     {
         if (!IsNull())
             Acquire();
     }
-    FORCEINLINE BaseHolder(TYPE value, BOOL takeOwnership) 
-      : BASE(value), 
+    FORCEINLINE BaseHolder(TYPE value, BOOL takeOwnership)
+      : BASE(value),
         m_acquired(FALSE)
     {
         if (takeOwnership)
             Acquire();
     }
-    FORCEINLINE ~BaseHolder() 
+    FORCEINLINE ~BaseHolder()
     {
         Release();
     }
@@ -303,16 +294,7 @@ class BaseHolder : protected BASE
         if (m_acquired)
         {
             _ASSERTE(!IsNull());
-        
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                this->DoRelease();
-            }
-            else
-            {
-                this->DoRelease();
-            }
+            this->DoRelease();
             m_acquired = FALSE;
         }
     }
@@ -347,21 +329,21 @@ class BaseHolder : protected BASE
     HIDE_GENERATED_METHODS(BaseHolder)
 };  // BaseHolder<>
 
-template <void (*ACQUIRE)(), void (*RELEASEF)(), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>
+template <void (*ACQUIRE)(), void (*RELEASEF)()>
 class StateHolder
 {
   private:
     BOOL    m_acquired;      // Have we acquired the state?
 
   public:
-    FORCEINLINE StateHolder(BOOL take = TRUE) 
+    FORCEINLINE StateHolder(BOOL take = TRUE)
       : m_acquired(FALSE)
     {
         STATIC_CONTRACT_WRAPPER;
         if (take)
             Acquire();
     }
-    FORCEINLINE ~StateHolder() 
+    FORCEINLINE ~StateHolder()
     {
         STATIC_CONTRACT_WRAPPER;
         Release();
@@ -383,15 +365,7 @@ class StateHolder
 
         if (m_acquired)
         {
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                RELEASEF();
-            }
-            else
-            {
-                RELEASEF();
-            }
+            RELEASEF();
             m_acquired = FALSE;
         }
     }
@@ -415,7 +389,7 @@ class StateHolder
 };  // class StateHolder<>
 
 // Holder for the case where the acquire function can fail.
-template <typename VALUE, BOOL (*ACQUIRE)(VALUE value), void (*RELEASEF)(VALUE value), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>
+template <typename VALUE, BOOL (*ACQUIRE)(VALUE value), void (*RELEASEF)(VALUE value)>
 class ConditionalStateHolder
 {
   private:
@@ -423,14 +397,14 @@ class ConditionalStateHolder
     BOOL    m_acquired;      // Have we acquired the state?
 
   public:
-    FORCEINLINE ConditionalStateHolder(VALUE value, BOOL take = TRUE) 
+    FORCEINLINE ConditionalStateHolder(VALUE value, BOOL take = TRUE)
       : m_value(value), m_acquired(FALSE)
     {
         STATIC_CONTRACT_WRAPPER;
         if (take)
             Acquire();
     }
-    FORCEINLINE ~ConditionalStateHolder() 
+    FORCEINLINE ~ConditionalStateHolder()
     {
         STATIC_CONTRACT_WRAPPER;
         Release();
@@ -443,7 +417,7 @@ class ConditionalStateHolder
         _ASSERTE(!m_acquired);
 
         m_acquired = ACQUIRE(m_value);
-        
+
         return m_acquired;
     }
     FORCEINLINE void Release()
@@ -453,15 +427,7 @@ class ConditionalStateHolder
 
         if (m_acquired)
         {
-            if (VALIDATION_TYPE != HSV_NoValidation)
-            {
-                VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-                RELEASEF(m_value);
-            }
-            else
-            {
-                RELEASEF(m_value);
-            }
+            RELEASEF(m_value);
             m_acquired = FALSE;
         }
     }
@@ -499,21 +465,21 @@ class ConditionalStateHolder
 
 //-----------------------------------------------------------------------------
 // BaseWrapper is just Base like a Holder, but it "transparently" proxies the type it contains,
-// using operator overloads.  Use this when you want a holder to expose the functionality of 
+// using operator overloads.  Use this when you want a holder to expose the functionality of
 // the value it contains.
 //-----------------------------------------------------------------------------
 template <typename TYPE, typename BASE,
-          UINT_PTR DEFAULTVALUE = 0, BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>, HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq> 
-class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+          UINT_PTR DEFAULTVALUE = 0, BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>>
+class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL> BaseT;
 
 
 #ifdef __GNUC__
 //#pragma GCC visibility push(hidden)
 #endif // __GNUC__
-    // This temporary object takes care of the case where we are initializing 
-    // a holder's contents by passing it as an out parameter.  The object is 
+    // This temporary object takes care of the case where we are initializing
+    // a holder's contents by passing it as an out parameter.  The object is
     // guaranteed to live longer than the call it is passed to, hence we should
     // properly acquire the object on return
     friend class AddressInitHolder;
@@ -523,8 +489,8 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
         BaseWrapper<TYPE,BASE,DEFAULTVALUE,IS_NULL> &m_holder;
 
       public:
-        FORCEINLINE AddressInitHolder(BaseWrapper<TYPE,BASE,DEFAULTVALUE,IS_NULL> &holder) 
-          : m_holder(holder) 
+        FORCEINLINE AddressInitHolder(BaseWrapper<TYPE,BASE,DEFAULTVALUE,IS_NULL> &holder)
+          : m_holder(holder)
         {
             //
             // We must clear the value, to avoid the following scenario:
@@ -549,7 +515,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
             m_holder.Acquire();
         }
 
-        // It's not optimal to have to declare these casting operators.  But if we don't, 
+        // It's not optimal to have to declare these casting operators.  But if we don't,
         // people cannot cast the result of &holder to these values.  (The C++ compiler won't
         // automatically use the TYPE * cast as an intermediate value.)  So we put them here,
         // rather than forcing callers to double cast in these common cases.
@@ -585,14 +551,14 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
             return (void *)(&m_holder.m_value);
         }
     };
-    
-    // Separate out method with TYPE * cast operator, since it may clash with IUnknown ** or 
+
+    // Separate out method with TYPE * cast operator, since it may clash with IUnknown ** or
     // void ** cast operator.
     friend class TypedAddressInitHolder;
     class TypedAddressInitHolder : public AddressInitHolder
     {
       public:
-        FORCEINLINE TypedAddressInitHolder(BaseWrapper & holder) 
+        FORCEINLINE TypedAddressInitHolder(BaseWrapper & holder)
           : AddressInitHolder(holder)
         {
         }
@@ -605,7 +571,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
 #ifdef __GNUC__
 //#pragma GCC visibility pop
 #endif // __GNUC__
-    
+
   public:
     FORCEINLINE BaseWrapper()
         : BaseT(TYPE(DEFAULTVALUE), FALSE)
@@ -642,7 +608,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
     {
         return !!(this->m_value != TYPE(value));
     }
-#ifdef __llvm__
+#ifdef __GNUC__
     // This handles the NULL value that is an int and clang
     // doesn't want to convert int to a pointer
     FORCEINLINE bool operator==(int value) const
@@ -653,7 +619,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
     {
         return !!(this->m_value != TYPE((void*)(SIZE_T)value));
     }
-#endif // __llvm__
+#endif // __GNUC__
     FORCEINLINE const TYPE &operator->() const
     {
         return this->m_value;
@@ -669,7 +635,7 @@ class BaseWrapper : public BaseHolder<TYPE, BASE, DEFAULTVALUE, IS_NULL, VALIDAT
 
 //-----------------------------------------------------------------------------
 // Generic templates to use to wrap up acquire/release functionality for Holder
-//----------------------------------------------------------------------------- 
+//-----------------------------------------------------------------------------
 
 template <typename TYPE>
 FORCEINLINE void DoNothing(TYPE value)
@@ -728,14 +694,12 @@ FORCEINLINE void SafeArrayDoNothing(SAFEARRAY* p)
 }
 
 
-
-
 //-----------------------------------------------------------------------------
-// Holder/Wrapper are the simplest way to define holders - they synthesizes a base class out of 
+// Holder/Wrapper are the simplest way to define holders - they synthesizes a base class out of
 // function pointers
 //-----------------------------------------------------------------------------
 
-template <typename TYPE, void (*ACQUIREF)(TYPE), void (*RELEASEF)(TYPE), HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq>  
+template <typename TYPE, void (*ACQUIREF)(TYPE), void (*RELEASEF)(TYPE)>
 class FunctionBase : protected HolderBase<TYPE>
 {
   protected:
@@ -752,17 +716,7 @@ class FunctionBase : protected HolderBase<TYPE>
 
     void DoRelease()
     {
-        // <TODO> Consider removing this stack validation since it is redundant with the
-        // one that is already being done in BaseHolder & BaseWrapper. </TODO>
-        if (VALIDATION_TYPE != HSV_NoValidation)
-        {
-            VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(VALIDATION_TYPE);
-            RELEASEF(this->m_value);
-        }
-        else
-        {
-            RELEASEF(this->m_value);
-        }
+        RELEASEF(this->m_value);
     }
 };  // class Function<>
 
@@ -771,19 +725,18 @@ template
         typename TYPE,
         void (*ACQUIREF)(TYPE),
         void (*RELEASEF)(TYPE),
-        UINT_PTR DEFAULTVALUE = 0, 
+        UINT_PTR DEFAULTVALUE = 0,
         BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq,
         // For legacy compat (see EEJitManager::WriterLockHolder), where default ctor
         // causes ACQUIREF(DEFAULTVALUE), but ACQUIREF ignores the argument and
         // operates on static or global value instead.
         bool DEFAULT_CTOR_ACQUIRE = true
     >
-class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                 DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                 DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                 DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                 DEFAULTVALUE, IS_NULL> BaseT;
 
   public:
     FORCEINLINE Holder()
@@ -798,7 +751,7 @@ class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VA
         STATIC_CONTRACT_WRAPPER;
     }
 
-    FORCEINLINE Holder(TYPE value, BOOL takeOwnership) 
+    FORCEINLINE Holder(TYPE value, BOOL takeOwnership)
         : BaseT(value, takeOwnership)
     {
         STATIC_CONTRACT_WRAPPER;
@@ -815,7 +768,7 @@ class Holder : public BaseHolder<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VA
 };
 
 //---------------------------------------------------------------------------------------
-// 
+//
 template
     <
         typename TYPE,
@@ -823,17 +776,16 @@ template
         void (*RELEASEF)(TYPE),
         UINT_PTR DEFAULTVALUE = 0,
         BOOL IS_NULL(TYPE, TYPE) = CompareDefault<TYPE>,
-        HolderStackValidation VALIDATION_TYPE = HSV_ValidateNormalStackReq,
         // For legacy compat (see EEJitManager::WriterLockHolder), where default ctor
         // causes ACQUIREF(DEFAULTVALUE), but ACQUIREF ignores the argument and
         // operates on static or global value instead.
         bool DEFAULT_CTOR_ACQUIRE = true
     >
-class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                   DEFAULTVALUE, IS_NULL, VALIDATION_TYPE>
+class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                   DEFAULTVALUE, IS_NULL>
 {
-    typedef BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, VALIDATION_TYPE>,
-                                   DEFAULTVALUE, IS_NULL, VALIDATION_TYPE> BaseT;
+    typedef BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF>,
+                                   DEFAULTVALUE, IS_NULL> BaseT;
 
   public:
     FORCEINLINE Wrapper()
@@ -848,7 +800,7 @@ class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, 
         STATIC_CONTRACT_WRAPPER;
     }
 
-    FORCEINLINE Wrapper(TYPE value, BOOL takeOwnership) 
+    FORCEINLINE Wrapper(TYPE value, BOOL takeOwnership)
         : BaseT(value, takeOwnership)
     {
         STATIC_CONTRACT_WRAPPER;
@@ -870,10 +822,10 @@ class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, 
 #define INDEBUG_AND_WINDOWS_FOR_HOLDERS(x) x
 #else
 #define INDEBUG_AND_WINDOWS_FOR_HOLDERS(x)
-#endif 
+#endif
 
 //---------------------------------------------------------------------------------------
-// 
+//
 // New template wrapper type macros.   These save some effort when specializing
 // existing holder templates.  (We would rather use a construct like:
 //
@@ -882,7 +834,7 @@ class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, 
 //
 // But this construct doesn't exist in C++.  These macros ease some of the cruft necessary
 // to get similar functionality out of class templates.
-//----------------------------------------------------------------------------- 
+//-----------------------------------------------------------------------------
 
 // Dev10 VC++ has some of the new C++0x language extensions. Of particular interest here:
 // rvalue references, which enables differentiation between named (lvalue) and
@@ -963,18 +915,17 @@ class Wrapper : public BaseWrapper<TYPE, FunctionBase<TYPE, ACQUIREF, RELEASEF, 
 //
 //  {
 //      ReleaseHolder<IFoo> foo;
-//      hr = FunctionToGetRefOfFoo(&foo); 
+//      hr = FunctionToGetRefOfFoo(&foo);
 //      // Note ComHolder doesn't call AddRef - it assumes you already have a ref (if non-0).
 //  } // foo->Release() on out of scope (WITHOUT RESPECT FOR GC MODE!!)
 //
 //-----------------------------------------------------------------------------
 
-template <typename TYPE> 
+template <typename TYPE>
 FORCEINLINE void DoTheRelease(TYPE *value)
 {
     if (value)
     {
-        VALIDATE_HOLDER_STACK_CONSUMPTION_FOR_TYPE(HSV_ValidateNormalStackReq);
         value->Release();
     }
 }
@@ -1016,7 +967,7 @@ NEW_WRAPPER_TEMPLATE1(StubHolder, StubRelease<_TYPE>);
 //  } // delete foo on out of scope
 //-----------------------------------------------------------------------------
 
-template <typename TYPE> 
+template <typename TYPE>
 FORCEINLINE void DeleteCoTaskMem(TYPE *value)
 {
     if (value)
@@ -1033,7 +984,7 @@ NEW_WRAPPER_TEMPLATE1(CoTaskMemHolder, DeleteCoTaskMem<_TYPE>);
 //  } // delete foo on out of scope
 //-----------------------------------------------------------------------------
 
-template <typename TYPE> 
+template <typename TYPE>
 FORCEINLINE void Delete(TYPE *value)
 {
     STATIC_CONTRACT_LEAF;
@@ -1042,7 +993,7 @@ FORCEINLINE void Delete(TYPE *value)
                   "Must use NewArrayHolder (not NewHolder) for strings.");
     static_assert(!std::is_same<typename std::remove_cv<TYPE>::type, CHAR>::value,
                   "Must use NewArrayHolder (not NewHolder) for strings.");
-    
+
     delete value;
 }
 
@@ -1059,7 +1010,7 @@ NEW_WRAPPER_TEMPLATE1(NewHolder, Delete<_TYPE>);
 template<class T> void DeleteExecutable(T *p);
 
 NEW_WRAPPER_TEMPLATE1(NewExecutableHolder, DeleteExecutable<_TYPE>);
- 
+
 //-----------------------------------------------------------------------------
 // NewArrayHolder : New []'ed pointer holder
 //  {
@@ -1067,7 +1018,7 @@ NEW_WRAPPER_TEMPLATE1(NewExecutableHolder, DeleteExecutable<_TYPE>);
 //  } // delete [] foo on out of scope
 //-----------------------------------------------------------------------------
 
-template <typename TYPE> 
+template <typename TYPE>
 FORCEINLINE void DeleteArray(TYPE *value)
 {
     STATIC_CONTRACT_WRAPPER;
@@ -1082,27 +1033,27 @@ typedef NewArrayHolder<WCHAR> WStringHolder;
 //-----------------------------------------------------------------------------
 // A special array holder that expects its contents are interface pointers,
 // and will call Release() on them.
-// 
+//
 // NOTE: You may ONLY use this if you've determined that it is SAFE to call
 // Release() on the contained interface pointers (e.g., as opposed to SafeRelease)
-// 
+//
 template <typename INTERFACE>
 class NewInterfaceArrayHolder : public NewArrayHolder<INTERFACE *>
 {
 public:
     NewInterfaceArrayHolder() :
         NewArrayHolder<INTERFACE *>(),
-        m_cElements(0) 
+        m_cElements(0)
     {
         STATIC_CONTRACT_WRAPPER;
     }
 
-    NewInterfaceArrayHolder& operator=(INTERFACE ** value)   
-    {                                             
-        STATIC_CONTRACT_WRAPPER;                  
-        NewArrayHolder<INTERFACE *>::operator=(value);                  
-        return *this;                             
-    }                                             
+    NewInterfaceArrayHolder& operator=(INTERFACE ** value)
+    {
+        STATIC_CONTRACT_WRAPPER;
+        NewArrayHolder<INTERFACE *>::operator=(value);
+        return *this;
+    }
 
     void SetElementCount(ULONG32 cElements)
     {
@@ -1175,7 +1126,7 @@ FORCEINLINE void VoidCloseFileHandle(HANDLE h) { if (h != ((HANDLE)((LONG_PTR) -
 FORCEINLINE void VoidFindClose(HANDLE h) { FindClose(h); }
 FORCEINLINE void VoidUnmapViewOfFile(void *ptr) { UnmapViewOfFile(ptr); }
 
-template <typename TYPE> 
+template <typename TYPE>
 FORCEINLINE void TypeUnmapViewOfFile(TYPE *ptr) { UnmapViewOfFile(ptr); }
 
 // (UINT_PTR) -1 is INVALID_HANDLE_VALUE
@@ -1221,7 +1172,7 @@ typedef Wrapper< bool *, BoolSet, BoolUnset > BoolFlagStateHolder;
 FORCEINLINE void CounterIncrease(RAW_KEYWORD(volatile) LONG* p) {InterlockedIncrement(p);};
 FORCEINLINE void CounterDecrease(RAW_KEYWORD(volatile) LONG* p) {InterlockedDecrement(p);};
 
-typedef Wrapper<RAW_KEYWORD(volatile) LONG*, CounterIncrease, CounterDecrease, (UINT_PTR)0, CompareDefault<RAW_KEYWORD(volatile) LONG*>, HSV_NoValidation> CounterHolder;
+typedef Wrapper<RAW_KEYWORD(volatile) LONG*, CounterIncrease, CounterDecrease, (UINT_PTR)0, CompareDefault<RAW_KEYWORD(volatile) LONG*>> CounterHolder;
 
 
 #ifndef FEATURE_PAL
@@ -1245,7 +1196,7 @@ public:
 //  {
 //      HKEYHolder hFoo = NULL;
 //      WszRegOpenKeyEx(HKEY_CLASSES_ROOT, L"Interface",0, KEY_READ, hFoo);
-//      
+//
 //  } // close key on out of scope via RegCloseKey.
 //-----------------------------------------------------------------------------
 
@@ -1319,22 +1270,22 @@ class DacHolder
     BOOL    m_acquired;      // Have we acquired the resource?
 
   public:
-    FORCEINLINE DacHolder() 
-      : m_value(TYPE(DEFAULTVALUE)), 
+    FORCEINLINE DacHolder()
+      : m_value(TYPE(DEFAULTVALUE)),
         m_acquired(FALSE)
     {
         STATIC_CONTRACT_SUPPORTS_DAC;
     }
 
     // construct a new instance of DacHolder
-    // Arguments: 
+    // Arguments:
     //     input:  value - the resource held
     //             take  - indicates whether the lock should be taken--the default is true. See Notes:
     // Note: In DAC builds, the Acquire function does not actually take the lock, instead
     //       it determines whether the lock is held (by the LS). If it is, the locked data
     //       is assumed to be inconsistent and the Acquire function will throw.
-    FORCEINLINE DacHolder(TYPE value, BOOL take = TRUE) 
-      : m_value(value), 
+    FORCEINLINE DacHolder(TYPE value, BOOL take = TRUE)
+      : m_value(value),
         m_acquired(FALSE)
     {
         STATIC_CONTRACT_SUPPORTS_DAC;
@@ -1342,7 +1293,7 @@ class DacHolder
             Acquire();
 
     }
-    FORCEINLINE ~DacHolder() 
+    FORCEINLINE ~DacHolder()
     {
         STATIC_CONTRACT_SUPPORTS_DAC;
     }
@@ -1359,7 +1310,7 @@ class DacHolder
         {
             m_acquired = TRUE;
             // because ACQUIRE is a template argument, if the line m_acquired = TRUE is placed after the call
-            // where it logically belongs, the compiler flags it as "unreachable code." 
+            // where it logically belongs, the compiler flags it as "unreachable code."
             ACQUIRE(this->m_value);
         }
     }

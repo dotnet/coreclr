@@ -2,17 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.StubHelpers;
 using System.Reflection;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Security;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -26,17 +20,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Creates a ICustomProperty implementation for Jupiter
         // Called from ICustomPropertyProvider_GetProperty from within runtime
         //
-        internal static ICustomProperty CreateProperty(object target, string propertyName)
+        internal static ICustomProperty? CreateProperty(object target, string propertyName)
         {
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
 
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public);
 
@@ -49,29 +42,28 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // Creates a ICustomProperty implementation for Jupiter
         // Called from ICustomPropertyProvider_GetIndexedProperty from within runtime
-        //               
-        internal static unsafe ICustomProperty CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
+        //
+        internal static unsafe ICustomProperty? CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
         {
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
 
-            Type indexedParamType = null;
+            Type? indexedParamType = null;
             SystemTypeMarshaler.ConvertToManaged(pIndexedParamType, ref indexedParamType);
 
-            return CreateIndexedProperty(target, propertyName, indexedParamType);
+            return CreateIndexedProperty(target, propertyName, indexedParamType!);
         }
 
-        internal static ICustomProperty CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
+        internal static ICustomProperty? CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
         {
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
 
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public,
                 null,                                                                   // default binder
@@ -88,8 +80,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal static unsafe void GetType(object target, TypeNameNative* pIndexedParamType)
         {
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
                 target = proxy.GetTarget();
 
             SystemTypeMarshaler.ConvertToNative(target.GetType(), pIndexedParamType);
@@ -108,7 +99,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }
 
     //
-    // Interface for data binding code (CustomPropertyImpl) to retreive the target object
+    // Interface for data binding code (CustomPropertyImpl) to retrieve the target object
     // See CustomPropertyImpl.InvokeInternal for details
     //
     internal interface IGetProxyTarget
@@ -122,11 +113,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // This serves two purposes:
     //
     // 1. Delegate data binding interfaces to another object
-    // Note that this proxy implements the native interfaces directly to avoid unnecessary overhead 
+    // Note that this proxy implements the native interfaces directly to avoid unnecessary overhead
     // (such as the adapter code that addresses behavior differences between IBindableVector & List
     // as well as simplify forwarding code (except for IEnumerable)
     //
-    // 2. ICLRServices.CreateManagedReference will hand out ICCW* of a new instance of this object
+    // 2. ICLRServices.GetTrackerTarget will hand out ICCW* of a new instance of this object
     // and will hold the other object alive
     //
     //
@@ -136,8 +127,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                                                           IBindableVector,      // IBindableVector -> IBindableVector/IVector<T>
                                                           IBindableVectorView   // IBindableVectorView -> IBindableVectorView/IVectorView<T>
     {
-        private object _target;
-        private InterfaceForwardingSupport _flags;
+        private readonly object _target;
+        private readonly InterfaceForwardingSupport _flags;
 
         internal ICustomPropertyProviderProxy(object target, InterfaceForwardingSupport flags)
         {
@@ -156,30 +147,30 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //
             // QI and figure out the right flags
             //
-            if (target as IList != null)
+            if (target is IList)
                 supportFlags |= InterfaceForwardingSupport.IBindableVector;
 
             // NOTE: We need to use the directed type here
             // If we use IVector_Raw<T1> here, it derives from a different IIterable<T> which the runtime
             // doesn't recognize, and therefore IEnumerable cast won't be able to take advantage of this QI
-            if (target as IList<T1> != null)
+            if (target is IList<T1>)
                 supportFlags |= InterfaceForwardingSupport.IVector;
 
-            if (target as IBindableVectorView != null)
+            if (target is IBindableVectorView)
                 supportFlags |= InterfaceForwardingSupport.IBindableVectorView;
 
             // NOTE: We need to use the redirected type here
             // If we use IVector_Raw<T1> here, it derives from a different IIterable<T> which the runtime
             // doesn't recognize, and therefore IEnumerable cast won't be able to take advantage of this QI
-            if (target as IReadOnlyList<T2> != null)
+            if (target is IReadOnlyList<T2>)
                 supportFlags |= InterfaceForwardingSupport.IVectorView;
 
             // Verify IEnumerable last because the first few QIs might succeed and we need
             // IEnumerable cast to use that cache (instead of having ICustomPropertyProvider to
             // forward it manually)
-            // For example, if we try to shoot in the dark by trying IVector<IInspectable> and it 
+            // For example, if we try to shoot in the dark by trying IVector<IInspectable> and it
             // succeeded, IEnumerable needs to know that
-            if (target as IEnumerable != null)
+            if (target is IEnumerable)
                 supportFlags |= InterfaceForwardingSupport.IBindableIterableOrIIterable;
 
             return new ICustomPropertyProviderProxy<T1, T2>(target, supportFlags);
@@ -189,22 +180,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // override ToString() to make sure callers get correct IStringable.ToString() behavior in native code
         //
-        public override string ToString()
+        public override string? ToString()
         {
             return WindowsRuntime.IStringableHelper.ToString(_target);
         }
 
         //
         // IGetProxyTarget - unwraps the target object and use it for data binding
-        // 
+        //
         object IGetProxyTarget.GetTarget()
         {
             return _target;
         }
 
-        // 
+        //
         // ICustomQueryInterface methods
-        //    
+        //
         public CustomQueryInterfaceResult GetInterface([In]ref Guid iid, out IntPtr ppv)
         {
             ppv = IntPtr.Zero;
@@ -243,10 +234,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         //
         // IBindableVector implementation (forwards to IBindableVector / IVector<T>)
-        //        
-        object IBindableVector.GetAt(uint index)
+        //
+        object? IBindableVector.GetAt(uint index)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -263,7 +254,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             get
             {
-                IBindableVector bindableVector = GetIBindableVectorNoThrow();
+                IBindableVector? bindableVector = GetIBindableVectorNoThrow();
                 if (bindableVector != null)
                 {
                     // IBindableVector -> IBindableVector
@@ -279,7 +270,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         IBindableVectorView IBindableVector.GetView()
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -294,25 +285,19 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private sealed class IVectorViewToIBindableVectorViewAdapter<T> : IBindableVectorView
         {
-            private IVectorView<T> _vectorView;
+            private readonly IVectorView<T> _vectorView;
 
             public IVectorViewToIBindableVectorViewAdapter(IVectorView<T> vectorView)
             {
                 _vectorView = vectorView;
             }
 
-            object IBindableVectorView.GetAt(uint index)
+            object? IBindableVectorView.GetAt(uint index)
             {
                 return _vectorView.GetAt(index);
             }
 
-            uint IBindableVectorView.Size
-            {
-                get
-                {
-                    return _vectorView.Size;
-                }
-            }
+            uint IBindableVectorView.Size => _vectorView.Size;
 
             bool IBindableVectorView.IndexOf(object value, out uint index)
             {
@@ -327,7 +312,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         bool IBindableVector.IndexOf(object value, out uint index)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -342,7 +327,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.SetAt(uint index, object value)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -357,7 +342,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.InsertAt(uint index, object value)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -372,7 +357,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.RemoveAt(uint index)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -387,7 +372,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.Append(object value)
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -402,7 +387,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.RemoveAtEnd()
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -417,7 +402,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void IBindableVector.Clear()
         {
-            IBindableVector bindableVector = GetIBindableVectorNoThrow();
+            IBindableVector? bindableVector = GetIBindableVectorNoThrow();
             if (bindableVector != null)
             {
                 // IBindableVector -> IBindableVector
@@ -430,7 +415,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private IBindableVector GetIBindableVectorNoThrow()
+        private IBindableVector? GetIBindableVectorNoThrow()
         {
             if ((_flags & InterfaceForwardingSupport.IBindableVector) != 0)
                 return Unsafe.As<IBindableVector>(_target);
@@ -450,9 +435,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // IBindableVectorView implementation (forwarding to IBindableVectorView or IVectorView<T>)
         //
-        object IBindableVectorView.GetAt(uint index)
+        object? IBindableVectorView.GetAt(uint index)
         {
-            IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
+            IBindableVectorView? bindableVectorView = GetIBindableVectorViewNoThrow();
             if (bindableVectorView != null)
                 return bindableVectorView.GetAt(index);
             else
@@ -463,7 +448,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             get
             {
-                IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
+                IBindableVectorView? bindableVectorView = GetIBindableVectorViewNoThrow();
                 if (bindableVectorView != null)
                     return bindableVectorView.Size;
                 else
@@ -473,7 +458,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         bool IBindableVectorView.IndexOf(object value, out uint index)
         {
-            IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
+            IBindableVectorView? bindableVectorView = GetIBindableVectorViewNoThrow();
             if (bindableVectorView != null)
                 return bindableVectorView.IndexOf(value, out index);
             else
@@ -482,7 +467,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         IBindableIterator IBindableIterable.First()
         {
-            IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
+            IBindableVectorView? bindableVectorView = GetIBindableVectorViewNoThrow();
             if (bindableVectorView != null)
                 return bindableVectorView.First();
             else
@@ -491,17 +476,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private sealed class IteratorOfTToIteratorAdapter<T> : IBindableIterator
         {
-            private IIterator<T> _iterator;
+            private readonly IIterator<T> _iterator;
 
             public IteratorOfTToIteratorAdapter(IIterator<T> iterator)
             { _iterator = iterator; }
 
-            public bool HasCurrent { get { return _iterator.HasCurrent; } }
-            public object Current { get { return (object)_iterator.Current; } }
+            public bool HasCurrent => _iterator.HasCurrent;
+            public object? Current => _iterator.Current;
             public bool MoveNext() { return _iterator.MoveNext(); }
         }
 
-        private IBindableVectorView GetIBindableVectorViewNoThrow()
+        private IBindableVectorView? GetIBindableVectorViewNoThrow()
         {
             if ((_flags & InterfaceForwardingSupport.IBindableVectorView) != 0)
                 return Unsafe.As<IBindableVectorView>(_target);
@@ -532,4 +517,3 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
     }
 }
-

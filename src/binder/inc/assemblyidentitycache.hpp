@@ -67,7 +67,7 @@ namespace BINDER_SPACE
     {
     public:
         typedef LPCSTR key_t;
- 
+
         static key_t GetKey(element_t pAssemblyIdentityCacheEntry)
         {
             return pAssemblyIdentityCacheEntry->GetTextualIdentity();
@@ -86,9 +86,9 @@ namespace BINDER_SPACE
             if (textualIdentity == NULL)
                 return 0;
             else
-                return HashStringA(textualIdentity); 
+                return HashStringA(textualIdentity);
         }
-        static const element_t Null()
+        static element_t Null()
         {
             return NULL;
         }

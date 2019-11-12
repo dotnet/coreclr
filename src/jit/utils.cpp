@@ -2,6 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// ===================================================================================================
+// Portions of the code implemented below are based on the 'Berkeley SoftFloat Release 3e' algorithms.
+// ===================================================================================================
+
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XX                                                                           XX
@@ -629,17 +633,15 @@ void dumpILRange(const BYTE* const codeAddr, unsigned codeSize) // in bytes
  */
 const char* genES2str(BitVecTraits* traits, EXPSET_TP set)
 {
-    const int   bufSize = 17;
-    static char num1[bufSize];
-
-    static char num2[bufSize];
-
+    const int    bufSize = 65; // Supports a BitVec of up to 256 bits
+    static char  num1[bufSize];
+    static char  num2[bufSize];
     static char* nump = num1;
 
+    assert(bufSize > roundUp(BitVecTraits::GetSize(traits), (unsigned)sizeof(char)) / 8);
+
     char* temp = nump;
-
-    nump = (nump == num1) ? num2 : num1;
-
+    nump       = (nump == num1) ? num2 : num1;
     sprintf_s(temp, bufSize, "%s", BitVecOps::ToString(traits, set));
 
     return temp;
@@ -647,11 +649,9 @@ const char* genES2str(BitVecTraits* traits, EXPSET_TP set)
 
 const char* refCntWtd2str(unsigned refCntWtd)
 {
-    const int   bufSize = 17;
-    static char num1[bufSize];
-
-    static char num2[bufSize];
-
+    const int    bufSize = 17;
+    static char  num1[bufSize];
+    static char  num2[bufSize];
     static char* nump = num1;
 
     char* temp = nump;
@@ -728,7 +728,7 @@ bool ConfigMethodRange::Contains(ICorJitInfo* info, CORINFO_METHOD_HANDLE method
 //    because of bad characters or too many entries, or had values
 //    that were too large to represent.
 
-void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
+void ConfigMethodRange::InitRanges(const WCHAR* rangeStr, unsigned capacity)
 {
     // Make sure that the memory was zero initialized
     assert(m_inited == 0 || m_inited == 1);
@@ -736,7 +736,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     assert(m_ranges == nullptr);
     assert(m_lastRange == 0);
 
-    // Flag any crazy-looking requests
+    // Flag any strange-looking requests
     assert(capacity < 100000);
 
     if (rangeStr == nullptr)
@@ -750,9 +750,9 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     m_ranges             = (Range*)jitHost->allocateMemory(capacity * sizeof(Range));
     m_entries            = capacity;
 
-    const wchar_t* p           = rangeStr;
-    unsigned       lastRange   = 0;
-    bool           setHighPart = false;
+    const WCHAR* p           = rangeStr;
+    unsigned     lastRange   = 0;
+    bool         setHighPart = false;
 
     while ((*p != 0) && (lastRange < m_entries))
     {
@@ -1170,7 +1170,6 @@ void HelperCallProperties::init()
         bool isAllocator   = false; // true if the result is usually a newly created heap item, or may throw OutOfMemory
         bool mutatesHeap   = false; // true if any previous heap objects [are|can be] modified
         bool mayRunCctor   = false; // true if the helper call may cause a static constructor to be run.
-        bool mayFinalize   = false; // true if the helper call allocates an object that may need to run a finalizer
 
         switch (helper)
         {
@@ -1227,17 +1226,14 @@ void HelperCallProperties::init()
             // Heap Allocation helpers, these all never return null
             case CORINFO_HELP_NEWSFAST:
             case CORINFO_HELP_NEWSFAST_ALIGN8:
-
-                isAllocator   = true;
-                nonNullReturn = true;
-                noThrow       = true; // only can throw OutOfMemory
-                break;
-
+            case CORINFO_HELP_NEWSFAST_ALIGN8_VC:
             case CORINFO_HELP_NEW_CROSSCONTEXT:
             case CORINFO_HELP_NEWFAST:
+            case CORINFO_HELP_NEWSFAST_FINALIZE:
+            case CORINFO_HELP_NEWSFAST_ALIGN8_FINALIZE:
             case CORINFO_HELP_READYTORUN_NEW:
+            case CORINFO_HELP_BOX:
 
-                mayFinalize   = true; // These may run a finalizer
                 isAllocator   = true;
                 nonNullReturn = true;
                 noThrow       = true; // only can throw OutOfMemory
@@ -1247,20 +1243,12 @@ void HelperCallProperties::init()
             // and can throw exceptions other than OOM.
             case CORINFO_HELP_NEWARR_1_VC:
             case CORINFO_HELP_NEWARR_1_ALIGN8:
-
-                isAllocator   = true;
-                nonNullReturn = true;
-                break;
-
-            // These allocation helpers do some checks on the size (and lower bound) inputs,
-            // and can throw exceptions other than OOM.
             case CORINFO_HELP_NEW_MDARR:
             case CORINFO_HELP_NEWARR_1_DIRECT:
             case CORINFO_HELP_NEWARR_1_OBJ:
             case CORINFO_HELP_NEWARR_1_R2R_DIRECT:
             case CORINFO_HELP_READYTORUN_NEWARR_1:
 
-                mayFinalize   = true; // These may run a finalizer
                 isAllocator   = true;
                 nonNullReturn = true;
                 break;
@@ -1271,12 +1259,6 @@ void HelperCallProperties::init()
                 isPure        = true;
                 isAllocator   = true;
                 nonNullReturn = true;
-                noThrow       = true; // only can throw OutOfMemory
-                break;
-
-            case CORINFO_HELP_BOX:
-                nonNullReturn = true;
-                isAllocator   = true;
                 noThrow       = true; // only can throw OutOfMemory
                 break;
 
@@ -1308,9 +1290,16 @@ void HelperCallProperties::init()
             case CORINFO_HELP_ISINSTANCEOFANY:
             case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
             case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
+            case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE:
 
                 isPure  = true;
                 noThrow = true; // These return null for a failing cast
+                break;
+
+            case CORINFO_HELP_ARE_TYPES_EQUIVALENT:
+
+                isPure  = true;
+                noThrow = true;
                 break;
 
             // type casting helpers that throw
@@ -1416,6 +1405,7 @@ void HelperCallProperties::init()
             case CORINFO_HELP_RETHROW:
             case CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
             case CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
+            case CORINFO_HELP_THROW_NOT_IMPLEMENTED:
             case CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
             case CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED:
 
@@ -1470,7 +1460,6 @@ void HelperCallProperties::init()
         m_isAllocator[helper]   = isAllocator;
         m_mutatesHeap[helper]   = mutatesHeap;
         m_mayRunCctor[helper]   = mayRunCctor;
-        m_mayFinalize[helper]   = mayFinalize;
     }
 }
 
@@ -1480,9 +1469,10 @@ void HelperCallProperties::init()
 // The string should be of the form
 // MyAssembly
 // MyAssembly;mscorlib;System
-// MyAssembly;mscorlib System
+//
+// You must use ';' as a separator; whitespace no longer works
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const WCHAR* list, HostAllocator alloc) : m_alloc(alloc)
 {
     WCHAR          prevChar   = '?';     // dummy
     LPWSTR         nameStart  = nullptr; // start of the name currently being processed. nullptr if no current name
@@ -1492,12 +1482,9 @@ AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc)
     {
         WCHAR curChar = *listWalk;
 
-        if (iswspace(curChar) || curChar == W(';') || curChar == W('\0'))
+        if (curChar == W(';') || curChar == W('\0'))
         {
-            //
-            // Found white-space
-            //
-
+            // Found separator or end of string
             if (nameStart)
             {
                 // Found the end of the current name; add a new assembly name to the list.
@@ -1563,6 +1550,194 @@ bool AssemblyNamesList2::IsInList(const char* assemblyName)
         {
             return true;
         }
+    }
+
+    return false;
+}
+
+//=============================================================================
+// MethodSet
+//=============================================================================
+
+MethodSet::MethodSet(const WCHAR* filename, HostAllocator alloc) : m_pInfos(nullptr), m_alloc(alloc)
+{
+    FILE* methodSetFile = _wfopen(filename, W("r"));
+    if (methodSetFile == nullptr)
+    {
+        return;
+    }
+
+    MethodInfo* lastInfo = m_pInfos;
+    char        buffer[1024];
+
+    while (true)
+    {
+        // Get next line
+        if (fgets(buffer, sizeof(buffer), methodSetFile) == nullptr)
+        {
+            break;
+        }
+
+        // Ignore lines starting with leading ";" "#" "//".
+        if ((0 == _strnicmp(buffer, ";", 1)) || (0 == _strnicmp(buffer, "#", 1)) || (0 == _strnicmp(buffer, "//", 2)))
+        {
+            continue;
+        }
+
+        // Remove trailing newline, if any.
+        char* p = strpbrk(buffer, "\r\n");
+        if (p != nullptr)
+        {
+            *p = '\0';
+        }
+
+        char*    methodName;
+        unsigned methodHash = 0;
+
+        // Parse the line. Very simple. One of:
+        //
+        //    <method-name>
+        //    <method-name><whitespace>(MethodHash=<hash>)
+
+        const char methodHashPattern[] = " (MethodHash=";
+        p                              = strstr(buffer, methodHashPattern);
+        if (p == nullptr)
+        {
+            // Just use it without the hash.
+            methodName = _strdup(buffer);
+        }
+        else
+        {
+            // There's a method hash; use that.
+
+            // First, get the method name.
+            char* p2 = p;
+            *p       = '\0';
+
+            // Null terminate method at first whitespace. (Don't have any leading whitespace!)
+            p = strpbrk(buffer, " \t");
+            if (p != nullptr)
+            {
+                *p = '\0';
+            }
+            methodName = _strdup(buffer);
+
+            // Now get the method hash.
+            p2 += strlen(methodHashPattern);
+            char* p3 = strchr(p2, ')');
+            if (p3 == nullptr)
+            {
+                // Malformed line: no trailing slash.
+                JITDUMP("Couldn't parse: %s\n", p2);
+                // We can still just use the method name.
+            }
+            else
+            {
+                // Convert the slash to null.
+                *p3 = '\0';
+
+                // Now parse it as hex.
+                int count = sscanf_s(p2, "%x", &methodHash);
+                if (count != 1)
+                {
+                    JITDUMP("Couldn't parse: %s\n", p2);
+                    // Still, use the method name.
+                }
+            }
+        }
+
+        MethodInfo* newInfo = new (m_alloc) MethodInfo(methodName, methodHash);
+        if (m_pInfos == nullptr)
+        {
+            m_pInfos = lastInfo = newInfo;
+        }
+        else
+        {
+            lastInfo->m_next = newInfo;
+            lastInfo         = newInfo;
+        }
+    }
+
+    if (m_pInfos == nullptr)
+    {
+        JITDUMP("No methods read from %ws\n", filename);
+    }
+    else
+    {
+        JITDUMP("Methods read from %ws:\n", filename);
+
+        int methodCount = 0;
+        for (MethodInfo* pInfo = m_pInfos; pInfo != nullptr; pInfo = pInfo->m_next)
+        {
+            JITDUMP("  %s (MethodHash: %x)\n", pInfo->m_MethodName, pInfo->m_MethodHash);
+            ++methodCount;
+        }
+
+        if (methodCount > 100)
+        {
+            JITDUMP("Warning: high method count (%d) for MethodSet with linear search lookups might be slow\n",
+                    methodCount);
+        }
+    }
+}
+
+MethodSet::~MethodSet()
+{
+    for (MethodInfo* pInfo = m_pInfos; pInfo != nullptr; /**/)
+    {
+        MethodInfo* cur = pInfo;
+        pInfo           = pInfo->m_next;
+
+        m_alloc.deallocate(cur->m_MethodName);
+        m_alloc.deallocate(cur);
+    }
+}
+
+// TODO: make this more like JitConfigValues::MethodSet::contains()?
+bool MethodSet::IsInSet(const char* methodName)
+{
+    for (MethodInfo* pInfo = m_pInfos; pInfo != nullptr; pInfo = pInfo->m_next)
+    {
+        if (_stricmp(pInfo->m_MethodName, methodName) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool MethodSet::IsInSet(int methodHash)
+{
+    for (MethodInfo* pInfo = m_pInfos; pInfo != nullptr; pInfo = pInfo->m_next)
+    {
+        if (pInfo->m_MethodHash == methodHash)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool MethodSet::IsActiveMethod(const char* methodName, int methodHash)
+{
+    if (methodHash != 0)
+    {
+        // Use the method hash.
+        if (IsInSet(methodHash))
+        {
+            JITDUMP("Method active in MethodSet (hash match): %s Hash: %x\n", methodName, methodHash);
+            return true;
+        }
+    }
+
+    // Else, fall back and use the method name.
+    assert(methodName != nullptr);
+    if (IsInSet(methodName))
+    {
+        JITDUMP("Method active in MethodSet (name match): %s Hash: %x\n", methodName, methodHash);
+        return true;
     }
 
     return false;
@@ -1716,25 +1891,65 @@ double FloatingPointUtils::round(double x)
     //            MathF.Round(float), and FloatingPointUtils::round(float)
     // ************************************************************************************
 
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
 
-    if (x == (double)((INT64)x))
+    uint64_t bits     = *reinterpret_cast<uint64_t*>(&x);
+    int32_t  exponent = (int32_t)(bits >> 52) & 0x07FF;
+
+    if (exponent <= 0x03FE)
     {
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
+
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
+
+        double result = ((exponent == 0x03FE) && ((bits & UI64(0x000FFFFFFFFFFFFF)) != 0)) ? 1.0 : 0.0;
+        return _copysign(result, x);
+    }
+
+    if (exponent >= 0x0433)
+    {
+        // Any value greater than or equal to 2^52 cannot have a fractional part,
+        // So it will always round to exactly itself.
+
         return x;
     }
 
-    // We had a number that was equally close to 2 integers.
-    // We need to return the even one.
+    // The absolute value should be greater than or equal to 1.0 and less than 2^52
+    assert((0x03FF <= exponent) && (exponent <= 0x0432));
 
-    double flrTempVal = floor(x + 0.5);
+    // Determine the last bit that represents the integral portion of the value
+    // and the bits representing the fractional portion
 
-    if ((x == (floor(x) + 0.5)) && (fmod(flrTempVal, 2.0) != 0))
+    uint64_t lastBitMask   = UI64(1) << (0x0433 - exponent);
+    uint64_t roundBitsMask = lastBitMask - 1;
+
+    // Increment the first fractional bit, which represents the midpoint between
+    // two integral values in the current window.
+
+    bits += lastBitMask >> 1;
+
+    if ((bits & roundBitsMask) == 0)
     {
-        flrTempVal -= 1.0;
+        // If that overflowed and the rest of the fractional bits are zero
+        // then we were exactly x.5 and we want to round to the even result
+
+        bits &= ~lastBitMask;
+    }
+    else
+    {
+        // Otherwise, we just want to strip the fractional bits off, truncating
+        // to the current integer value.
+
+        bits &= ~roundBitsMask;
     }
 
-    return _copysign(flrTempVal, x);
+    return *reinterpret_cast<double*>(&bits);
 }
 
 // Windows x86 and Windows ARM/ARM64 may not define _copysignf() but they do define _copysign().
@@ -1758,25 +1973,127 @@ float FloatingPointUtils::round(float x)
     //            Math.Round(double), and FloatingPointUtils::round(double)
     // ************************************************************************************
 
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
 
-    if (x == (float)((INT32)x))
+    uint32_t bits     = *reinterpret_cast<uint32_t*>(&x);
+    int32_t  exponent = (int32_t)(bits >> 23) & 0xFF;
+
+    if (exponent <= 0x7E)
     {
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
+
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
+
+        float result = ((exponent == 0x7E) && ((bits & 0x007FFFFF) != 0)) ? 1.0f : 0.0f;
+        return _copysignf(result, x);
+    }
+
+    if (exponent >= 0x96)
+    {
+        // Any value greater than or equal to 2^52 cannot have a fractional part,
+        // So it will always round to exactly itself.
+
         return x;
     }
 
-    // We had a number that was equally close to 2 integers.
-    // We need to return the even one.
+    // The absolute value should be greater than or equal to 1.0 and less than 2^52
+    assert((0x7F <= exponent) && (exponent <= 0x95));
 
-    float flrTempVal = floorf(x + 0.5f);
+    // Determine the last bit that represents the integral portion of the value
+    // and the bits representing the fractional portion
 
-    if ((x == (floorf(x) + 0.5f)) && (fmodf(flrTempVal, 2.0f) != 0))
+    uint32_t lastBitMask   = 1U << (0x96 - exponent);
+    uint32_t roundBitsMask = lastBitMask - 1;
+
+    // Increment the first fractional bit, which represents the midpoint between
+    // two integral values in the current window.
+
+    bits += lastBitMask >> 1;
+
+    if ((bits & roundBitsMask) == 0)
     {
-        flrTempVal -= 1.0f;
+        // If that overflowed and the rest of the fractional bits are zero
+        // then we were exactly x.5 and we want to round to the even result
+
+        bits &= ~lastBitMask;
+    }
+    else
+    {
+        // Otherwise, we just want to strip the fractional bits off, truncating
+        // to the current integer value.
+
+        bits &= ~roundBitsMask;
     }
 
-    return _copysignf(flrTempVal, x);
+    return *reinterpret_cast<float*>(&bits);
+}
+
+bool FloatingPointUtils::isNormal(double x)
+{
+    int64_t bits = reinterpret_cast<int64_t&>(x);
+    bits &= 0x7FFFFFFFFFFFFFFF;
+    return (bits < 0x7FF0000000000000) && (bits != 0) && ((bits & 0x7FF0000000000000) != 0);
+}
+
+bool FloatingPointUtils::isNormal(float x)
+{
+    int32_t bits = reinterpret_cast<int32_t&>(x);
+    bits &= 0x7FFFFFFF;
+    return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check double for precise reciprocal. E.g. 2.0 <--> 0.5
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(double x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint64_t i        = reinterpret_cast<uint64_t&>(x);
+    uint64_t exponent = (i >> 52) & 0x7FFul;   // 0x7FF mask drops the sign bit
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 1023;
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check float for precise reciprocal. E.g. 2.0f <--> 0.5f
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(float x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint32_t i        = reinterpret_cast<uint32_t&>(x);
+    uint32_t exponent = (i >> 23) & 0xFFu; // 0xFF mask drops the sign bit
+    uint32_t mantissa = i & 0x7FFFFFu;     // 0x7FFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
 namespace MagicDivide
@@ -1976,9 +2293,9 @@ const SignedMagic<int32_t>* TryGetSignedMagic(int32_t divisor)
     static const SignedMagic<int32_t> table[]{
         {0x55555556, 0}, // 3
         {},
-        {0x66666667, 1}, // 5
-        {0x2aaaaaab, 0}, // 6
-        {0x92492493, 2}, // 7
+        {0x66666667, 1},          // 5
+        {0x2aaaaaab, 0},          // 6
+        {(int32_t)0x92492493, 2}, // 7
         {},
         {0x38e38e39, 1}, // 9
         {0x66666667, 2}, // 10

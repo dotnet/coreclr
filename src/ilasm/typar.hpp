@@ -41,24 +41,31 @@ public:
     BinStr* Bounds() { return m_pbsBounds; };
     LPCWSTR Name() { return m_wzName; };
     DWORD   Attrs() { return m_dwAttrs; };
+    mdToken Token() { return m_token; };
+    void    Token(mdToken value)
+    {
+        m_token = value;
+     };
     CustomDescrList* CAList() { return &m_lstCA; };
+
 private:
     BinStr* m_pbsBounds;
     LPCWSTR m_wzName;
     DWORD   m_dwAttrs;
+    mdToken m_token;
     CustomDescrList m_lstCA;
 };
 
 class TyParList {
 public:
-    TyParList(DWORD a, BinStr* b, LPCUTF8 n, TyParList* nx = NULL) 
-    { 
+    TyParList(DWORD a, BinStr* b, LPCUTF8 n, TyParList* nx = NULL)
+    {
         bound  = (b == NULL) ? new BinStr() : b;
         bound->appendInt32(0); // zero terminator
         attrs = a; name = n; next = nx;
     };
-    ~TyParList() 
-    {         
+    ~TyParList()
+    {
         if( bound) delete bound;
 
         // To avoid excessive stack usage (especially in debug builds), we break the next chain
@@ -105,7 +112,7 @@ public:
 #endif /*_PREFAST_ */
 
     int ToArray(BinStr ***bounds, LPCWSTR** names, DWORD **attrs)
-    {   
+    {
         int n = Count();
         BinStr **b = new BinStr* [n];
         LPCWSTR *nam = new LPCWSTR [n];
@@ -121,14 +128,14 @@ public:
             WszMultiByteToWideChar(g_uCodePage,0,tp->name,-1,wzDllName,cTemp);
             nam[i] = (LPCWSTR)wzDllName;
             b[i] = tp->bound;
-            if (attr) 
+            if (attr)
                 attr[i] = tp->attrs;
             tp->bound = 0; // to avoid deletion by destructor
             i++;
             tp = tp->next;
         }
         *bounds = b;
-        *names = nam;          
+        *names = nam;
         if (attrs)
             *attrs = attr;
         return n;

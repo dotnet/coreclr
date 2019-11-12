@@ -5,7 +5,7 @@
 /*============================================================
 **
 ** Header:  Assembly.hpp
-** 
+**
 
 **
 ** Purpose: Implements assembly (loader domain) architecture
@@ -23,16 +23,6 @@
 #include "iceefilegen.h"
 #include "cordbpriv.h"
 #include "assemblyspec.hpp"
-
-// A helper macro for the assembly's module hash (m_pAllowedFiles).
-#define UTF8_TO_LOWER_CASE(str, qb)                                                             \
-{                                                                                               \
-    WRAPPER_NO_CONTRACT;                                                                           \
-    INT32 allocBytes = InternalCasingHelper::InvariantToLower(NULL, 0, str);                    \
-    qb.AllocThrows(allocBytes);                                                                 \
-    InternalCasingHelper::InvariantToLower((LPUTF8) qb.Ptr(), allocBytes, str);                 \
-}
-
 
 class BaseDomain;
 class AppDomain;
@@ -57,7 +47,6 @@ class FriendAssemblyDescriptor;
 
 struct CreateDynamicAssemblyArgsGC
 {
-    APPDOMAINREF    refThis;
     ASSEMBLYNAMEREF assemblyName;
     LOADERALLOCATORREF loaderAllocator;
 };
@@ -71,13 +60,13 @@ struct CreateDynamicAssemblyArgs : CreateDynamicAssemblyArgsGC
 // An assembly is the unit of deployment for managed code.  Typically Assemblies are one to one with files
 // (Modules), however this is not necessary, as an assembly can contain serveral files (typically you only
 // do this so that you can resource-only modules that are national language specific)
-// 
+//
 // Conceptually Assemblies are loaded into code:AppDomain
-// 
-// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file. 
-//  
+//
+// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file.
+//
 // One of the modules the code:Assembly.m_pManifest is special in that it knows about all the other
-// modules in an assembly (often it is the only one).  
+// modules in an assembly (often it is the only one).
 //
 class Assembly
 {
@@ -174,7 +163,7 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
             SUPPORTS_DAC;
-          
+
             m_pManifest = pAssembly->GetManifestModule();
             m_i = (DWORD) -1;
         }
@@ -290,35 +279,6 @@ public:
         return GetManifestFile()->GetFlags();
     }
 
-
-    // Level of strong name support (dynamic assemblies only).
-    enum StrongNameLevel {
-        SN_NONE = 0,
-        SN_PUBLIC_KEY = 1,
-        SN_FULL_KEYPAIR_IN_ARRAY = 2,
-        SN_FULL_KEYPAIR_IN_CONTAINER = 3
-    };
-
-    StrongNameLevel GetStrongNameLevel()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eStrongNameLevel;
-    }
-
-    void SetStrongNameLevel(StrongNameLevel eLevel)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_eStrongNameLevel = eLevel;
-    }
-
-    // returns whether CAS policy needs to be resolved for this assembly
-    // or whether it's safe to skip that step.
-    BOOL CanSkipPolicyResolution()
-    {
-        WRAPPER_NO_CONTRACT;
-        return IsSystem() || (m_isDynamic && !(m_dwDynamicAssemblyAccess & ASSEMBLY_ACCESS_RUN));
-    }
-
     PTR_LoaderHeap GetLowFrequencyHeap();
     PTR_LoaderHeap GetHighFrequencyHeap();
     PTR_LoaderHeap GetStubHeap();
@@ -328,17 +288,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
         return m_pManifest;
-    }
-
-    ReflectionModule* GetOnDiskManifestModule()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pOnDiskManifest;
-    }
-
-    BOOL NeedsToHideManifestForEmit()
-    {
-        return m_needsToHideManifestForEmit;
     }
 
     PTR_PEAssembly GetManifestFile()
@@ -353,6 +302,16 @@ public:
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
         return m_pManifestFile->GetPersistentMDImport();
+    }
+
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        WRAPPER_NO_CONTRACT;
+        SUPPORTS_DAC;
+        return GetManifestModule()->GetCustomAttribute(parentToken, attribute, ppData, pcbData);
     }
 
 #ifndef DACCESS_COMPILE
@@ -432,8 +391,8 @@ public:
                                      mdTypeDef mdNested,
                                      mdTypeDef *pCL);
 
-    static Module * FindModuleByTypeRef(Module *         pModule, 
-                                        mdTypeRef        typeRef, 
+    static Module * FindModuleByTypeRef(Module *         pModule,
+                                        mdTypeRef        typeRef,
                                         Loader::LoadFlag loadFlag,
                                         BOOL *           pfNoResolutionScope);
 
@@ -454,7 +413,6 @@ public:
     BOOL GetResource(LPCSTR szName, DWORD *cbResource,
                      PBYTE *pbInMemoryResource, Assembly **pAssemblyRef,
                      LPCSTR *szFileName, DWORD *dwLocation,
-                     StackCrawlMark *pStackMark = NULL, BOOL fSkipSecurityCheck = FALSE,
                      BOOL fSkipRaiseResolveEvent = FALSE);
 
     //****************************************************************************************
@@ -464,12 +422,6 @@ public:
 
     FORCEINLINE BOOL IsDynamic() { LIMITED_METHOD_CONTRACT; return m_isDynamic; }
     FORCEINLINE BOOL IsCollectible() { LIMITED_METHOD_DAC_CONTRACT; return m_isCollectible; }
-    FORCEINLINE BOOL HasRunAccess() {
-        LIMITED_METHOD_CONTRACT; 
-        SUPPORTS_DAC;
-        return m_dwDynamicAssemblyAccess & ASSEMBLY_ACCESS_RUN; 
-    }
-    FORCEINLINE BOOL HasSaveAccess() {LIMITED_METHOD_CONTRACT; return m_dwDynamicAssemblyAccess & ASSEMBLY_ACCESS_SAVE; }
 
     DWORD GetNextModuleIndex() { LIMITED_METHOD_CONTRACT; return m_nextAvailableModuleIndex++; }
 
@@ -480,48 +432,26 @@ public:
 
     //****************************************************************************************
 
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
+    DomainAssembly *GetDomainAssembly();
     void SetDomainAssembly(DomainAssembly *pAssembly);
-
-    // Verison of GetDomainAssembly that uses the current AppDomain (N/A in DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainAssembly *GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
-
-    // FindDomainAssembly will return NULL if the assembly is not in the given domain
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
 #endif // FEATURE_COLLECTIBLE_TYPES
 
-    BOOL CanBeShared(DomainAssembly *pAsAssembly);
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-    BOOL MissingDependenciesCheckDone();
-    void SetMissingDependenciesCheckDone();
-#endif // FEATURE_LOADER_OPTIMIZATION
-
-    void SetDomainNeutral() { LIMITED_METHOD_CONTRACT; m_fIsDomainNeutral = TRUE; }
-    BOOL IsDomainNeutral() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsDomainNeutral; }
-
-    BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
-
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
 
-    HRESULT AllocateStrongNameSignature(ICeeFileGen  *pCeeFileGen,
-                                        HCEEFILE      ceeFile);
-    HRESULT SignWithStrongName(LPCWSTR wszFileName);
-
-
 #ifdef FEATURE_COMINTEROP
+    static ITypeLib * const InvalidTypeLib;
+
     // Get any cached ITypeLib* for the assembly.
     ITypeLib *GetTypeLib();
-    // Cache the ITypeLib*, if one is not already cached.
-    void SetTypeLib(ITypeLib *pITLB);
+
+    // Try to set the ITypeLib*, if one is not already cached.
+    bool TrySetTypeLib(_In_ ITypeLib *pTlb);
 #endif // FEATURE_COMINTEROP
 
 #ifndef DACCESS_COMPILE
@@ -550,12 +480,6 @@ public:
     void DECLSPEC_NORETURN ThrowBadImageException(LPCUTF8 pszNameSpace,
                                                   LPCUTF8 pszTypeName,
                                                   UINT resIDWhy);
-
-    UINT64 GetHostAssemblyId() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_HostAssemblyId;
-    }
 
 #endif // #ifndef DACCESS_COMPILE
 
@@ -602,14 +526,6 @@ public:
 
 
 protected:
-
-    enum {
-        FREE_KEY_PAIR = 4,
-        FREE_KEY_CONTAINER = 8,
-    };
-
-    void ReportAssemblyUse();
-
 #ifdef FEATURE_COMINTEROP
     enum WinMDStatus
     {
@@ -641,12 +557,12 @@ protected:
 
         if (!IsWinMD()) // ignore classic COM interop CAs in .winmd
         {
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_IMPORTEDFROMTYPELIB_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::ImportedFromTypeLib, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_IMPORTED_FROM_TYPELIB;
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_PRIMARYINTEROPASSEMBLY_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::PrimaryInteropAssembly, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_PRIMARY_INTEROP_ASSEMBLY;
         }
-        
+
         if (!IsDynamic())
         {
             mask |= INTEROP_ATTRIBUTE_CACHED;
@@ -657,9 +573,6 @@ protected:
     }
 #endif // FEATURE_INTEROP
 
-    // Keep track of the vars that need to be freed.
-    short int m_FreeFlag;
-
 private:
 
     //****************************************************************************************
@@ -668,7 +581,7 @@ private:
     void CacheManifestFiles();
 
     void CacheFriendAssemblyInfo();
-   
+
 
     PTR_BaseDomain        m_pDomain;        // Parent Domain
     PTR_ClassLoader       m_pClassLoader;   // Single Loader
@@ -678,28 +591,13 @@ private:
     PTR_MethodDesc        m_pEntryPoint;    // Method containing the entry point
     PTR_Module            m_pManifest;
     PTR_PEAssembly        m_pManifestFile;
-    ReflectionModule*     m_pOnDiskManifest;  // This is the module containing the on disk manifest.
-    BOOL                  m_fEmbeddedManifest;
 
     FriendAssemblyDescriptor *m_pFriendAssemblyDescriptor;
-
-    // Strong name key info for reflection emit
-    PBYTE                 m_pbStrongNameKeyPair;
-    DWORD                 m_cbStrongNameKeyPair;
-    LPWSTR                m_pwStrongNameKeyContainer;
-    StrongNameLevel       m_eStrongNameLevel;
 
     BOOL                  m_isDynamic;
 #ifdef FEATURE_COLLECTIBLE_TYPES
     BOOL                  m_isCollectible;
 #endif // FEATURE_COLLECTIBLE_TYPES
-    // this boolean is used by Reflection.Emit to determine when to hide m_pOnDiskManifest.
-    // Via reflection emit m_pOnDiskManifest may be explicitly defined by the user and thus available
-    // or created implicitly via Save in which case it needs to be hidden from the user for
-    // backward compatibility reason.
-    // This is a bit of a workaround however and that whole story should be understood a bit better...
-    BOOL                  m_needsToHideManifestForEmit;
-    DWORD                 m_dwDynamicAssemblyAccess;
     DWORD                 m_nextAvailableModuleIndex;
     PTR_LoaderAllocator   m_pLoaderAllocator;
     DWORD                 m_isDisabledPrivateReflection;
@@ -713,21 +611,11 @@ private:
     IWinMDImport          *m_pManifestWinMDImport;
 #endif // FEATURE_COMINTEROP
 
-    BOOL                   m_fIsDomainNeutral;
-#ifdef FEATURE_LOADER_OPTIMIZATION
-    BOOL m_bMissingDependenciesCheckDone;
-#endif // FEATURE_LOADER_OPTIMIZATION
-
     DebuggerAssemblyControlFlags m_debuggerFlags;
 
     BOOL                  m_fTerminated;
 
-    BOOL                  m_fIsSIMDVectorAssembly;
-    UINT64                m_HostAssemblyId;
-
-    DWORD                 m_dwReliabilityContract;
-
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
         IS_INSTRUMENTED_UNSET = 0,
         IS_INSTRUMENTED_FALSE = 1,
@@ -766,7 +654,7 @@ public:
     //
     // Return Value:
     //    true if friend access is allowed, false otherwise
-    //    
+    //
     // Notes:
     //    Template type T should be either FieldDesc, MethodDesc, or MethodTable.
     //

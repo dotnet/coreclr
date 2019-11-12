@@ -140,7 +140,7 @@ Figure 2 shows an example versioning tree with edges to the active child in thic
 
 In this example the active code version for the List<int\>.Add(int item) is the 3rd version from left to right, the one with high JIT optimization. At the root the runtime would follow the active child to the right, then traverse to the T=int generic instantiation, and finally follow the active child to the right once more. The active version for the List<string\>(string item) entrypoint is on the far right.
 
-Each build pipeline stage controls which of their nodes are the active child nodes and in aggregate this allows all the stages to determine which code version is the active one for any given entrypoint. Any stage is allowed to create new nodes on its level or update its choice of active child at any time. The CodeVersionManager must do its best to recalculate the active version and then publish it. 
+Each build pipeline stage controls which of their nodes are the active child nodes and in aggregate this allows all the stages to determine which code version is the active one for any given entrypoint. Any stage is allowed to create new nodes on its level or update its choice of active child at any time. The CodeVersionManager must do its best to recalculate the active version and then publish it.
 
 Hypothetically in the example tree above what would happen if the profiler used the ReJIT API to revert the change to the IL? In this case the ReJIT stage would designate the left child of the root as the new active child and the leftmost code version would become active for the List<int\>(int item) entrypoint. For List<string\>(string item) entrypoint a new branch of the tree would be constructed with a single child at every level down to the leaves.
 
@@ -232,7 +232,7 @@ This facade technique was chosen to conserve memory, as most methods will only e
 
 ### Code Version Manager ###
 
-The CodeVersionManager is the primary entrypoint to code versioning information and gives access to the logical code versioning tree discussed above. The tree isn't named as such in the API and is slightly modified from its idealized presentation in the design. 
+The CodeVersionManager is the primary entrypoint to code versioning information and gives access to the logical code versioning tree discussed above. The tree isn't named as such in the API and is slightly modified from its idealized presentation in the design.
 
 - There is no direct object model representation of the root node of the tree. Instead ILCodeVersion nodes represent the child nodes of the root level. They are accessible by calling
 
@@ -308,7 +308,7 @@ Generics can cause methods in domain-neutral modules to refer to types in domain
 CoreCLR is largely moving away from multiple AppDomains but I left the domain distinctions in place for a few reasons:
 
 1. Pragmatically the feature is a partial refactoring of ReJitManager and this is what ReJitManager did. Diverging from ReJitManager's design incurs extra time and risk of new issues.
-2. Maybe someday we will want to migrate similar functionality back to the desktop .Net SKU. Desktop supports multiple AppDomains so per-AppDomain handling would be required in that context.
+2. Maybe someday we will want to migrate similar functionality back to the desktop .NET SKU. Desktop supports multiple AppDomains so per-AppDomain handling would be required in that context.
 
 AppDomain unloading however has not been handled. If CoreCLR supports proper AppDomain unload at some point or the code moves back to desktop runtime we will need to handle this gap.
 
@@ -327,14 +327,7 @@ to update the active child at either of those levels (ReJIT uses SetActiveILCode
 2. Recalculate the active code version for each entrypoint
 3. Update the published code version for each entrypoint to match the active code version
 
-In order to do step 3 the CodeVersionManager relies on one of two different mechanisms, either a FixupPrecode or a JumpStamp. Both techniques roughly involve using a jmp instruction as the method entrypoint and then updating that jmp to point at whatever code version should be published. In the FixupPrecode case this is memory that was allocated dynamically for the explicit purpose of being the method entrypoint. In the JumpStamp this is memory that was initially used as the prolog of the default code version and then repurposed. JumpStamp is required for AOT compiled images that use direct calls from method to method, however changing between prolog instructions and a jmp instruction requires EE suspension to ensure that threads have been evacuated from the region. FixupPrecode can be updated with only an Interlocked operation which offers lower overhead updates when it can be used.
-
-All methods have been classified to use at most one of the techniques, based on:
-
-```
-MethodDesc::IsVersionableWithPrecode()
-MethodDesc::IsVersionableWithJumpStamp()
-```
+In order to do step 3 the `CodeVersionManager` relies on one of three different mechanisms, a `FixupPrecode`, a `JumpStamp`, or backpatching entry point slots. In [method.hpp](https://github.com/dotnet/coreclr/blob/master/src/vm/method.hpp) these mechanisms are described in the `MethodDesc::IsVersionableWith*()` functions, and all methods have been classified to use at most one of the techniques, based on the `MethodDesc::IsVersionableWith*()` functions.
 
 ### Thread-safety ###
 CodeVersionManager is designed for use in a free-threaded environment, in many cases by requiring the caller to acquire a lock before calling. This lock can be acquired by constructing an instance of the
@@ -362,13 +355,13 @@ All other information such as Edit and Continue IL modifications, or a profiler 
 
 - **Explicit** - These are configuration options that are encoded directly into the version tree data structures so they can be trivially read back at any time. Profiler ReJIT, generic instantiation, and tiered compilation settings are all explicit.
 - **Ambient** - These are configuration values that are immutable once set and apply to all code versions of the same method. This can be treated the same as if the build stage gave an explicit configuration result for each generated code version, but the policy in that build stage always returns the same answer. Then as a memory footprint optimization rather than save N copies of the same answer in N different versions, the runtime stores the answer once and knows that it applies to all code versions. For example the debugger can set a debuggable codegen flag that causes all methods in a module to jit differently. The runtime stores that flag in the module for efficiency, but we can map it back to the code version concept as if every code version had that flag in it and it happens to be the same for all versions.
-- **Unrecorded** - The final case are configuration options that do change per code version, but they aren't recorded in the NativeCodeVersion/ILCodeVersion data structures. Logically this configuration is part of the code version regardless of the runtime's ability trivially access it/compute it on demand. For example a .Net profiler can control whether a particular jitting of a method has Profiler Enter/Leave/Tailcall probes in it based on its response to the FunctionIDMapper2 callback during JIT code generation. If there was already a version of this function generated without ELT and the profiler wanted a new version that does have ELT then the profiler needs to create a new code version. The only technique it has available to create new code versions is to use ReJIT, but ELT isn't part of explicit configuration that ReJIT collects for the new code version. Instead the profiler records in its own data structures that the new ReJIT version should have a certain ELT configuration setting. Whenever code jits that corresponds to this version the runtime will query the profiler and then the profiler will respond with the appropriate ELT setting. In this way the ELT has logically become part of the profiler ReJIT stage configuration even though the runtime has no explicit record of it. Generalizing from this example, the runtime expects that all unrecorded code version configuration can be treated as a hidden portion of the configuration that is supplied by one of the explicitly configured build stages.
+- **Unrecorded** - The final case are configuration options that do change per code version, but they aren't recorded in the NativeCodeVersion/ILCodeVersion data structures. Logically this configuration is part of the code version regardless of the runtime's ability trivially access it/compute it on demand. For example a .NET profiler can control whether a particular jitting of a method has Profiler Enter/Leave/Tailcall probes in it based on its response to the FunctionIDMapper2 callback during JIT code generation. If there was already a version of this function generated without ELT and the profiler wanted a new version that does have ELT then the profiler needs to create a new code version. The only technique it has available to create new code versions is to use ReJIT, but ELT isn't part of explicit configuration that ReJIT collects for the new code version. Instead the profiler records in its own data structures that the new ReJIT version should have a certain ELT configuration setting. Whenever code jits that corresponds to this version the runtime will query the profiler and then the profiler will respond with the appropriate ELT setting. In this way the ELT has logically become part of the profiler ReJIT stage configuration even though the runtime has no explicit record of it. Generalizing from this example, the runtime expects that all unrecorded code version configuration can be treated as a hidden portion of the configuration that is supplied by one of the explicitly configured build stages.
 
 The runtime's current classification is:
 
 - **Explicit** - ReJIT IL, IL mapping, jit flags, generic instantiation, optimization tier, versioning ids
 - **Ambient** - Profiler IL from SetILFunctionBody, Profiler metadata updates, runtime inlining policy, profiler NGEN search policy
-- **Unrecorded** - Profiler inlining policy, Profiler ELT configuration 
+- **Unrecorded** - Profiler inlining policy, Profiler ELT configuration
 
 
 Future roadmap possibilities

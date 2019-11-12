@@ -17,9 +17,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif
 
 #if defined(_TARGET_ARM_) && defined(_TARGET_UNIX_)
-int Compiler::mapRegNumToDwarfReg(regNumber reg)
+short Compiler::mapRegNumToDwarfReg(regNumber reg)
 {
-    int dwarfReg = DWARF_REG_ILLEGAL;
+    short dwarfReg = DWARF_REG_ILLEGAL;
 
     switch (reg)
     {
@@ -194,9 +194,6 @@ void Compiler::unwindBegProlog()
     if (generateCFIUnwindCodes())
     {
         unwindBegPrologCFI();
-#if defined(_TARGET_ARM_)
-        unwindCfiEpilogFormed = false;
-#endif
         return;
     }
 #endif // _TARGET_UNIX_
@@ -238,11 +235,6 @@ void Compiler::unwindBegEpilog()
 void Compiler::unwindEndEpilog()
 {
     assert(compGeneratingEpilog);
-#if defined(_TARGET_UNIX_)
-#if defined(_TARGET_ARM_)
-    unwindCfiEpilogFormed = true;
-#endif
-#endif // _TARGET_UNIX_
 }
 
 #if defined(_TARGET_ARM_)
@@ -379,6 +371,12 @@ void Compiler::unwindPushMaskInt(regMaskTP maskInt)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
+        // If we are pushing LR, we should give unwind codes in terms of caller's PC
+        if (maskInt & RBM_LR)
+        {
+            maskInt = (maskInt & ~RBM_LR) | RBM_PC;
+        }
+        unwindPushPopMaskCFI(maskInt, false);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -395,6 +393,7 @@ void Compiler::unwindPushMaskFloat(regMaskTP maskFloat)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
+        unwindPushPopMaskCFI(maskFloat, true);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -407,7 +406,6 @@ void Compiler::unwindPopMaskInt(regMaskTP maskInt)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        unwindPushPopMaskCFI(maskInt, false);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -436,7 +434,6 @@ void Compiler::unwindPopMaskFloat(regMaskTP maskFloat)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        unwindPushPopMaskCFI(maskFloat, true);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -451,7 +448,7 @@ void Compiler::unwindAllocStack(unsigned size)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        if (compGeneratingEpilog)
+        if (compGeneratingProlog)
         {
             unwindAllocStackCFI(size);
         }
@@ -505,7 +502,7 @@ void Compiler::unwindSetFrameReg(regNumber reg, unsigned offset)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        if (compGeneratingEpilog)
+        if (compGeneratingProlog)
         {
             unwindSetFrameRegCFI(reg, offset);
         }
@@ -595,7 +592,7 @@ void Compiler::unwindPadding()
 #endif // _TARGET_UNIX_
 
     UnwindInfo* pu = &funCurrentFunc()->uwi;
-    genEmitter->emitUnwindNopPadding(pu->GetCurrentEmitterLocation(), this);
+    GetEmitter()->emitUnwindNopPadding(pu->GetCurrentEmitterLocation(), this);
 }
 
 // Ask the VM to reserve space for the unwind information for the function and
@@ -1145,12 +1142,12 @@ void UnwindEpilogInfo::CaptureEmitLocation()
 {
     noway_assert(epiEmitLocation == NULL); // This function is only called once per epilog
     epiEmitLocation = new (uwiComp, CMK_UnwindInfo) emitLocation();
-    epiEmitLocation->CaptureLocation(uwiComp->genEmitter);
+    epiEmitLocation->CaptureLocation(uwiComp->GetEmitter());
 }
 
 void UnwindEpilogInfo::FinalizeOffset()
 {
-    epiStartOffset = epiEmitLocation->CodeOffset(uwiComp->genEmitter);
+    epiStartOffset = epiEmitLocation->CodeOffset(uwiComp->GetEmitter());
 }
 
 #ifdef DEBUG
@@ -1203,7 +1200,7 @@ void UnwindFragmentInfo::FinalizeOffset()
     }
     else
     {
-        ufiStartOffset = ufiEmitLoc->CodeOffset(uwiComp->genEmitter);
+        ufiStartOffset = ufiEmitLoc->CodeOffset(uwiComp->GetEmitter());
     }
 
     for (UnwindEpilogInfo* pEpi = ufiEpilogList; pEpi != NULL; pEpi = pEpi->epiNext)
@@ -1284,7 +1281,7 @@ void UnwindFragmentInfo::SplitEpilogCodes(emitLocation* emitLoc, UnwindFragmentI
     UnwindEpilogInfo* pEpiPrev;
     UnwindEpilogInfo* pEpi;
 
-    UNATIVE_OFFSET splitOffset = emitLoc->CodeOffset(uwiComp->genEmitter);
+    UNATIVE_OFFSET splitOffset = emitLoc->CodeOffset(uwiComp->GetEmitter());
 
     for (pEpiPrev = NULL, pEpi = pSplitFrom->ufiEpilogList; pEpi != NULL; pEpiPrev = pEpi, pEpi = pEpi->epiNext)
     {
@@ -1326,7 +1323,7 @@ void UnwindFragmentInfo::SplitEpilogCodes(emitLocation* emitLoc, UnwindFragmentI
 
 bool UnwindFragmentInfo::IsAtFragmentEnd(UnwindEpilogInfo* pEpi)
 {
-    return uwiComp->genEmitter->emitIsFuncEnd(pEpi->epiEmitLocation, (ufiNext == NULL) ? NULL : ufiNext->ufiEmitLoc);
+    return uwiComp->GetEmitter()->emitIsFuncEnd(pEpi->epiEmitLocation, (ufiNext == NULL) ? NULL : ufiNext->ufiEmitLoc);
 }
 
 // Merge the unwind codes as much as possible.
@@ -1783,7 +1780,7 @@ void UnwindInfo::InitUnwindInfo(Compiler* comp, emitLocation* startLoc, emitLoca
     // However, its constructor needs to be explicitly called, since the constructor for
     // UnwindInfo is not called.
 
-    uwiFragmentFirst.UnwindFragmentInfo::UnwindFragmentInfo(comp, startLoc, false);
+    new (&uwiFragmentFirst, jitstd::placement_t()) UnwindFragmentInfo(comp, startLoc, false);
 
     uwiFragmentLast = &uwiFragmentFirst;
 
@@ -1872,7 +1869,7 @@ void UnwindInfo::Split()
     }
     else
     {
-        startOffset = uwiFragmentLast->ufiEmitLoc->CodeOffset(uwiComp->genEmitter);
+        startOffset = uwiFragmentLast->ufiEmitLoc->CodeOffset(uwiComp->GetEmitter());
     }
 
     if (uwiEndLoc == NULL)
@@ -1889,7 +1886,7 @@ void UnwindInfo::Split()
     }
     else
     {
-        endOffset = uwiEndLoc->CodeOffset(uwiComp->genEmitter);
+        endOffset = uwiEndLoc->CodeOffset(uwiComp->GetEmitter());
     }
 
     assert(endOffset > startOffset); // there better be at least 1 byte of code
@@ -1924,8 +1921,8 @@ void UnwindInfo::Split()
 #endif // DEBUG
 
     // Call the emitter to do the split, and call us back for every split point it chooses.
-    uwiComp->genEmitter->emitSplit(uwiFragmentLast->ufiEmitLoc, uwiEndLoc, maxFragmentSize, (void*)this,
-                                   EmitSplitCallback);
+    uwiComp->GetEmitter()->emitSplit(uwiFragmentLast->ufiEmitLoc, uwiEndLoc, maxFragmentSize, (void*)this,
+                                     EmitSplitCallback);
 
 #ifdef DEBUG
     // Did the emitter split the function/funclet into as many fragments as we asked for?
@@ -1993,7 +1990,7 @@ void UnwindInfo::Allocate(CorJitFuncKind funKind, void* pHotCode, void* pColdCod
     }
     else
     {
-        endOffset = uwiEndLoc->CodeOffset(uwiComp->genEmitter);
+        endOffset = uwiEndLoc->CodeOffset(uwiComp->GetEmitter());
     }
 
     for (pFrag = &uwiFragmentFirst; pFrag != NULL; pFrag = pFrag->ufiNext)
@@ -2020,7 +2017,7 @@ void UnwindInfo::AddEpilog()
 unsigned UnwindInfo::GetInstructionSize()
 {
     assert(uwiInitialized == UWI_INITIALIZED_PATTERN);
-    return uwiComp->genEmitter->emitGetInstructionSize(uwiCurLoc);
+    return uwiComp->GetEmitter()->emitGetInstructionSize(uwiCurLoc);
 }
 
 #endif // defined(_TARGET_ARM_)
@@ -2029,7 +2026,7 @@ void UnwindInfo::CaptureLocation()
 {
     assert(uwiInitialized == UWI_INITIALIZED_PATTERN);
     assert(uwiCurLoc != NULL);
-    uwiCurLoc->CaptureLocation(uwiComp->genEmitter);
+    uwiCurLoc->CaptureLocation(uwiComp->GetEmitter());
 }
 
 void UnwindInfo::AddFragment(emitLocation* emitLoc)
@@ -2482,7 +2479,7 @@ void DumpUnwindInfo(Compiler*         comp,
                 DumpOpsize(4, 32);
             }
         }
-        else if ((b1 & 0xF7) == 0xF0)
+        else if ((b1 >= 0xF0) && (b1 <= 0xF4))
         {
             // F0-F4
             x = b1 & 0x7;

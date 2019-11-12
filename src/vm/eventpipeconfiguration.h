@@ -13,117 +13,72 @@ class EventPipeSessionProvider;
 class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeProvider;
-struct EventPipeProviderConfiguration;
 class EventPipeSession;
-enum class EventPipeSessionType;
-class EventPipeSessionProvider;
-
-enum class EventPipeEventLevel
-{
-    LogAlways,
-    Critical,
-    Error,
-    Warning,
-    Informational,
-    Verbose
-};
 
 class EventPipeConfiguration
 {
 public:
-
-    EventPipeConfiguration();
-    ~EventPipeConfiguration();
-
     // Perform initialization that cannot be performed in the constructor.
     void Initialize();
 
+    // Perform cleanup that cannot be performed in the destructor.
+    void Shutdown();
+
     // Create a new provider.
-    EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData);
+    EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Delete a provider.
     void DeleteProvider(EventPipeProvider *pProvider);
 
     // Register a provider.
-    bool RegisterProvider(EventPipeProvider &provider);
+    bool RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Unregister a provider.
     bool UnregisterProvider(EventPipeProvider &provider);
 
     // Get the provider with the specified provider ID if it exists.
-    EventPipeProvider* GetProvider(const SString &providerID);
-
-    // Create a new session.
-    EventPipeSession* CreateSession(EventPipeSessionType sessionType, unsigned int circularBufferSizeInMB, EventPipeProviderConfiguration *pProviders, unsigned int numProviders);
-
-    // Delete a session.
-    void DeleteSession(EventPipeSession *pSession);
-
-    // Get the configured size of the circular buffer.
-    size_t GetCircularBufferSize() const;
+    EventPipeProvider *GetProvider(const SString &providerID);
 
     // Enable a session in the event pipe.
-    void Enable(EventPipeSession *pSession);
+    void Enable(
+        EventPipeSession &session,
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Disable a session in the event pipe.
-    void Disable(EventPipeSession *pSession);
-
-    // Get the status of the event pipe.
-    bool Enabled() const;
-
-    // Determine if rundown is enabled.
-    bool RundownEnabled() const;
-
-    // Enable rundown using the specified configuration.
-    void EnableRundown(EventPipeSession *pSession);
+    void Disable(
+        const EventPipeSession &session,
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Get the event used to write metadata to the event stream.
-    EventPipeEventInstance* BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
+    EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metdataId);
 
     // Delete deferred providers.
     void DeleteDeferredProviders();
 
-    // Determine if the specified thread is the rundown thread.
-    // Used during rundown to ignore events from all other threads so that we don't corrupt the trace file.
-    inline bool IsRundownThread(Thread *pThread)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (pThread == m_pRundownThread);
-    }
-
+    // Compute the enabled bit mask, the ith bit is 1 iff an event with the given (provider, keywords, eventLevel) is enabled for the ith session.
+    INT64 ComputeEventEnabledMask(const EventPipeProvider& provider, INT64 keywords, EventPipeEventLevel eventLevel) const;
 private:
-
     // Get the provider without taking the lock.
-    EventPipeProvider* GetProviderNoLock(const SString &providerID);
+    EventPipeProvider *GetProviderNoLock(const SString &providerID);
 
     // Get the enabled provider.
-    EventPipeSessionProvider* GetSessionProvider(EventPipeSession *pSession, EventPipeProvider *pProvider);
+    EventPipeSessionProvider *GetSessionProvider(const EventPipeSession &session, const EventPipeProvider *pProvider) const;
 
-    // The one and only EventPipe session.
-    EventPipeSession *m_pSession;
-
-    // Determines whether or not the event pipe is enabled.
-    Volatile<bool> m_enabled;
+    // Compute the keyword union and maximum level for a provider across all sessions
+    void ComputeKeywordAndLevel(const EventPipeProvider& provider, INT64& keywordsForAllSessions, EventPipeEventLevel& levelForAllSessions) const;
 
     // The list of event pipe providers.
-    SList<SListElem<EventPipeProvider*>> *m_pProviderList;
+    SList<SListElem<EventPipeProvider *>> *m_pProviderList = nullptr;
 
     // The provider used to write configuration events to the event stream.
-    EventPipeProvider *m_pConfigProvider;
+    EventPipeProvider *m_pConfigProvider = nullptr;
 
     // The event used to write event information to the event stream.
-    EventPipeEvent *m_pMetadataEvent;
+    EventPipeEvent *m_pMetadataEvent = nullptr;
 
     // The provider name for the configuration event pipe provider.
     // This provider is used to emit configuration events.
-    const static WCHAR* s_configurationProviderName;
-
-    // True if rundown is enabled.
-    Volatile<bool> m_rundownEnabled;
-
-    // The rundown thread.  If rundown is not enabled, this is NULL.
-    Thread *m_pRundownThread;
+    const static WCHAR *s_configurationProviderName;
 };
 
 #endif // FEATURE_PERFTRACING

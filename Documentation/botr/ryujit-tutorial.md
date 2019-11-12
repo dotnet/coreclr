@@ -77,7 +77,7 @@ This is the more detailed view, and shows all of the significant phases of RyuJI
 The phases in orange are the optimization phases, and the phases in purple are the lower-level, back-end phases.
 
 ### Initial Phases of RyuJIT
-![RyuJIT Initial Phases](../images/ryujit-initial-phases.png) 
+![RyuJIT Initial Phases](../images/ryujit-initial-phases.png)
 - Importer:
   - initialize the local variable table and scan the MSIL to form BasicBlocks
   - Create the IR from the MSIL
@@ -153,10 +153,10 @@ The RyuJIT IR can be described at a high level as follows:
 - `LclVarDsc` represents a local variable, argument or JIT-created temp. It has a `gtLclNum` which is the identifier usually associated with the variable in the JIT and its dumps. The `LclVarDsc` contains the type, use count, weighted use count, frame or register assignment etc. These are often referred to simply as “lclVars”. They can be tracked (`lvTracked`), in which case they participate in dataflow analysis, and have a different index (`lvVarIndex`) to allow for the use of dense bit vectors. Only non-address-taken lclVars participate in liveness analysis, though aliased variables can participate in value numbering.
 
 ### GenTrees
-- A `BasicBlock` is a list of statements (GenTreeStmt nodes)
-  - It has a pointer to the expression for the statement
+- A `BasicBlock` is a list of statements (`Statement`)
+  - It has a pointer to the root expression for the statement
   - Statement nodes share the same base type as expression nodes, though they are really distinct IR objects
-- Each `GenTreeStmt` node points to its expression tree
+- Each `Statement` node points to its root expression tree
   - Each node points to its operands (children), and contains:
     - Oper (the operator for the expression, e.g. GT_ASG, GT_ADD, …)
     - Type (the evaluation type, e.g. GT_INT, GT_REF, GT_STRUCT)
@@ -164,20 +164,20 @@ The RyuJIT IR can be described at a high level as follows:
     - Comma nodes are inserted to allow creation of (multi-use) temps while preserving ordering constraints
 
 #### Notes
-The GenTree is the primary data structure of the JIT. It is used to represent both the statements within a block, as well as the expressions for each statement.
+The GenTree is the primary data structure of the JIT. It is used to represent the expressions for each statement.
 Some distinguishing features of this IR are that, while an operation has links to its operands, they do not have a link to their parent expression.
 Furthermore, during the initial phases of the JIT, the nodes are only ordered implicitly by the canonical traversal order of trees.
 The initial construction of the IR ensures that any ordering dependencies are obeyed by the canonical traversal order, and any subsequent optimizations must ensure that any visible ordering constraints are obeyed.
 
 ### GenTrees Sample
 ```
-▌  stmtExpr  void  (top level) (IL 0x01D 
+▌  Statement  (top level) (IL 0x01D
 │        ┌──▌  const int 1
-│     ┌──▌  & int   
+│     ┌──▌  & int
 │     │  └──▌  lclVar int V08
-│  ┌──▌  + int   
+│  ┌──▌  + int
 │  │  └──▌  lclVar int V06
-└──▌  = int   
+└──▌  = int
    └──▌  lclVar int V06
 ```
 From the example we’ll look at later: count = count + (bits & 1)
@@ -216,7 +216,7 @@ The Rationalizer phase, which transforms these constructs to a more rational for
   - Execution order links (`gtPrev` and `gtNext`) are the definitive specification
   of execution order (no longer derivable from a tree walk)
   - Each `BasicBlock` contains a single linked list of nodes
-    - `GT_STMT` nodes are eliminated
+    - `Statement` nodes are eliminated
     - `GT_IL_OFFSET`nodes convey source (IL) mapping info
 
 #### Notes
@@ -342,7 +342,7 @@ This is used by all of the front-end optimizations.
   - It then imports the IL for the candidate, producing IR
     - This is inserted at the call site, if successful
 - This phase has been undergoing significant refactoring and enhancement:
-  - https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/inlining-plans.md 
+  - https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/inlining-plans.md
 
 #### Notes
 The inliner re-invokes the importer for each method that is considered a suitable candidate. Along the way, it may determine that the method cannot, or should not, be inlined, at which case it abandons the constructed IR, and leaves the callsite as-is. Otherwise, it inserts the newly created IR at the callsite, adds the local variables of the called method to the callee, and fixes up the arguments and returns.
@@ -367,7 +367,7 @@ This phases has recently been significantly refactored, and enhancements are in 
 - Identifies and normalizes loops
   - Transforms while loops to “do while”
   - Performs loop cloning and unrolling
-  - Loops may be invalidated, but must be marked as such. 
+  - Loops may be invalidated, but must be marked as such.
 
 ### LclVar Sorting and Tree Ordering
 - lvaMarkLocalVars()
@@ -391,7 +391,7 @@ This phases has recently been significantly refactored, and enhancements are in 
   - The earlier IR diagram shows the IR with only the parent/child links
 - After ordering (`fgSetBlockOrder()`):
   - The execution order *within a statement* is specified by the `gtNext` and `gtPrev` links
-  
+
 ![RyuJIT IR Overview](../images/ryujit-ir-ordered.png)
 
 #### Notes
@@ -475,7 +475,7 @@ This is the same diagram as before, but with additional links to indicate execut
 ##### Front-end IR
 ```
    ┌──▌  const 0
-   ├──▌  lclVarAddr V00 
+   ├──▌  lclVarAddr V00
    ├──▌  const 16
  ──▌  initBlk
 ```
@@ -483,7 +483,7 @@ This is the same diagram as before, but with additional links to indicate execut
 ```
    ┌──▌  const 0
    │  ┌──▌  lclVar V00
-   ├──▌  addr 
+   ├──▌  addr
    ├──▌  const 16
  ──▌  initBlk
 
@@ -492,7 +492,7 @@ This is the same diagram as before, but with additional links to indicate execut
 ### IR Rationalization: Commas
 #### Front-end IR
 ```
-▌  stmtExpr (IL 0x093...0x09D)
+▌  Statement (IL 0x093...0x09D)
 │     ┌──▌  lclVar long V09
 │  ┌──▌  indir long
 │  │        ┌──▌  lclFld float V10 [+0]
@@ -505,7 +505,7 @@ This is the same diagram as before, but with additional links to indicate execut
 ```
 ##### Rationalized IR
 ```
-▌  stmtExpr (IL 0x093...0x09D)
+▌  Statement (IL 0x093...0x09D)
 │  ┌──▌  lclVar long V09
 │  │  {  ▌  stmtExpr (embedded)
 │  │  {  │  ┌──▌  &lclFld V10 [+0]
@@ -682,8 +682,8 @@ Add Pattern Recognition (SampleStep2 shelveset):
 ## Backup
 
 ### COMPlus Variables
-- COMPlus_JitDump={method-list} – lots of info about what the JIT is doing 
-- COMPlus_JitDisasm={method-list} – disassembly listing of each method 
+- COMPlus_JitDump={method-list} – lots of info about what the JIT is doing
+- COMPlus_JitDisasm={method-list} – disassembly listing of each method
 - COMPlus_JitDiffableDasm – avoid printing pointer values that can change from one invocation to the next, so that the disassembly can be more easily diffed.
 - COMPlus_JITGCDump={method-list} – this dumps the GC information.
 - COMPlus_JitUnwindDump={method-list} – dumps the unwind tables.
@@ -695,19 +695,19 @@ Add Pattern Recognition (SampleStep2 shelveset):
 ### IR Dump: Front-end
 Here is an example dump in tree order (shown with COMPlus_JitDumpAscii=0)
 ```
-[000068] ------------      ▌  stmtExpr  void  (top level) (IL   ???...  ???)
-[000067] -AC-G-------      └──▌  call help void   HELPER.CORINFO_HELP_ARRADDR_ST
-[000047] ------------ arg0    ├──▌  lclVar    ref    V03 loc2         
-[000048] ------------ arg1    ├──▌  const     int    0
-[000063] -A---------- arg2    └──▌  box       ref   
-[000061] ------------            │  ┌──▌  lclVar    ref    V04 tmp0         
-[000062] -A----------            └──▌  comma     ref   
-[000049] ------------               │  ┌──▌  lclVar    long   V01 loc0         
-[000060] -A----------               └──▌  =         long  
-[000059] -------N----                  └──▌  indir     long  
-[000057] ------------                     │  ┌──▌  const     long   8
-[000058] ------------                     └──▌  +         byref 
-[000056] ------------                        └──▌  lclVar    ref    V04 tmp0
+STMT00000 (IL   ???...  ???)
+[000067] -AC-G-------      ▌  call help void   HELPER.CORINFO_HELP_ARRADDR_ST
+[000047] ------------ arg0 ├──▌  lclVar    ref    V03 loc2
+[000048] ------------ arg1 ├──▌  const     int    0
+[000063] -A---------- arg2 └──▌  box       ref
+[000061] ------------         │  ┌──▌  lclVar    ref    V04 tmp0
+[000062] -A----------         └──▌  comma     ref
+[000049] ------------            │  ┌──▌  lclVar    long   V01 loc0
+[000060] -A----------            └──▌  =         long
+[000059] -------N----               └──▌  indir     long
+[000057] ------------                  │  ┌──▌  const     long   8
+[000058] ------------                  └──▌  +         byref
+[000056] ------------                     └──▌  lclVar    ref    V04 tmp0
 ```
 
 ### IR Dump: Back-end
@@ -733,6 +733,8 @@ N231 (  1,  1) [000048] ------------             │  │  ┌──▌  const  
 N233 (  1,  1) [000420] ------------ arg1 in rdx │  ├──▌  putarg_reg int    REG rdx
 N241 ( 49, 31) [000067] -ACXGO------             └──▌  call help void   HELPER.CORINFO_HELP_ARRADDR_ST $1d1
 ```
+#### Notes
+This needs to be updated, as we no longer have statements in back-end.
 
 ### Phase Transitions
 - Flowgraph analysis

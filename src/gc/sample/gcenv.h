@@ -10,6 +10,8 @@
 #undef BUILD_AS_STANDALONE
 #endif // BUILD_AS_STANDALONE
 
+#define FEATURE_REDHAWK
+
 #if defined(_DEBUG)
 #ifndef _DEBUG_IMPL
 #define _DEBUG_IMPL 1
@@ -90,7 +92,7 @@ struct alloc_context;
 
 class Thread
 {
-    uint32_t m_fPreemptiveGCDisabled;
+    bool m_fPreemptiveGCDisabled;
     uintptr_t m_alloc_context[16]; // Reserve enough space to fix allocation context
 
     friend class ThreadStore;
@@ -103,7 +105,7 @@ public:
 
     bool PreemptiveGCDisabled()
     {
-        return !!m_fPreemptiveGCDisabled;
+        return m_fPreemptiveGCDisabled;
     }
 
     void EnablePreemptiveGC()

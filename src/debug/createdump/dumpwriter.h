@@ -18,6 +18,8 @@
 #define ELF_ARCH  EM_X86_64
 #elif defined(__i386__)
 #define ELF_ARCH  EM_386
+#elif defined(__aarch64__)
+#define ELF_ARCH  EM_AARCH64
 #elif defined(__arm__)
 #define ELF_ARCH  EM_ARM
 #endif
@@ -55,14 +57,12 @@ private:
     bool WriteThread(const ThreadInfo& thread, int fatal_signal);
     bool WriteData(const void* buffer, size_t length);
 
-    const size_t GetProcessInfoSize() const { return sizeof(Nhdr) + 8 + sizeof(prpsinfo_t); }
-    const size_t GetAuxvInfoSize() const { return sizeof(Nhdr) + 8 + m_crashInfo.GetAuxvSize(); }
-    const size_t GetThreadInfoSize() const 
+    size_t GetProcessInfoSize() const { return sizeof(Nhdr) + 8 + sizeof(prpsinfo_t); }
+    size_t GetAuxvInfoSize() const { return sizeof(Nhdr) + 8 + m_crashInfo.GetAuxvSize(); }
+    size_t GetThreadInfoSize() const
     {
         return m_crashInfo.Threads().size() * ((sizeof(Nhdr) + 8 + sizeof(prstatus_t))
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
             + sizeof(Nhdr) + 8 + sizeof(user_fpregs_struct)
-#endif
 #if defined(__i386__)
             + sizeof(Nhdr) + 8 + sizeof(user_fpxregs_struct)
 #endif

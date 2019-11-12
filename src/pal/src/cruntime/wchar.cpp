@@ -22,7 +22,6 @@ Abstract:
 #include "pal/palinternal.h"
 #include "pal/cruntime.h"
 #include "pal/dbgmsg.h"
-#include "pal/unicode_data.h"
 
 #include "pal/thread.hpp"
 #include "pal/threadsusp.hpp"
@@ -32,47 +31,12 @@ Abstract:
 #include "config.h"
 #endif
 
-#if HAVE_COREFOUNDATION
-#define CF_EXCLUDE_CSTD_HEADERS
-#include <CoreFoundation/CoreFoundation.h>
 #include <wctype.h>
-#else
-#include <wctype.h>
-#endif
-
 #include <errno.h>
 #include <algorithm>
 
 SET_DEFAULT_DEBUG_CHANNEL(CRT);
 
-
-/*--
-Function:
-  wtolower (internal)
-
-16-bit wide character version of the ANSI tolower() function.
-
-  --*/
-static
-wchar_16
-wtolower(wchar_16 c)
-{
-    /* Note: Surrogate pairs unicode character are not supported */
-
-#if HAVE_TOWLOWER
-
-    wchar_t w;
-    w = (wchar_t) c;
-    w = towlower(w);
-    return (wchar_16) w;
-
-#else
-
-    return PAL_towlower(c);
-
-#endif
-
-}
 
 /*--
 Function:
@@ -123,28 +87,6 @@ _wtoi(
 }
 
 
-/*--
-Function:
-  PAL_iswspace
-
-See MSDN doc
---*/
-int
-__cdecl
-PAL_iswspace(wchar_16 c)
-{
-    int ret;
-
-    PERF_ENTRY(iswspace);
-    ENTRY("PAL_iswspace (c=%C)\n", c);
-
-    ret = iswspace(c);
-
-    LOGEXIT("PAL_iswspace returns int %d\n", ret);
-    PERF_EXIT(iswspace);
-    return ret;
-}
-
 /*++
 Function:
   _wcsnicmp
@@ -184,21 +126,21 @@ int
 __cdecl
 _wcsnicmp(
           const wchar_16 *string1,
-          const wchar_16 *string2, 
+          const wchar_16 *string2,
           size_t count)
 {
     size_t i;
     int diff = 0;
 
     PERF_ENTRY(_wcsnicmp);
-    ENTRY("_wcsnicmp (string1=%p (%S), string2=%p (%S), count=%lu)\n", 
-          string1?string1:W16_NULLSTRING, 
+    ENTRY("_wcsnicmp (string1=%p (%S), string2=%p (%S), count=%lu)\n",
+          string1?string1:W16_NULLSTRING,
           string1?string1:W16_NULLSTRING, string2?string2:W16_NULLSTRING, string2?string2:W16_NULLSTRING,
          (unsigned long) count);
 
     for (i = 0; i < count; i++)
     {
-        diff = wtolower(string1[i]) - wtolower(string2[i]);
+        diff = towlower(string1[i]) - towlower(string2[i]);
         if (diff != 0 || 0 == string1[i] || 0 == string2[i])
         {
             break;
@@ -241,8 +183,8 @@ _wcsicmp(
     int ret;
 
     PERF_ENTRY(_wcsicmp);
-    ENTRY("_wcsicmp (string1=%p (%S), string2=%p (%S))\n", 
-          string1?string1:W16_NULLSTRING, 
+    ENTRY("_wcsicmp (string1=%p (%S), string2=%p (%S))\n",
+          string1?string1:W16_NULLSTRING,
           string1?string1:W16_NULLSTRING, string2?string2:W16_NULLSTRING, string2?string2:W16_NULLSTRING);
 
     ret = _wcsnicmp(string1, string2, 0x7fffffff);
@@ -273,7 +215,7 @@ string   Null-terminated string to convert to lowercase
 Remarks
 
 --*/
-wchar_16 * 
+wchar_16 *
 __cdecl
 _wcslwr(
         wchar_16 *string)
@@ -285,134 +227,12 @@ _wcslwr(
 
     for (i=0 ; string[i] != 0; i++)
     {
-        string[i] = wtolower(string[i]);
+        string[i] = towlower(string[i]);
     }
-  
+
     LOGEXIT("_wcslwr returning wchar_t %p (%S)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
     PERF_EXIT(_wcslwr);
     return string;
-}
-
-
-/*++
-Function:
-  PAL_wcstol
-
-Convert string to a long-integer value.
-
-Return Value
-
-wcstol returns the value represented in the string nptr, except when
-the representation would cause an overflow, in which case it returns
-LONG_MAX or LONG_MIN. strtol returns 0 if no conversion can be
-performed. errno is set to ERANGE if overflow or underflow occurs.
-
-Parameters
-
-nptr    Null-terminated string to convert 
-endptr  Pointer to character that stops scan
-base    Number base to use
-
-Remarks
-
-The wcstol function converts nptr to a long. It stops reading the
-string nptr at the first character it cannot recognize as part of a
-number. This may be the terminating null character, or it may be the
-first numeric character greater than or equal to base.
-
-Notes :
-    MSDN states that only space and tab are accepted as leading whitespace, but
-    tests indicate that other whitespace characters (newline, carriage return,
-    etc) are also accepted. This matches the behavior on Unix systems.
-
-    For wcstol and wcstoul, we need to check if the value to be returned 
-    is outside the 32 bit range. If so, the returned value needs to be set  
-    as appropriate, according to the MSDN pages for wcstol and wcstoul,
-    and in all instances errno must be set to ERANGE (The one exception
-    is converting a string representing a negative value to unsigned long).
-    Note that on 64 bit Windows, long's are still 32 bit. Thus, to match
-    Windows behavior, we must return long's in the 32 bit range.  
---*/
-
-/* The use of LONG is by design, to ensure that a 32 bit value is always 
-returned from this function. If "long" is used instead of LONG, then a 64 bit 
-value could be returned on 64 bit platforms like HP-UX, thus breaking 
-Windows behavior. */
-LONG
-__cdecl
-PAL_wcstol(
-        const wchar_16 *nptr,
-        wchar_16 **endptr,
-        int base)
-{
-    char *s_nptr = 0;
-    char *s_endptr = 0;
-    long res;
-    int size;
-    DWORD dwLastError = 0;
-
-    PERF_ENTRY(wcstol);
-    ENTRY("wcstol (nptr=%p (%S), endptr=%p, base=%d)\n", nptr?nptr:W16_NULLSTRING, nptr?nptr:W16_NULLSTRING,
-          endptr, base);
-
-    size = WideCharToMultiByte(CP_ACP, 0, nptr, -1, NULL, 0, NULL, NULL);
-    if (!size)
-    {
-        dwLastError = GetLastError();
-        ASSERT("WideCharToMultiByte failed.  Error is %d\n", dwLastError);
-        SetLastError(ERROR_INVALID_PARAMETER);
-        res = 0;
-        goto PAL_wcstolExit;
-    }
-    s_nptr = (char *)PAL_malloc(size);
-    if (!s_nptr)
-    {
-        ERROR("PAL_malloc failed\n");
-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-        res = 0;
-        goto PAL_wcstolExit;
-    }
-    size = WideCharToMultiByte(CP_ACP, 0, nptr, -1, s_nptr, size, NULL, NULL);
-    if( size==0 )
-    {
-        dwLastError = GetLastError();
-        ASSERT("WideCharToMultiByte failed.  Error is %d\n", dwLastError);
-        SetLastError(ERROR_INVALID_PARAMETER);
-        res = 0;
-        goto PAL_wcstolExit;
-    }
-
-    res = strtol(s_nptr, &s_endptr, base);
-
-#ifdef BIT64
-    if (res > _I32_MAX)
-    {
-        res = _I32_MAX;
-        errno = ERANGE;
-    }
-    else if (res < _I32_MIN)
-    {
-        res = _I32_MIN;
-        errno = ERANGE;
-    }
-#endif
-
-    /* only ASCII characters will be accepted by strtol, and those always get
-       mapped to single-byte characters, so the first rejected character will
-       have the same index in the multibyte and widechar strings */
-    if( endptr )
-    {
-        size = s_endptr - s_nptr;
-        *endptr = (wchar_16 *)&nptr[size];
-    }
-
-PAL_wcstolExit:
-    PAL_free(s_nptr);
-    LOGEXIT("wcstol returning long %ld\n", res);
-    PERF_EXIT(wcstol);
-    /* This explicit cast to LONG is used to silence any potential warnings
-    due to implicitly casting the native long res to LONG when returning. */
-    return (LONG)res;
 }
 
 
@@ -424,13 +244,13 @@ Convert string to an unsigned long-integer value.
 
 Return Value
 
-wcstoul returns the converted value, if any, or ULONG_MAX on
+wcstoul returns the converted value, if any, or UINT32_MAX on
 overflow. It returns 0 if no conversion can be performed. errno is
 set to ERANGE if overflow or underflow occurs.
 
 Parameters
 
-nptr    Null-terminated string to convert 
+nptr    Null-terminated string to convert
 endptr  Pointer to character that stops scan
 base    Number base to use
 
@@ -452,7 +272,7 @@ Notes :
     tests indicate that other whitespace characters (newline, carriage return,
     etc) are also accepted. This matches the behavior on Unix systems.
 
-    For wcstol and wcstoul, we need to check if the value to be returned 
+    For wcstol and wcstoul, we need to check if the value to be returned
     is outside the 32 bit range. If so, the returned value needs to be set
     as appropriate, according to the MSDN pages for wcstol and wcstoul,
     and in all instances errno must be set to ERANGE (The one exception
@@ -461,7 +281,7 @@ Notes :
     Windows behavior, we must return long's in the 32 bit range.
 --*/
 
-/* The use of ULONG is by design, to ensure that a 32 bit value is always 
+/* The use of ULONG is by design, to ensure that a 32 bit value is always
 returned from this function. If "unsigned long" is used instead of ULONG,
 then a 64 bit value could be returned on 64 bit platforms like HP-UX, thus
 breaking Windows behavior .*/
@@ -512,19 +332,19 @@ PAL_wcstoul(
     res = strtoul(s_nptr, &s_endptr, base);
 
 #ifdef BIT64
-    if (res > _UI32_MAX)
+    if (res > UINT32_MAX)
     {
         wchar_16 wc = *nptr;
-        while (PAL_iswspace(wc))
+        while (iswspace(wc))
         {
             wc = *nptr++;
         }
-        /* If the string represents a positive number that is greater than 
+        /* If the string represents a positive number that is greater than
            _UI32_MAX, set errno to ERANGE. Otherwise, don't set errno
            to match Windows behavior. */
         if (wc != '-')
         {
-            res = _UI32_MAX;
+            res = UINT32_MAX;
             errno = ERANGE;
         }
     }
@@ -544,7 +364,7 @@ PAL_wcstoulExit:
     LOGEXIT("wcstoul returning unsigned long %lu\n", res);
     PERF_EXIT(wcstoul);
 
-    /* When returning unsigned long res from this function, it will be 
+    /* When returning unsigned long res from this function, it will be
     implicitly cast to ULONG. This handles situations where a string that
     represents a negative number is passed in to wcstoul. The Windows
     behavior is analogous to taking the binary equivalent of the negative
@@ -618,241 +438,7 @@ PAL__wcstoui64Exit:
     return res;
 }
 
-/*++
-Function:
-  PAL_towlower
-
-See MSDN
-
---*/
-wchar_16
-__cdecl
-PAL_towlower( wchar_16 c )
-{
-#if HAVE_COREFOUNDATION
-    PERF_ENTRY(towlower);
-    ENTRY("towlower (c=%d)\n", c);
-    if (!PAL_iswlower(c))
-    {
-        CFMutableStringRef cfString = CFStringCreateMutable(
-                                            kCFAllocatorDefault, 1);
-        if (cfString != NULL)
-        {
-            CFStringAppendCharacters(cfString, (const UniChar*)&c, 1);
-            CFStringLowercase(cfString, NULL);
-            c = CFStringGetCharacterAtIndex(cfString, 0);
-            CFRelease(cfString);
-        }
-    }
-    LOGEXIT("towlower returns int %d\n", c );
-    PERF_EXIT(towlower);
-    return c;
-#else   /* HAVE_COREFOUNDATION */
-    UnicodeDataRec dataRec;
-    
-    PERF_ENTRY(towlower);
-    ENTRY("towlower (c=%d)\n", c);
-    
-    if (!GetUnicodeData(c, &dataRec))
-    {
-        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        LOGEXIT("towlower returns int %d\n", c );
-        PERF_EXIT(towlower);
-        return c;
-    }
-
-    if ( (dataRec.C1_TYPE_FLAGS & C1_LOWER) || (dataRec.nOpposingCase ==  0 ))
-    {
-        LOGEXIT("towlower returns int %d\n", c );
-        PERF_EXIT(towlower);
-        return c;
-    }
-    else
-    {
-        LOGEXIT("towlower returns int %d\n", dataRec.nOpposingCase );
-        PERF_EXIT(towlower);
-        return dataRec.nOpposingCase;
-    }
-#endif  /* HAVE_COREFOUNDATION */
-}
-
-
-/*++
-Function:
-  PAL_towupper
-
-See MSDN
-
---*/
-wchar_16
-__cdecl
-PAL_towupper( wchar_16 c )
-{
-#if HAVE_COREFOUNDATION
-    PERF_ENTRY(towupper);
-    ENTRY("towupper (c=%d)\n", c);
-    if (!PAL_iswupper(c))
-    {
-        CFMutableStringRef cfString = CFStringCreateMutable(
-                                            kCFAllocatorDefault, 1);
-        if (cfString != NULL)
-        {
-            CFStringAppendCharacters(cfString, (const UniChar*)&c, 1);
-            CFStringUppercase(cfString, NULL);
-            c = CFStringGetCharacterAtIndex(cfString, 0);
-            CFRelease(cfString);
-        }
-    }
-    LOGEXIT("towupper returns int %d\n", c );
-    PERF_EXIT(towupper);
-    return c;
-#else   /* HAVE_COREFOUNDATION */
-    UnicodeDataRec dataRec;
-
-    PERF_ENTRY(towupper);
-    ENTRY("towupper (c=%d)\n", c);
-
-    if (!GetUnicodeData(c, &dataRec))
-    {
-        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        LOGEXIT("towupper returns int %d\n", c );
-        PERF_EXIT(towupper);
-        return c;
-    }
-    
-    if ( (dataRec.C1_TYPE_FLAGS & C1_UPPER) || (dataRec.nOpposingCase ==  0 ))
-    {
-        LOGEXIT("towupper returns int %d\n", c );
-        PERF_EXIT(towupper);
-        return c;
-    }
-    else
-    {
-        LOGEXIT("towupper returns int %d\n", dataRec.nOpposingCase );
-        PERF_EXIT(towupper);
-        return dataRec.nOpposingCase;
-    }
-#endif  /* HAVE_COREFOUNDATION */
-}
-
-/*++
-Function:
-  PAL_iswupper
-
-See MSDN
-
---*/
-int
-__cdecl
-PAL_iswupper( wchar_16 c )
-{
-    BOOL bRetVal = FALSE;
-#if HAVE_COREFOUNDATION
-    static CFCharacterSetRef sUppercaseSet;
-    
-    if (sUppercaseSet == NULL)
-    {
-        sUppercaseSet = CFCharacterSetGetPredefined(
-                                        kCFCharacterSetUppercaseLetter);
-    }
-    PERF_ENTRY(iswupper);
-    ENTRY( "iswupper (c=%d)\n", c );
-    bRetVal = CFCharacterSetIsCharacterMember(sUppercaseSet, c);
-#else   /* HAVE_COREFOUNDATION */
-    UnicodeDataRec dataRec;
-
-    PERF_ENTRY(iswupper);
-    ENTRY( "iswupper (c=%d)\n", c );
-
-    if (!GetUnicodeData(c, &dataRec))
-    {
-        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        goto exit;
-    }
-    
-    if (dataRec.C1_TYPE_FLAGS & C1_UPPER)
-    {
-        bRetVal = TRUE;
-    }
-exit:
-#endif  /* HAVE_COREFOUNDATION */
-    LOGEXIT( "iswupper returns %s.\n", bRetVal == TRUE ? "TRUE" : "FALSE" );
-    PERF_EXIT(iswupper);
-    return bRetVal;
-}
-
-/*++
-Function:
-  PAL_iswlower
-
-See MSDN
-
---*/
-int
-__cdecl
-PAL_iswlower( wchar_16 c )
-{
-    BOOL bRetVal = FALSE;
-#if HAVE_COREFOUNDATION
-    static CFCharacterSetRef sLowercaseSet;
-    
-    if (sLowercaseSet == NULL)
-    {
-        sLowercaseSet = CFCharacterSetGetPredefined(
-                                        kCFCharacterSetLowercaseLetter);
-    }
-    PERF_ENTRY(iswlower);
-    ENTRY("PAL_iswlower (c=%d)\n", c);
-    bRetVal = CFCharacterSetIsCharacterMember(sLowercaseSet, c);
-#else   /* HAVE_COREFOUNDATION */
-    UnicodeDataRec dataRec;
-
-    PERF_ENTRY(iswlower);
-    ENTRY("PAL_iswlower (c=%d)\n", c);
-    
-    if (!GetUnicodeData(c, &dataRec))
-    {
-        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
-        goto exit;
-    }
-    
-    if (dataRec.C1_TYPE_FLAGS & C1_LOWER)
-    {
-        bRetVal = TRUE;
-    }
-exit:
-#endif  /* HAVE_COREFOUNDATION */
-    LOGEXIT("PAL_iswlower returns %s.\n", bRetVal == TRUE ? "TRUE" : "FALSE");
-    PERF_EXIT(iswlower);
-    return bRetVal;
-}
-
-/*++
-Function:
-  PAL_iswalpha
-
-See MSDN
-
---*/
-int
-__cdecl
-PAL_iswalpha( wchar_16 c )
-{
-    PERF_ENTRY(iswalpha);
-    ENTRY( "PAL_iswalpha (c=%d)\n", c);
-    
-    if ( PAL_iswupper( c ) || PAL_iswlower( c ) )
-    {
-        LOGEXIT( "PAL_iswalpha returns 1.\n" );
-        PERF_EXIT(iswalpha);
-        return 1;
-    }
-
-    LOGEXIT( "PAL_iswalpha returns 0.\n" );
-    PERF_EXIT(iswalpha);
-    return 0;
-}
-
+WCHAR * __cdecl PAL_wcsncat(WCHAR *, const WCHAR *, size_t);
 
 /*++
 Function:
@@ -861,20 +447,20 @@ Function:
 See MSDN or the man page for mcscat.
 
 --*/
-wchar_16 * 
+wchar_16 *
 __cdecl
 PAL_wcscat(
-        wchar_16 *strDestination, 
+        wchar_16 *strDestination,
         const wchar_16 *strSource)
 {
     wchar_16 *ret;
     PERF_ENTRY(wcscat);
-    ENTRY("wcscat (strDestination=%p (%S), strSource=%p (%S))\n", 
-          strDestination?strDestination:W16_NULLSTRING, 
+    ENTRY("wcscat (strDestination=%p (%S), strSource=%p (%S))\n",
+          strDestination?strDestination:W16_NULLSTRING,
           strDestination?strDestination:W16_NULLSTRING, strSource?strSource:W16_NULLSTRING, strSource?strSource:W16_NULLSTRING);
 
     ret = PAL_wcsncat( strDestination, strSource, PAL_wcslen( strSource ) );
-    
+
     LOGEXIT("wcscat returnng wchar_t %p (%S)\n", ret, ret);
     PERF_EXIT(wcscat);
     return ret;
@@ -888,16 +474,16 @@ Function:
 See MSDN or the man page for mcscpy.
 
 --*/
-wchar_16 * 
+wchar_16 *
 __cdecl
 PAL_wcscpy(
-        wchar_16 *strDestination, 
+        wchar_16 *strDestination,
         const wchar_16 *strSource)
 {
     wchar_16 *start = strDestination;
 
     PERF_ENTRY(wcscpy);
-    ENTRY("wcscpy (strDestination=%p, strSource=%p (%S))\n", 
+    ENTRY("wcscpy (strDestination=%p, strSource=%p (%S))\n",
           strDestination, strSource ? strSource:W16_NULLSTRING, strSource ? strSource:W16_NULLSTRING);
 
     if (strDestination == NULL)
@@ -938,7 +524,7 @@ Function:
 See MSDN or the man page for wcslen.
 
 --*/
-size_t 
+size_t
 __cdecl
 PAL_wcslen(
         const wchar_16 *string)
@@ -947,7 +533,7 @@ PAL_wcslen(
 
     PERF_ENTRY(wcslen);
     ENTRY("wcslen (string=%p (%S))\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
-    
+
     if ( !string )
     {
         LOGEXIT("wcslen returning size_t %u\n", 0);
@@ -971,7 +557,7 @@ Function:
 
 See MSDN or the man page for wcsncmp.
 --*/
-int 
+int
 __cdecl
 PAL_wcsncmp(
         const wchar_16 *string1,
@@ -982,9 +568,9 @@ PAL_wcsncmp(
     int diff = 0;
 
     PERF_ENTRY(wcsncmp);
-    ENTRY("wcsncmp (string1=%p (%S), string2=%p (%S) count=%lu)\n", 
-          string1?string1:W16_NULLSTRING, 
-          string1?string1:W16_NULLSTRING, string2?string2:W16_NULLSTRING, string2?string2:W16_NULLSTRING, 
+    ENTRY("wcsncmp (string1=%p (%S), string2=%p (%S) count=%lu)\n",
+          string1?string1:W16_NULLSTRING,
+          string1?string1:W16_NULLSTRING, string2?string2:W16_NULLSTRING, string2?string2:W16_NULLSTRING,
           (unsigned long) count);
 
     for (i = 0; i < count; i++)
@@ -1039,20 +625,20 @@ Function:
 See MSDN or man page for wcschr.
 
 --*/
-wchar_16 _WConst_return * 
+wchar_16 _WConst_return *
 __cdecl
 PAL_wcschr(
-        const wchar_16 * string, 
+        const wchar_16 * string,
         wchar_16 c)
 {
     PERF_ENTRY(wcschr);
     ENTRY("wcschr (string=%p (%S), c=%C)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING, c);
-    
+
     while (*string)
     {
         if (*string == c)
         {
-            LOGEXIT("wcschr returning wchar_t %p (%S)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
+            LOGEXIT("wcschr returning wchar_t %p (%S)\n", string, string);
             PERF_EXIT(wcschr);
             return (wchar_16 *) string;
         }
@@ -1062,7 +648,7 @@ PAL_wcschr(
     // Check if the comparand was \000
     if (*string == c)
         return (wchar_16 *) string;
-    
+
     LOGEXIT("wcschr returning wchar_t NULL\n");
     PERF_EXIT(wcschr);
     return NULL;
@@ -1076,10 +662,10 @@ Function:
 See MSDN or man page for wcsrchr.
 
 --*/
-wchar_16 _WConst_return * 
+wchar_16 _WConst_return *
 __cdecl
 PAL_wcsrchr(
-        const wchar_16 * string, 
+        const wchar_16 * string,
         wchar_16 c)
 {
     wchar_16 *last = NULL;
@@ -1095,25 +681,10 @@ PAL_wcsrchr(
         }
         string++;
     }
-    
+
     LOGEXIT("wcsrchr returning wchar_t %p (%S)\n", last?last:W16_NULLSTRING, last?last:W16_NULLSTRING);
     PERF_EXIT(wcsrchr);
     return (wchar_16 *)last;
-}
-
-
-/*++
-Function:
-  PAL_wcsspn
-
-See MSDN or man page for wcspbrk.
---*/
-size_t
-__cdecl
-PAL_wcsspn (const wchar_16 *string, const wchar_16 *stringCharSet)
-{
-    ASSERT(0);
-    return 0;
 }
 
 
@@ -1123,10 +694,10 @@ Function:
 
 See MSDN or man page for wcspbrk.
 --*/
-const wchar_16 * 
+const wchar_16 *
 __cdecl
 PAL_wcspbrk(
-        const wchar_16 *string, 
+        const wchar_16 *string,
         const wchar_16 *strCharSet)
 {
     PERF_ENTRY(wcspbrk);
@@ -1138,7 +709,7 @@ PAL_wcspbrk(
     {
         if (PAL_wcschr(strCharSet, *string) != NULL)
         {
-            LOGEXIT("wcspbrk returning wchar_t %p (%S)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
+            LOGEXIT("wcspbrk returning wchar_t %p (%S)\n", string, string);
             PERF_EXIT(wcspbrk);
             return (wchar_16 *) string;
         }
@@ -1161,35 +732,35 @@ See MSDN or man page for wcsstr.
 const wchar_16 *
 __cdecl
 PAL_wcsstr(
-        const wchar_16 *string, 
+        const wchar_16 *string,
         const wchar_16 *strCharSet)
 {
     wchar_16 *ret = NULL;
     int i;
 
     PERF_ENTRY(wcsstr);
-    ENTRY("wcsstr (string=%p (%S), strCharSet=%p (%S))\n", 
-      string?string:W16_NULLSTRING, 
+    ENTRY("wcsstr (string=%p (%S), strCharSet=%p (%S))\n",
+      string?string:W16_NULLSTRING,
       string?string:W16_NULLSTRING, strCharSet?strCharSet:W16_NULLSTRING, strCharSet?strCharSet:W16_NULLSTRING);
-  
+
     if (string == NULL)
     {
         ret = NULL;
         goto leave;
     }
-  
+
     if (strCharSet == NULL)
     {
         ret = NULL;
         goto leave;
     }
-  
+
     if (*strCharSet == 0)
     {
         ret = (wchar_16 *)string;
         goto leave;
-    } 
-  
+    }
+
     while (*string != 0)
     {
         i = 0;
@@ -1214,46 +785,46 @@ PAL_wcsstr(
         }
         string++;
     }
-  
- leave:    
+
+ leave:
     LOGEXIT("wcsstr returning wchar_t %p (%S)\n", ret?ret:W16_NULLSTRING, ret?ret:W16_NULLSTRING);
     PERF_EXIT(wcsstr);
     return ret;
 }
 
 /*++
-Function : 
-    
-    PAL_wcsncpy            
-    
+Function :
+
+    PAL_wcsncpy
+
 see msdn doc.
 --*/
-wchar_16 * 
+wchar_16 *
 __cdecl
 PAL_wcsncpy( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
 {
-    UINT length = sizeof( wchar_16 ) * count;    
+    UINT length = sizeof( wchar_16 ) * count;
     PERF_ENTRY(wcsncpy);
-    ENTRY("wcsncpy( strDest:%p, strSource:%p (%S), count:%lu)\n", 
+    ENTRY("wcsncpy( strDest:%p, strSource:%p (%S), count:%lu)\n",
           strDest, strSource, strSource, (unsigned long) count);
-    
+
     memset( strDest, 0, length );
     length = std::min( count, PAL_wcslen( strSource ) ) * sizeof( wchar_16 );
     memcpy( strDest, strSource, length );
-    
+
     LOGEXIT("wcsncpy returning (wchar_16*): %p\n", strDest);
     PERF_EXIT(wcsncpy);
     return strDest;
 }
 
 /*++
-Function : 
-    
-    wcsncat            
-    
+Function :
+
+    wcsncat
+
 see msdn doc.
 --*/
-wchar_16 * 
+wchar_16 *
 __cdecl
 PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
 {
@@ -1262,8 +833,8 @@ PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
     UINT StrSourceLength = 0;
 
     PERF_ENTRY(wcsncat);
-    ENTRY( "wcsncat (strDestination=%p (%S), strSource=%p (%S), count=%lu )\n", 
-            strDest ? strDest : W16_NULLSTRING, 
+    ENTRY( "wcsncat (strDestination=%p (%S), strSource=%p (%S), count=%lu )\n",
+            strDest ? strDest : W16_NULLSTRING,
             strDest ? strDest : W16_NULLSTRING,
             strSource ? strSource : W16_NULLSTRING,
             strSource ? strSource : W16_NULLSTRING, (unsigned long) count);
@@ -1290,12 +861,12 @@ PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
         strDest++;
     }
 
-    StrSourceLength = PAL_wcslen( strSource ); 
+    StrSourceLength = PAL_wcslen( strSource );
     if ( StrSourceLength < count )
     {
         count = StrSourceLength;
     }
-    
+
     /* concatenate new string */
     while( *strSource && LoopCount < count )
     {
@@ -1313,17 +884,17 @@ PAL_wcsncat( wchar_16 * strDest, const wchar_16 *strSource, size_t count )
 
 static BOOL MISC_CRT_WCSTOD_IsValidCharacter( WCHAR c )
 {
-    if ( c == '+' || c == '-' || c == '.' || ( c >= '0' && c <= '9' ) || 
+    if ( c == '+' || c == '-' || c == '.' || ( c >= '0' && c <= '9' ) ||
          c == 'e' || c == 'E' || c == 'd' || c == 'D' )
     {
         return TRUE;
     }
     return FALSE;
-}                                                               
+}
 
 /*++
-Function : 
-    
+Function :
+
     wcstod
 
     There is a slight difference between the Windows version of wcstod
@@ -1356,7 +927,7 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
     }
 
     /* Eat white space. */
-    while ( PAL_iswspace( *lpStartOfExpression ) )
+    while ( iswspace( *lpStartOfExpression ) )
     {
         lpStartOfExpression++;
     }
@@ -1426,128 +997,6 @@ PAL_wcstod( const wchar_16 * nptr, wchar_16 **endptr )
 
 /*++
 Function:
-
-    iswdigit
-    
-See MSDN for more details.
---*/
-int
-__cdecl
-PAL_iswdigit( wchar_16 c )
-{
-    UINT nRetVal = 0;
-#if HAVE_COREFOUNDATION
-    static CFCharacterSetRef sDigitSet;
-    
-    if (sDigitSet == NULL)
-    {
-        sDigitSet = CFCharacterSetGetPredefined(
-                                        kCFCharacterSetDecimalDigit);
-    }
-    PERF_ENTRY(iswdigit);
-    ENTRY("PAL_iswdigit (c=%d)\n", c);
-    nRetVal = CFCharacterSetIsCharacterMember(sDigitSet, c);
-#else   /* HAVE_COREFOUNDATION */
-    UnicodeDataRec dataRec;
-
-    PERF_ENTRY(iswdigit);
-    ENTRY("PAL_iswdigit (c=%d)\n", c);
-    
-    if (GetUnicodeData(c, &dataRec))
-    {
-        if (dataRec.C1_TYPE_FLAGS & C1_DIGIT)
-        {
-            nRetVal = 1; 
-        }
-        else
-        {
-            nRetVal = 0;
-        }
-    }
-    else
-    {
-        TRACE( "No corresonding unicode record for character %d.\n", c );
-    }
-#endif  /* HAVE_COREFOUNDATION */
-    LOGEXIT("PAL_iswdigit returning %d\n", nRetVal);
-    PERF_EXIT(iswdigit);
-    return nRetVal;
-}
-
-/*++
-Function:
-
-    iswxdigit
-    
-See MSDN for more details.
-
-Notes :
-the information in UnicodeData doesn't help us, it doesn't have enough 
-granularity. Results in windows show that only ASCII and "Fullwidth" (>0xFF10)
-numbers and letters are considered as "hex"; other "numbers" 
-(nGeneralCategory==8) aren't.
---*/
-int
-__cdecl
-PAL_iswxdigit( wchar_16 c )
-{
-    UINT nRetVal = 0;
-
-    PERF_ENTRY(iswxdigit);
-    ENTRY("PAL_iswxdigit( c=%d )\n", c);
-    
-    /* ASCII characters */
-    if((c>= 'A' && c<='F') ||        /* uppercase hex letters */
-       (c>= 'a' && c<='f') ||        /* lowercase hex letters */
-       (c>= '0' && c<='9'))          /* digits */
-    {
-        nRetVal = 1;
-    }
-    else
-    /* "fullwidth" characters, whatever that is */
-    if((c>= 0xFF10 && c<=0xFF19) ||  /* digits */
-       (c>= 0xFF21 && c<=0xFF26) ||  /* uppercase hex letters */
-       (c>= 0xFF41 && c<=0xFF46))    /* lowercase hex letters */
-    {
-        nRetVal = 1;
-    }
-    else
-    {
-        nRetVal = 0;
-    }               
-    LOGEXIT("PAL_iswxdigit returning %d\n", nRetVal);
-    PERF_EXIT(iswxdigit);
-    return nRetVal;
-}
-
-
-/*++
-Function:
-
-    iswprint
-     
-See MSDN for more details.
---*/
-int
-__cdecl
-PAL_iswprint( wchar_16 c ) 
-{
-    int ret;
-    
-
-    PERF_ENTRY(iswprint);
-    ENTRY("PAL_iswprint (%#X)\n", c);   
-
-    ret = iswprint(c);
-
-    LOGEXIT("PAL_iswprint returns %d\n", ret);
-    PERF_EXIT(iswprint);
-    return (ret);
-}
-
-
-/*++
-Function:
    PAL_wcscspn
 
 Finds the number of consecutive characters from the start of the string
@@ -1571,7 +1020,7 @@ PAL_wcscspn(const wchar_16 *string, const wchar_16 *strCharSet)
     size_t count = 0;
 
     PERF_ENTRY(wcscspn);
-    
+
     while(*string != 0)
     {
         for(temp = strCharSet; *temp != 0; temp++)
@@ -1588,94 +1037,3 @@ PAL_wcscspn(const wchar_16 *string, const wchar_16 *strCharSet)
     PERF_EXIT(wcscspn);
     return count;
 }
-
-#if HAVE_COREFOUNDATION
-/*--
-Function:
-  PAL_iswblank
-
-Returns TRUE if c is a Win32 "blank" character.
---*/
-int 
-__cdecl 
-PAL_iswblank(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sSpaceAndNewlineSet;
-    
-    if (sSpaceAndNewlineSet == NULL)
-    {
-        sSpaceAndNewlineSet = CFCharacterSetGetPredefined(
-                                            kCFCharacterSetWhitespaceAndNewline);
-    }
-    switch (c)
-    {
-        case 0x0085:
-        case 0x1680:
-        case 0x202f:
-        case 0xfeff:
-            // These are blank characters on Windows, but are not part
-            // of the SpaceAndNewline character set in Core Foundation.
-            ret = TRUE;
-            break;
-        case 0x2028:
-        case 0x2029:
-            // These are not blank characters on Windows, but are part
-            // of the SpaceAndNewline character set in Core Foundation.
-            ret = FALSE;
-            break;
-        default:
-            ret = CFCharacterSetIsCharacterMember(sSpaceAndNewlineSet, c);
-            break;
-    }
-    return ret;
-}
-
-/*--
-Function:
-  PAL_iswcntrl
-
-Returns TRUE if c is a control character.
---*/
-int 
-__cdecl 
-PAL_iswcntrl(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sControlSet;
-    
-    if (sControlSet == NULL)
-    {
-        sControlSet = CFCharacterSetGetPredefined(kCFCharacterSetControl);
-    }
-    ret = CFCharacterSetIsCharacterMember(sControlSet, c);
-    return ret;
-}
-
-/*--
-Function:
-  PAL_iswpunct
-
-Returns TRUE if c is a punctuation character.
---*/
-int 
-__cdecl 
-PAL_iswpunct(wchar_16 c)
-{
-    int ret;
-    static CFCharacterSetRef sPunctuationSet = NULL;
-    static CFCharacterSetRef sSymbolSet = NULL;
-
-    if (sPunctuationSet == NULL)
-    {
-        sPunctuationSet = CFCharacterSetGetPredefined(kCFCharacterSetPunctuation);
-    }
-    if (sSymbolSet == NULL)
-    {
-        sSymbolSet = CFCharacterSetGetPredefined(kCFCharacterSetSymbol);
-    }
-    ret = CFCharacterSetIsCharacterMember(sPunctuationSet, c) ||
-          CFCharacterSetIsCharacterMember(sSymbolSet, c);
-    return ret;
-}
-#endif  // HAVE_COREFOUNDATION

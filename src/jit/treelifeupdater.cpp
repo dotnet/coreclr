@@ -37,7 +37,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
     {
         lclVarTree = tree;
     }
-    unsigned int lclNum = lclVarTree->gtLclVarCommon.gtLclNum;
+    unsigned int lclNum = lclVarTree->AsLclVarCommon()->GetLclNum();
     LclVarDsc*   varDsc = compiler->lvaTable + lclNum;
 
 #ifdef DEBUG
@@ -96,7 +96,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 {
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
                 }
-                if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
+                if (varDsc->lvIsInReg() && tree->GetRegNum() != REG_NA)
                 {
                     compiler->codeGen->genUpdateRegLife(varDsc, isBorn, isDying DEBUGARG(tree));
                 }
@@ -246,7 +246,14 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 #endif // DEBUG
             }
 
+#ifdef USING_VARIABLE_LIVE_RANGE
+            // For each of the LclVarDsc that are reporting change, variable or fields
+            compiler->codeGen->getVariableLiveKeeper()->siStartOrCloseVariableLiveRanges(varDeltaSet, isBorn, isDying);
+#endif // USING_VARIABLE_LIVE_RANGE
+
+#ifdef USING_SCOPE_INFO
             compiler->codeGen->siUpdate();
+#endif // USING_SCOPE_INFO
         }
     }
 
