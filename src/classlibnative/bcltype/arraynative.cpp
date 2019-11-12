@@ -18,6 +18,26 @@
 
 #include "arraynative.inl"
 
+// Returns a bool to indicate if the array is of primitive types or not.
+FCIMPL1(INT32, ArrayNative::GetCorElementTypeOfElementType, ArrayBase* arrayUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    _ASSERTE(arrayUNSAFE != NULL);
+
+    return arrayUNSAFE->GetArrayElementTypeHandle().GetVerifierCorElementType();
+}
+FCIMPLEND
+
+FCIMPL2(FC_BOOL_RET, ArrayNative::IsValueOfElementType, ArrayBase* arrayUNSAFE, Object* valueUNSAFE)
+{
+    _ASSERTE(arrayUNSAFE != NULL);
+    _ASSERTE(valueUNSAFE != NULL);
+
+    FC_RETURN_BOOL(arrayUNSAFE->GetArrayElementTypeHandle() == valueUNSAFE->GetTypeHandle());
+}
+FCIMPLEND
+
 // array is GC protected by caller
 void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
                            MethodTable* pArrayMT,
@@ -111,7 +131,7 @@ FCIMPL1(void, ArrayNative::Initialize, ArrayBase* array)
 
     MethodTable* pArrayMT = array->GetMethodTable();
 
-    TypeHandle thElem = pArrayMT->GetApproxArrayElementTypeHandle();
+    TypeHandle thElem = pArrayMT->GetArrayElementTypeHandle();
     if (thElem.IsTypeDesc())
         return;
 
@@ -140,8 +160,8 @@ FCIMPL2(FC_BOOL_RET, ArrayNative::IsSimpleCopy, ArrayBase* pSrc, ArrayBase* pDst
     // This case is expected to be handled by the fast path
     _ASSERTE(pSrc->GetMethodTable() != pDst->GetMethodTable());
 
-    TypeHandle srcTH = pSrc->GetMethodTable()->GetApproxArrayElementTypeHandle();
-    TypeHandle destTH = pDst->GetMethodTable()->GetApproxArrayElementTypeHandle();
+    TypeHandle srcTH = pSrc->GetMethodTable()->GetArrayElementTypeHandle();
+    TypeHandle destTH = pDst->GetMethodTable()->GetArrayElementTypeHandle();
     if (srcTH == destTH) // This check kicks for different array kind or dimensions
         FC_RETURN_BOOL(true);
 
@@ -215,8 +235,8 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayType(const BASEARRAYREF 
     MethodTable *pDestMT = pDest->GetMethodTable();
     _ASSERTE(pSrcMT != pDestMT); // Handled by fast path
 
-    TypeHandle srcTH = pSrcMT->GetApproxArrayElementTypeHandle();
-    TypeHandle destTH = pDestMT->GetApproxArrayElementTypeHandle();
+    TypeHandle srcTH = pSrcMT->GetArrayElementTypeHandle();
+    TypeHandle destTH = pDestMT->GetArrayElementTypeHandle();
     _ASSERTE(srcTH != destTH);  // Handled by fast path
     
     // Value class boxing

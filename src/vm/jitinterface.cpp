@@ -1041,7 +1041,7 @@ void CEEInfo::resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken
 
             // Load the TypeDesc for the array type.
             DWORD rank = pMT->GetRank();
-            TypeHandle elemType = pMT->GetApproxArrayElementTypeHandle();
+            TypeHandle elemType = pMT->GetArrayElementTypeHandle();
             th = ClassLoader::LoadArrayTypeThrowing(elemType, pMT->GetInternalCorElementType(), rank);
         }
     }
@@ -4906,7 +4906,7 @@ CorInfoType CEEInfo::getChildType (
         // at all.  Perhaps we should assert !th.IsTypeDesc() && th.AsMethodTable().IsArray()? </REVISIT_TODO>
         MethodTable* pMT= th.AsMethodTable();
         if (pMT->IsArray())
-            retType = pMT->GetApproxArrayElementTypeHandle();
+            retType = pMT->GetArrayElementTypeHandle();
     }
 
     if (!retType.IsNull()) {
@@ -5764,7 +5764,7 @@ void CEEInfo::getCallInfo(
 
     pResult->methodFlags = getMethodAttribsInternal(pResult->hMethod);
 
-    SignatureKind signatureKind = flags & CORINFO_CALLINFO_CALLVIRT ? SK_VIRTUAL_CALLSITE : SK_CALLSITE;
+    SignatureKind signatureKind = flags & CORINFO_CALLINFO_CALLVIRT && !(pResult->kind == CORINFO_CALL) ? SK_VIRTUAL_CALLSITE : SK_CALLSITE;
     getMethodSigInternal(pResult->hMethod, &pResult->sig, (pResult->hMethod == pResolvedToken->hMethod) ? pResolvedToken->hClass : NULL, signatureKind);
 
     if (flags & CORINFO_CALLINFO_VERIFICATION)

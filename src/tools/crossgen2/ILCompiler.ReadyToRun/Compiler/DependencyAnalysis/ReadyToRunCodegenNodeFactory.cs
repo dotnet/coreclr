@@ -230,7 +230,10 @@ namespace ILCompiler.DependencyAnalysis
         private void CreateNodeCaches()
         {
             // Create node caches
-            _constructedHelpers = new NodeCache<ReadyToRunHelper, ISymbolNode>(CreateReadyToRunHelperCell);
+            _constructedHelpers = new NodeCache<ReadyToRunHelper, Import>(helperId =>
+            {
+                return new Import(EagerImports, new ReadyToRunHelperSignature(helperId));
+            });
 
             _importMethods = new NodeCache<TypeAndMethod, IMethodNode>(CreateMethodEntrypoint);
 
@@ -357,18 +360,12 @@ namespace ILCompiler.DependencyAnalysis
 
         public ImportSectionNode PrecodeImports;
 
-        private NodeCache<ReadyToRunHelper, ISymbolNode> _constructedHelpers;
+        private NodeCache<ReadyToRunHelper, Import> _constructedHelpers;
 
-        public ISymbolNode GetReadyToRunHelperCell(ReadyToRunHelper helperId)
+        public Import GetReadyToRunHelperCell(ReadyToRunHelper helperId)
         {
             return _constructedHelpers.GetOrAdd(helperId);
         }
-
-        private ISymbolNode CreateReadyToRunHelperCell(ReadyToRunHelper helperId)
-        {
-            return new Import(EagerImports, new ReadyToRunHelperSignature(helperId));
-        }
-
 
         private NodeCache<TypeAndMethod, IMethodNode> _importMethods;
 
@@ -570,7 +567,7 @@ namespace ILCompiler.DependencyAnalysis
             MethodEntryPointTable = new MethodEntryPointTableNode(Target);
             Header.Add(Internal.Runtime.ReadyToRunSectionType.MethodDefEntryPoints, MethodEntryPointTable, MethodEntryPointTable);
 
-            ManifestMetadataTable = new ManifestMetadataTableNode(InputModuleContext.GlobalContext);
+            ManifestMetadataTable = new ManifestMetadataTableNode(InputModuleContext.GlobalContext, this);
             Header.Add(Internal.Runtime.ReadyToRunSectionType.ManifestMetadata, ManifestMetadataTable, ManifestMetadataTable);
 
             Resolver.SetModuleIndexLookup(ManifestMetadataTable.ModuleToIndex);

@@ -205,6 +205,8 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                 }
 
                 src->AsIntCon()->SetIconValue(fill);
+
+                ContainBlockStoreAddress(blkNode, size, dstAddr);
             }
         }
         else
@@ -228,8 +230,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // Sometimes the GT_IND type is a non-struct type and then GT_IND lowering may contain the
             // address, not knowing that GT_IND is part of a block op that has containment restrictions.
             src->AsIndir()->Addr()->ClearContained();
-
-            TryCreateAddrMode(src->AsIndir()->Addr(), false);
         }
 
         if (blkNode->OperIs(GT_STORE_OBJ))
@@ -303,21 +303,12 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         {
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
-            // If src or dst are on stack, we don't have to generate the address
-            // into a register because it's just some constant+SP.
             if (src->OperIs(GT_IND))
             {
-                GenTree* srcAddr = src->AsIndir()->Addr();
-                if (srcAddr->OperIsLocalAddr())
-                {
-                    srcAddr->SetContained();
-                }
+                ContainBlockStoreAddress(blkNode, size, src->AsIndir()->Addr());
             }
 
-            if (dstAddr->OperIsLocalAddr())
-            {
-                dstAddr->SetContained();
-            }
+            ContainBlockStoreAddress(blkNode, size, dstAddr);
         }
         else
         {
@@ -331,6 +322,53 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 #endif
         }
     }
+}
+
+//------------------------------------------------------------------------
+// ContainBlockStoreAddress: Attempt to contain an address used by an unrolled block store.
+//
+// Arguments:
+//    blkNode - the block store node
+//    size - the block size
+//    addr - the address node to try to contain
+//
+void Lowering::ContainBlockStoreAddress(GenTreeBlk* blkNode, unsigned size, GenTree* addr)
+{
+    assert(blkNode->OperIs(GT_STORE_BLK) && (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll));
+    assert(size < INT32_MAX);
+
+    if (addr->OperIsLocalAddr())
+    {
+        addr->SetContained();
+        return;
+    }
+
+    if (!addr->OperIsAddrMode() && !TryCreateAddrMode(addr, true))
+    {
+        return;
+    }
+
+    GenTreeAddrMode* addrMode = addr->AsAddrMode();
+
+    // On x64 the address mode displacement is signed so it must not exceed INT32_MAX. This check is
+    // an approximation since the last displacement we generate in an unrolled block operation can be
+    // up to 16 bytes lower than offset + size. But offsets large enough to hit this case are likely
+    // to be extremely rare for this to ever be a CQ issue.
+    // On x86 this shouldn't be needed but then again, offsets large enough to hit this are rare.
+    if (addrMode->Offset() > (INT32_MAX - static_cast<int>(size)))
+    {
+        return;
+    }
+
+    // Note that the parentNode is always the block node, even if we're dealing with the source address.
+    // The source address is not directly used by the block node but by an IND node and that IND node is
+    // always contained.
+    if (!IsSafeToContainMem(blkNode, addrMode))
+    {
+        return;
+    }
+
+    addrMode->SetContained();
 }
 
 //------------------------------------------------------------------------
@@ -803,6 +841,78 @@ void Lowering::LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIn
 }
 
 //----------------------------------------------------------------------------------------------
+// LowerFusedMultiplyAdd: Changes NI_FMA_MultiplyAddScalar produced by Math(F).FusedMultiplyAdd
+//     to a better FMA intrinsics if there are GT_NEG around in order to eliminate them.
+//
+//  Arguments:
+//     node - The hardware intrinsic node
+//
+//  Notes:
+//     Math(F).FusedMultiplyAdd is expanded into NI_FMA_MultiplyAddScalar and
+//     depending on additional GT_NEG nodes around it can be:
+//
+//      x *  y + z -> NI_FMA_MultiplyAddScalar
+//      x * -y + z -> NI_FMA_MultiplyAddNegatedScalar
+//     -x *  y + z -> NI_FMA_MultiplyAddNegatedScalar
+//     -x * -y + z -> NI_FMA_MultiplyAddScalar
+//      x *  y - z -> NI_FMA_MultiplySubtractScalar
+//      x * -y - z -> NI_FMA_MultiplySubtractNegatedScalar
+//     -x *  y - z -> NI_FMA_MultiplySubtractNegatedScalar
+//     -x * -y - z -> NI_FMA_MultiplySubtractScalar
+//
+void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
+{
+    assert(node->gtHWIntrinsicId == NI_FMA_MultiplyAddScalar);
+    GenTreeArgList*     argList = node->gtGetOp1()->AsArgList();
+    GenTreeHWIntrinsic* createScalarOps[3];
+
+    for (GenTreeHWIntrinsic*& createScalarOp : createScalarOps)
+    {
+        GenTree*& current = argList->Current();
+        assert(current != nullptr);
+        if (!current->OperIsHWIntrinsic())
+        {
+            return; // Math(F).FusedMultiplyAdd is expected to emit three NI_Vector128_CreateScalarUnsafe
+                    // but it's also possible to use NI_FMA_MultiplyAddScalar directly with any operands
+        }
+        GenTreeHWIntrinsic* hwArg = current->AsHWIntrinsic();
+        if (hwArg->gtHWIntrinsicId != NI_Vector128_CreateScalarUnsafe)
+        {
+            return;
+        }
+        createScalarOp = hwArg;
+        argList        = argList->Rest();
+    }
+    assert(argList == nullptr);
+
+    GenTree* argX = createScalarOps[0]->gtGetOp1();
+    GenTree* argY = createScalarOps[1]->gtGetOp1();
+    GenTree* argZ = createScalarOps[2]->gtGetOp1();
+
+    const bool negMul = argX->OperIs(GT_NEG) != argY->OperIs(GT_NEG);
+    if (argX->OperIs(GT_NEG))
+    {
+        createScalarOps[0]->gtOp1 = argX->gtGetOp1();
+        BlockRange().Remove(argX);
+    }
+    if (argY->OperIs(GT_NEG))
+    {
+        createScalarOps[1]->gtOp1 = argY->gtGetOp1();
+        BlockRange().Remove(argY);
+    }
+    if (argZ->OperIs(GT_NEG))
+    {
+        createScalarOps[2]->gtOp1 = argZ->gtGetOp1();
+        BlockRange().Remove(argZ);
+        node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+    }
+    else
+    {
+        node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
+    }
+}
+
+//----------------------------------------------------------------------------------------------
 // Lowering::LowerHWIntrinsic: Perform containment analysis for a hardware intrinsic node.
 //
 //  Arguments:
@@ -906,6 +1016,10 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
             break;
         case NI_AVX_TestNotZAndNotC:
             LowerHWIntrinsicCC(node, NI_AVX_PTEST, GenCondition::UGT);
+            break;
+
+        case NI_FMA_MultiplyAddScalar:
+            LowerFusedMultiplyAdd(node);
             break;
 
         default:
@@ -2785,6 +2899,12 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
         case NI_AVX_LoadVector256:
         {
             return supportsUnalignedSIMDLoads;
+        }
+
+        case NI_AVX_ExtractVector128:
+        case NI_AVX2_ExtractVector128:
+        {
+            return false;
         }
 
         default:

@@ -4969,10 +4969,12 @@ EndTry2:;
     {
         HRESULT hrBindResult = S_OK;
         PEAssemblyHolder result;
-
+        
+        bool isCached = false;
         EX_TRY
         {
-            if (!IsCached(pSpec))
+            isCached = IsCached(pSpec);
+            if (!isCached)
             {
 
                 {
@@ -5133,7 +5135,7 @@ EndTry2:;
                 result->AddRef();
         }
 
-        bindOperation.SetResult(result.GetValue());
+        bindOperation.SetResult(result.GetValue(), isCached);
         return result.Extract();
     }
     else

@@ -207,35 +207,52 @@ struct VarScopeDsc
 #endif
 };
 
-// This is the location of a SSA definition.
-struct DefLoc
-{
-    BasicBlock* m_blk;
-    GenTree*    m_tree;
-
-    DefLoc() : m_blk(nullptr), m_tree(nullptr)
-    {
-    }
-
-    DefLoc(BasicBlock* block, GenTree* tree) : m_blk(block), m_tree(tree)
-    {
-    }
-};
-
 // This class stores information associated with a LclVar SSA definition.
 class LclSsaVarDsc
 {
+    // The basic block where the definition occurs. Definitions of uninitialized variables
+    // are considered to occur at the start of the first basic block (fgFirstBB).
+    //
+    // TODO-Cleanup: In the case of uninitialized variables the block is set to nullptr by
+    // SsaBuilder and changed to fgFirstBB during value numbering. It would be useful to
+    // investigate and perhaps eliminate this rather unexpected behavior.
+    BasicBlock* m_block;
+    // The GT_ASG node that generates the definition, or nullptr for definitions
+    // of uninitialized variables.
+    GenTreeOp* m_asg;
+
 public:
-    LclSsaVarDsc()
+    LclSsaVarDsc() : m_block(nullptr), m_asg(nullptr)
     {
     }
 
-    LclSsaVarDsc(BasicBlock* block, GenTree* tree) : m_defLoc(block, tree)
+    LclSsaVarDsc(BasicBlock* block, GenTreeOp* asg) : m_block(block), m_asg(asg)
     {
+        assert((asg == nullptr) || asg->OperIs(GT_ASG));
+    }
+
+    BasicBlock* GetBlock() const
+    {
+        return m_block;
+    }
+
+    void SetBlock(BasicBlock* block)
+    {
+        m_block = block;
+    }
+
+    GenTreeOp* GetAssignment() const
+    {
+        return m_asg;
+    }
+
+    void SetAssignment(GenTreeOp* asg)
+    {
+        assert((asg == nullptr) || asg->OperIs(GT_ASG));
+        m_asg = asg;
     }
 
     ValueNumPair m_vnPair;
-    DefLoc       m_defLoc;
 };
 
 // This class stores information associated with a memory SSA definition.
@@ -6098,9 +6115,24 @@ protected:
 
     static const int MIN_CSE_COST = 2;
 
-    // Keeps tracked cse indices
-    BitVecTraits* cseTraits;
-    EXPSET_TP     cseFull;
+    // BitVec trait information only used by the optCSE_canSwap() method, for the  CSE_defMask and CSE_useMask.
+    // This BitVec uses one bit per CSE candidate
+    BitVecTraits* cseMaskTraits; // one bit per CSE candidate
+
+    // BitVec trait information for computing CSE availability using the CSE_DataFlow algorithm.
+    // Two bits are allocated per CSE candidate to compute CSE availability
+    // plus an extra bit to handle the initial unvisited case.
+    // (See CSE_DataFlow::EndMerge for an explaination of why this is necessary)
+    //
+    // The two bits per CSE candidate have the following meanings:
+    //     11 - The CSE is available, and is also available when considering calls as killing availability.
+    //     10 - The CSE is available, but is not available when considering calls as killing availability.
+    //     00 - The CSE is not available
+    //     01 - An illegal combination
+    //
+    BitVecTraits* cseLivenessTraits;
+
+    EXPSET_TP cseCallKillsMask; // Computed once - A mask that is used to kill available CSEs at callsites
 
     /* Generic list of nodes - used by the CSE logic */
 
@@ -6224,8 +6256,7 @@ protected:
     unsigned optCSECandidateCount; // Count of CSE's candidates, reset for Lexical and ValNum CSE's
     unsigned optCSEstart;          // The first local variable number that is a CSE
     unsigned optCSEcount;          // The total count of CSE's introduced.
-    unsigned optCSEweight;         // The weight of the current block when we are
-                                   // scanning for CSE expressions
+    unsigned optCSEweight;         // The weight of the current block when we are doing PerformCS
 
     bool optIsCSEcandidate(GenTree* tree);
 
@@ -6752,7 +6783,7 @@ public:
                                       Statement* stmt DEBUGARG(AssertionIndex index));
 
     // Assertion propagation functions.
-    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt, BasicBlock* block);
     GenTree* optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
     GenTree* optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
     GenTree* optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
@@ -7749,27 +7780,6 @@ private:
             return false;
         }
         return isOpaqueSIMDType(varDsc->lvVerTypeInfo.GetClassHandle());
-    }
-
-    // Returns true if the type of the tree is a byref of TYP_SIMD
-    bool isAddrOfSIMDType(GenTree* tree)
-    {
-        if (tree->TypeGet() == TYP_BYREF || tree->TypeGet() == TYP_I_IMPL)
-        {
-            switch (tree->OperGet())
-            {
-                case GT_ADDR:
-                    return varTypeIsSIMD(tree->gtGetOp1());
-
-                case GT_LCL_VAR_ADDR:
-                    return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
-
-                default:
-                    return isSIMDTypeLocal(tree);
-            }
-        }
-
-        return false;
     }
 
     static bool isRelOpSIMDIntrinsic(SIMDIntrinsicID intrinsicId)

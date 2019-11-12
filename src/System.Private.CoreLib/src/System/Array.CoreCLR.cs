@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using Internal.Runtime.CompilerServices;
 
 #pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
@@ -145,8 +146,8 @@ namespace System
             MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
             if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
                 !pMT->IsMultiDimensionalArray &&
-                (uint)length <= (uint)sourceArray.Length &&
-                (uint)length <= (uint)destinationArray.Length)
+                (uint)length <= (nuint)sourceArray.LongLength &&
+                (uint)length <= (nuint)destinationArray.LongLength)
             {
                 nuint byteCount = (uint)length * (nuint)pMT->ComponentSize;
                 ref byte src = ref sourceArray.GetRawSzArrayData();
@@ -176,8 +177,8 @@ namespace System
                 if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
                     !pMT->IsMultiDimensionalArray &&
                     length >= 0 && sourceIndex >= 0 && destinationIndex >= 0 &&
-                    (uint)(sourceIndex + length) <= (uint)sourceArray.Length &&
-                    (uint)(destinationIndex + length) <= (uint)destinationArray.Length)
+                    (uint)(sourceIndex + length) <= (nuint)sourceArray.LongLength &&
+                    (uint)(destinationIndex + length) <= (nuint)destinationArray.LongLength)
                 {
                     nuint elementSize = (nuint)pMT->ComponentSize;
                     nuint byteCount = (uint)length * elementSize;
@@ -221,9 +222,9 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_ArrayLB);
             destinationIndex -= dstLB;
 
-            if ((uint)(sourceIndex + length) > (uint)sourceArray.Length)
+            if ((uint)(sourceIndex + length) > (nuint)sourceArray.LongLength)
                 throw new ArgumentException(SR.Arg_LongerThanSrcArray, nameof(sourceArray));
-            if ((uint)(destinationIndex + length) > (uint)destinationArray.Length)
+            if ((uint)(destinationIndex + length) > (nuint)destinationArray.LongLength)
                 throw new ArgumentException(SR.Arg_LongerThanDestArray, nameof(destinationArray));
 
             if (sourceArray.GetType() == destinationArray.GetType() || IsSimpleCopy(sourceArray, destinationArray))
@@ -294,7 +295,7 @@ namespace System
 
             int offset = index - lowerBound;
 
-            if (index < lowerBound || offset < 0 || length < 0 || (uint)(offset + length) > (uint)array.Length)
+            if (index < lowerBound || offset < 0 || length < 0 || (uint)(offset + length) > (nuint)array.LongLength)
                 ThrowHelper.ThrowIndexOutOfRangeException();
 
             nuint elementSize = pMT->ComponentSize;
@@ -318,7 +319,7 @@ namespace System
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             fixed (int* pIndices = &indices[0])
                 InternalGetReference(&elemref, indices.Length, pIndices);
             return TypedReference.InternalToObject(&elemref);
@@ -329,7 +330,7 @@ namespace System
             if (Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 1, &index);
             return TypedReference.InternalToObject(&elemref);
         }
@@ -343,7 +344,7 @@ namespace System
             pIndices[0] = index1;
             pIndices[1] = index2;
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 2, pIndices);
             return TypedReference.InternalToObject(&elemref);
         }
@@ -358,7 +359,7 @@ namespace System
             pIndices[1] = index2;
             pIndices[2] = index3;
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 3, pIndices);
             return TypedReference.InternalToObject(&elemref);
         }
@@ -368,7 +369,7 @@ namespace System
             if (Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 1, &index);
             InternalSetValue(&elemref, value);
         }
@@ -382,7 +383,7 @@ namespace System
             pIndices[0] = index1;
             pIndices[1] = index2;
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 2, pIndices);
             InternalSetValue(&elemref, value);
         }
@@ -397,7 +398,7 @@ namespace System
             pIndices[1] = index2;
             pIndices[2] = index3;
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             InternalGetReference(&elemref, 3, pIndices);
             InternalSetValue(&elemref, value);
         }
@@ -409,37 +410,10 @@ namespace System
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
 
-            TypedReference elemref = new TypedReference();
+            TypedReference elemref = default;
             fixed (int* pIndices = &indices[0])
                 InternalGetReference(&elemref, indices.Length, pIndices);
             InternalSetValue(&elemref, value);
-        }
-
-        private static void SortImpl(Array keys, Array? items, int index, int length, IComparer comparer)
-        {
-            Debug.Assert(comparer != null);
-
-            if (comparer == Comparer.Default)
-            {
-                bool r = TrySZSort(keys, items, index, index + length - 1);
-                if (r)
-                    return;
-            }
-
-            object[]? objKeys = keys as object[];
-            object[]? objItems = null;
-            if (objKeys != null)
-                objItems = items as object[];
-            if (objKeys != null && (items == null || objItems != null))
-            {
-                SorterObjectArray sorter = new SorterObjectArray(objKeys, objItems, comparer);
-                sorter.Sort(index, length);
-            }
-            else
-            {
-                SorterGenericArray sorter = new SorterGenericArray(keys, items, comparer);
-                sorter.Sort(index, length);
-            }
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -502,19 +476,10 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
+        internal extern CorElementType GetCorElementTypeOfElementType();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZLastIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZReverse(Array array, int index, int count);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZSort(Array keys, Array? items, int left, int right);
+        private extern bool IsValueOfElementType(object value);
 
         // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.

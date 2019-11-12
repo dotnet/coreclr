@@ -99,28 +99,6 @@ namespace System.Runtime.Loader
             return context.GetResolvedUnmanagedDll(assembly, unmanagedDllName);
         }
 
-        private IntPtr GetResolvedUnmanagedDll(Assembly assembly, string unmanagedDllName)
-        {
-            IntPtr resolvedDll = IntPtr.Zero;
-
-            Func<Assembly, string, IntPtr>? dllResolveHandler = _resolvingUnmanagedDll;
-
-            if (dllResolveHandler != null)
-            {
-                // Loop through the event subscribers and return the first non-null native library handle
-                foreach (Func<Assembly, string, IntPtr> handler in dllResolveHandler.GetInvocationList())
-                {
-                    resolvedDll = handler(assembly, unmanagedDllName);
-                    if (resolvedDll != IntPtr.Zero)
-                    {
-                        return resolvedDll;
-                    }
-                }
-            }
-
-            return IntPtr.Zero;
-        }
-
         [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void LoadTypeForWinRTTypeNameInContextInternal(IntPtr ptrNativeAssemblyLoadContext, string typeName, ObjectHandleOnStack loadedType);
 
@@ -206,7 +184,11 @@ namespace System.Runtime.Loader
         /// </summary>
         private static void StartAssemblyLoad(ref Guid activityId, ref Guid relatedActivityId)
         {
-            ActivityTracker.Instance.OnStart(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId, ref relatedActivityId, EventActivityOptions.Recursive);
+            // Make sure ActivityTracker is enabled
+            ActivityTracker.Instance.Enable();
+
+            // Don't use trace to TPL event source in ActivityTracker - that event source is a singleton and its instantiation may have triggered the load.
+            ActivityTracker.Instance.OnStart(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId, ref relatedActivityId, EventActivityOptions.Recursive, useTplSource: false);
         }
 
         /// <summary>
@@ -214,7 +196,8 @@ namespace System.Runtime.Loader
         /// </summary>
         private static void StopAssemblyLoad(ref Guid activityId)
         {
-            ActivityTracker.Instance.OnStop(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId);
+            // Don't use trace to TPL event source in ActivityTracker - that event source is a singleton and its instantiation may have triggered the load.
+            ActivityTracker.Instance.OnStop(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId, useTplSource: false);
         }
     }
 }
