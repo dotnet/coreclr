@@ -1076,12 +1076,12 @@ namespace System
             ref ushort pSrc = ref Unsafe.Add(ref Unsafe.As<char, ushort>(ref _firstChar), copyLength);
             ref ushort pDst = ref Unsafe.Add(ref Unsafe.As<char, ushort>(ref result._firstChar), copyLength);
 
-            if (Vector.IsHardwareAccelerated)
+            if (Vector.IsHardwareAccelerated && remainingLength >= Vector<ushort>.Count)
             {
                 Vector<ushort> oldChars = new Vector<ushort>(oldChar);
                 Vector<ushort> newChars = new Vector<ushort>(newChar);
 
-                for (; (remainingLength - Vector<ushort>.Count) >= 0; remainingLength -= Vector<ushort>.Count)
+                do
                 {
                     Vector<ushort> original = Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<ushort, byte>(ref pSrc));
                     Vector<ushort> equals = Vector.Equals(original, oldChars);
@@ -1090,7 +1090,9 @@ namespace System
 
                     pSrc = ref Unsafe.Add(ref pSrc, Vector<ushort>.Count);
                     pDst = ref Unsafe.Add(ref pDst, Vector<ushort>.Count);
+                    remainingLength -= Vector<ushort>.Count;
                 }
+                while (remainingLength - Vector<ushort>.Count >= 0);
             }
 
             for (; remainingLength > 0; remainingLength--)
