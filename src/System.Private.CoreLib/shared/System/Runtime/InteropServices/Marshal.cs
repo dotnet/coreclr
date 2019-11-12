@@ -551,7 +551,7 @@ namespace System.Runtime.InteropServices
             {
                 throw new ArgumentNullException(nameof(structureType));
             }
-            if (structureType.IsGenericType)
+            if (structureType.IsGenericTypeDefinition)
             {
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(structureType));
             }
