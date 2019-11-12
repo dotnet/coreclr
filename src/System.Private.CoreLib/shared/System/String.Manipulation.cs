@@ -5,8 +5,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
+using System.Numerics;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
@@ -1065,57 +1064,43 @@ namespace System
             int remainingLength = Length - firstIndex;
             string result = FastAllocateString(Length);
 
-            fixed (char* pChars = &_firstChar, pResult = &result._firstChar)
+            int copyLength = firstIndex;
+
+            // Copy the characters already proven not to match.
+            if (copyLength > 0)
             {
-                int copyLength = firstIndex;
+                Buffer.Memmove(ref result._firstChar, ref _firstChar, (uint)copyLength);
+            }
 
-                // Copy the characters already proven not to match.
-                if (copyLength > 0)
+            // Copy the remaining characters, doing the replacement as we go.
+            ref ushort pSrc = ref Unsafe.Add(ref Unsafe.As<char, ushort>(ref _firstChar), copyLength);
+            ref ushort pDst = ref Unsafe.Add(ref Unsafe.As<char, ushort>(ref result._firstChar), copyLength);
+
+            if (Vector.IsHardwareAccelerated)
+            {
+                Vector<ushort> oldChars = new Vector<ushort>(oldChar);
+                Vector<ushort> newChars = new Vector<ushort>(newChar);
+
+                for (; (remainingLength - Vector<ushort>.Count) >= 0; remainingLength -= Vector<ushort>.Count)
                 {
-                    wstrcpy(pResult, pChars, copyLength);
-                }
+                    Vector<ushort> original = Unsafe.ReadUnaligned<Vector<ushort>>(ref Unsafe.As<ushort, byte>(ref pSrc));
+                    Vector<ushort> equals = Vector.Equals(original, oldChars);
+                    Vector<ushort> results = Vector.ConditionalSelect(equals, newChars, original);
+                    Unsafe.WriteUnaligned(ref Unsafe.As<ushort, byte>(ref pDst), results);
 
-                // Copy the remaining characters, doing the replacement as we go.
-                char* pSrc = pChars + copyLength;
-                char* pDst = pResult + copyLength;
-
-                if (Sse2.IsSupported)
-                {
-                    Vector128<ushort> oldChars = Vector128.Create(oldChar);
-                    Vector128<ushort> newChars = Vector128.Create(newChar);
-                    Vector128<ushort> allSet = Vector128.Create(-1).AsUInt16();
-                    for (; (remainingLength - Vector128<ushort>.Count) >= 0; remainingLength -= Vector128<ushort>.Count)
-                    {
-                        Vector128<ushort> original = Sse2.LoadVector128((ushort*)pSrc);
-                        Vector128<ushort> equals = Sse2.CompareEqual(original, oldChars);
-                        if (Sse2.MoveMask(equals.AsByte()) == 0)
-                        {
-                            Sse2.Store((ushort*)pDst, original);
-                        }
-                        else
-                        {
-                            Vector128<ushort> replacements = Sse2.And(newChars, equals);
-                            Vector128<ushort> remainingOriginals = Sse2.And(original, Sse2.Xor(equals, allSet));
-                            Vector128<ushort> combined = Sse2.Or(replacements, remainingOriginals);
-                            Sse2.Store((ushort*)pDst, combined);
-                        }
-
-                        pSrc += Vector128<ushort>.Count;
-                        pDst += Vector128<ushort>.Count;
-                    }
-                }
-
-                for (; remainingLength > 0; remainingLength--)
-                {
-                    char currentChar = *pSrc;
-                    if (currentChar == oldChar)
-                        currentChar = newChar;
-                    *pDst = currentChar;
-
-                    pSrc++;
-                    pDst++;
+                    pSrc = ref Unsafe.Add(ref pSrc, Vector<ushort>.Count);
+                    pDst = ref Unsafe.Add(ref pDst, Vector<ushort>.Count);
                 }
             }
+
+            for (; remainingLength > 0; remainingLength--)
+            {
+                pDst = pSrc == oldChar ? newChar : pSrc;
+
+                pSrc = ref Unsafe.Add(ref pSrc, 1);
+                pDst = ref Unsafe.Add(ref pDst, 1);
+            }
+
             return result;
         }
 
