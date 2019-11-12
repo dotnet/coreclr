@@ -252,6 +252,7 @@ namespace System.IO
             {
                 return;  // _position could be beyond EOF
             }
+
             unsafe
             {
                 if (_buffer != null)
@@ -279,6 +280,7 @@ namespace System.IO
                     callback(span, state);
                 }
             }
+
             Interlocked.Exchange(ref _position, pos + n);
         }
 

@@ -559,7 +559,7 @@ namespace System.IO
                 return;
             }
 
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             // Retrieve a span until the end of the MemoryStream.
             ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(_buffer, _position, _length - _position);
@@ -579,7 +579,7 @@ namespace System.IO
             if (GetType() != typeof(MemoryStream))
                 return base.CopyToAsync(callback, state, bufferSize, cancellationToken);
 
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             // If canceled - return fast:
             if (cancellationToken.IsCancellationRequested)
