@@ -289,7 +289,7 @@ function(strip_symbols targetName outputFilename skipStrip)
   endif(CLR_CMAKE_PLATFORM_UNIX)
 endfunction()
 
-# install_clr(TARGETS TARGETS targetName [targetName2 ...] [DESTINATION destination])
+# install_clr(TARGETS TARGETS targetName [targetName2 ...] [DESTINATION destination] [SKIP_STRIP])
 function(install_clr)
   set(options SKIP_STRIP)
   set(oneValueArgs DESTINATION)
