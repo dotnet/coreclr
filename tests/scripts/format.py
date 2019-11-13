@@ -20,6 +20,18 @@ import zipfile
 import subprocess
 import shutil
 
+class ChangeDir:
+    def __init__(self, dir):
+        self.dir = dir
+        self.cwd = None
+
+    def __enter__(self):
+        self.cwd = os.getcwd()
+        os.chdir(self.dir)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        os.chdir(self.cwd)
+
 # Version specific imports
 
 if sys.version_info.major < 3:
@@ -63,7 +75,8 @@ def main(argv):
         print('Bad path to coreclr')
         return -1
 
-    coreclr = args.coreclr
+    coreclr = args.coreclr.replace('/', os.sep)
+
     platform = args.os
     arch = args.arch
 
@@ -86,7 +99,14 @@ def main(argv):
 
     bootstrapUrl = "https://raw.githubusercontent.com/dotnet/jitutils/master/" + bootstrapFilename
 
-    bootstrapPath = os.path.join(coreclr, bootstrapFilename)
+    bootstrapPath = os.path.join(os.path.join(coreclr, "bin", "jitutils"), bootstrapFilename)
+
+    if os.path.isdir(os.path.dirname(bootstrapPath)):
+        shutil.rmtree(os.path.dirname(bootstrapPath))
+
+    assert not os.path.isdir(os.path.dirname(bootstrapPath))
+    os.makedirs(os.path.dirname(bootstrapPath))
+
     urlretrieve(bootstrapUrl, bootstrapPath)
 
     if not os.path.isfile(bootstrapPath):
@@ -101,19 +121,20 @@ def main(argv):
 
     print(bootstrapPath)
 
-    # Run bootstrap
-    if platform == 'Linux' or platform == 'OSX':
-        print("Running bootstrap")
-        proc = subprocess.Popen(['bash', bootstrapPath], env=my_env)
-        output,error = proc.communicate()
-    elif platform == 'Windows_NT':
-        proc = subprocess.Popen([bootstrapPath], env=my_env)
-        output,error = proc.communicate()
+    with ChangeDir(os.path.dirname(bootstrapPath)):
+        # Run bootstrap
+        if platform == 'Linux' or platform == 'OSX':
+            print("Running bootstrap")
+            proc = subprocess.Popen(['bash', bootstrapPath], env=my_env)
+            output,error = proc.communicate()
+        elif platform == 'Windows_NT':
+            proc = subprocess.Popen([bootstrapPath], env=my_env)
+            output,error = proc.communicate()
 
     # Run jit-format
 
     returncode = 0
-    jitutilsBin = os.path.join(coreclr, "jitutils", "bin")
+    jitutilsBin = os.path.join(os.path.dirname(bootstrapPath), "jitutils", "bin")
     my_env["PATH"] = jitutilsBin + os.pathsep + my_env["PATH"]
     current_dir = os.getcwd()
 
@@ -157,9 +178,12 @@ def main(argv):
 
     os.chdir(current_dir)
 
+    patchFilePath = os.path.join(coreclr, "format.patch")
+
     if returncode != 0:
         # Create a patch file
-        patchFile = open("format.patch", "w")
+        print("Creating patch file " + patchFilePath)
+        patchFile = open(patchFilePath, "w")
         proc = subprocess.Popen(["git", "diff", "--patch", "-U20"], env=my_env, stdout=patchFile)
         output,error = proc.communicate()
 
