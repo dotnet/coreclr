@@ -147,10 +147,10 @@ to build the release (full speed) flavor.  You can find more build options with 
 ## Using Your Build
 
 The build places all of its generated files under the `bin` directory at the base of the repository.   There 
-is a `bin\Log` directory that contains log files generated during the build (most useful when the build fails).
+is a `artifacts\Log` directory that contains log files generated during the build (most useful when the build fails).
 The actual output is placed in a directory like this
 
-* bin\Product\Windows_NT.x64.Release
+* artifacts\Product\Windows_NT.x64.Release
 
 There are two basic techniques for using your new runtime.
 

@@ -84,20 +84,20 @@ the base of the repository.
 
     [Lots of build spew]
 
-    Product binaries are available at C:\git\coreclr\bin\Product\Windows_NT.x64.debug
-    Test binaries are available at C:\git\coreclr\bin\tests\Windows_NT.x64.debug
+    Product binaries are available at C:\git\coreclr\artifacts\Product\Windows_NT.x64.debug
+    Test binaries are available at C:\git\coreclr\artifacts\tests\Windows_NT.x64.debug
 ```
 
 As shown above, the product will be placed in
 
-- Product binaries will be dropped in `bin\Product\<OS>.<arch>.<flavor>` folder.
-- A NuGet package, Microsoft.Dotnet.CoreCLR, will be created under `bin\Product\<OS>.<arch>.<flavor>\.nuget` folder.
-- Test binaries will be dropped under `bin\Tests\<OS>.<arch>.<flavor>` folder.
+- Product binaries will be dropped in `artifacts\Product\<OS>.<arch>.<flavor>` folder.
+- A NuGet package, Microsoft.Dotnet.CoreCLR, will be created under `artifacts\Product\<OS>.<arch>.<flavor>\.nuget` folder.
+- Test binaries will be dropped under `artifacts\Tests\<OS>.<arch>.<flavor>` folder.
 
 By default, build generates a 'Debug' build type, that has extra checking (assert) compiled into it. You can
 also build the 'release' version which does not have these checks.
 
-The build places logs in `bin\Logs` and these are useful when the build fails.
+The build places logs in `artifacts\Logs` and these are useful when the build fails.
 
 The build places all of its output in the `bin` directory, so if you remove that directory you can force a
 full rebuild.

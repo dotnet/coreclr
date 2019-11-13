@@ -23,6 +23,7 @@ launchSettings.json
 build/
 bld/
 [Bb]in/
+[Aa]rtifacts/
 [Oo]bj/
 msbuild.log
 msbuild.binlog

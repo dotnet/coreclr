@@ -86,7 +86,7 @@
      -->
     <ProjectDir Condition="'$(__ProjectDir)'==''">$(MSBuildThisFileDirectory)..\</ProjectDir>
     <ProjectDir Condition="Exists('$(ProjectDir).dotnet-runtime-placeholder')">$(ProjectDir)\src\coreclr\</ProjectDir>
-    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
+    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)artifacts\</RootBinDir>
     <TestWorkingDir Condition="'$(__TestWorkingDir)'==''">$(RootBinDir)tests\$(__BuildOS).$(__BuildArch).$(__BuildType)\</TestWorkingDir>
     <TargetsWindows Condition="'$(__BuildOS)' == 'Windows_NT'">true</TargetsWindows>
 

@@ -45,7 +45,7 @@ To build CoreFX tests against a current, "live", version of CoreCLR, including w
 
 For example:
 ```
-f:\git\corefx> build.cmd -configuration Release -arch x64 -restore -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\bin\Product\Windows_NT.x64.Checked
+f:\git\corefx> build.cmd -configuration Release -arch x64 -restore -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\artifacts\Product\Windows_NT.x64.Checked
 ```
 
 Note that this will replace the coreclr used in the build, and because `-test` is passed, will also run the tests.
@@ -60,13 +60,13 @@ Do the following:
 f:\git\corefx> build.cmd -configuration Release -arch x64 -restore -build
 ```
 
-This creates a "testhost" directory with a subdirectory that includes the coreclr bits, e.g., `f:\git\corefx\artifacts\bin\testhost\netcoreapp-Windows_NT-Release-x64\shared\Microsoft.NETCore.App\3.0.0`.
+This creates a "testhost" directory with a subdirectory that includes the coreclr bits, e.g., `f:\git\corefx\artifacts\artifacts\testhost\netcoreapp-Windows_NT-Release-x64\shared\Microsoft.NETCore.App\3.0.0`.
 
 2. Copy the contents of the CoreCLR build you wish to test into the CoreFX runtime
 folder created in step #1.
 
 ```
-f:\git\corefx> copy f:\git\coreclr\bin\Product\Windows_NT.x64.Checked\* f:\git\corefx\artifacts\bin\testhost\netcoreapp-Windows_NT-Release-x64\shared\Microsoft.NETCore.App\3.0.0
+f:\git\corefx> copy f:\git\coreclr\artifacts\Product\Windows_NT.x64.Checked\* f:\git\corefx\artifacts\artifacts\testhost\netcoreapp-Windows_NT-Release-x64\shared\Microsoft.NETCore.App\3.0.0
 ```
 
 3. Optionally, create a script that contains any environment variables you want to set when running each CoreFX test. Disabling TieredCompilation or setting a JIT stress mode is a common case. E.g.,
@@ -116,8 +116,8 @@ to run all the tests (consult the scripts for proper usage). Or, run a single te
 Once you've built the CoreFX tests (possibly with replaced CoreCLR bits), you can also run just a single test. E.g.,
 
 ```
-f:\git\corefx> cd f:\git\corefx\artifacts\bin\System.Buffers.Tests\netcoreapp-Release
-f:\git\corefx\artifacts\bin\System.Buffers.Tests\netcoreapp-Release> RunTests.cmd -r f:\git\corefx\artifacts\bin\testhost\netcoreapp-Windows_NT-Release-x64
+f:\git\corefx> cd f:\git\corefx\artifacts\artifacts\System.Buffers.Tests\netcoreapp-Release
+f:\git\corefx\artifacts\artifacts\System.Buffers.Tests\netcoreapp-Release> RunTests.cmd -r f:\git\corefx\artifacts\artifacts\testhost\netcoreapp-Windows_NT-Release-x64
 ```
 
 Alternatively, you can run the tests from from the test source directory, as follows:

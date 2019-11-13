@@ -9,7 +9,7 @@ Debugging CoreCLR on Windows
 ============================
 
 1. Perform a build of the repo.
-2. Open solution \<reporoot\>\bin\obj\Windows_NT.\<platform\>.\<configuration\>\CoreCLR.sln in Visual Studio. \<platform\> and \<configuration\> are based
+2. Open solution \<reporoot\>\artifacts\obj\Windows_NT.\<platform\>.\<configuration\>\CoreCLR.sln in Visual Studio. \<platform\> and \<configuration\> are based
     on type of build you did. By default they are 'x64' and 'Debug'.
 3. Right-click the INSTALL project and choose ‘Set as StartUp Project’
 4. Bring up the properties page for the INSTALL project
@@ -39,7 +39,7 @@ Only lldb is supported by SOS. Gdb can be used to debug the coreclr code but wit
 
 1. Perform a build of the coreclr repo.
 2. Install the corefx managed assemblies to the binaries directory.
-3. cd to build's binaries: `cd ~/coreclr/bin/Product/Linux.x64.Debug`
+3. cd to build's binaries: `cd ~/coreclr/artifacts/Product/Linux.x64.Debug`
 4. Start lldb: `lldb-3.9 corerun HelloWorld.exe linux`
 6. Launch program: `process launch -s`
 7. To stop annoying breaks on SIGUSR1/SIGUSR2 signals used by the runtime run: `process handle -s false SIGUSR1 SIGUSR2`
@@ -52,7 +52,7 @@ You can combine steps 4-8 and pass everything on the lldb command line:
 
 For .NET Core version 1.x and 2.0.x, libsosplugin.so is built for and will only work with version 3.6 of lldb. For .NET Core 2.1, the plugin is built for 3.9 lldb and will work with 3.8 and 3.9 lldb.
 
-**Note:** _corerun_ is a simple host that does not support resolving NuGet dependencies. It relies on libraries being locatable via the `CORE_LIBRARIES` environment variable or present in the same directory as the corerun executable. The instructions above are equally applicable to the _dotnet_ host, however - e.g. for step 4 `lldb-3.9 dotnet bin/Debug/netcoreapp2.1/MvcApplication.dll` will let you debug _MvcApplication_ in the same manner.
+**Note:** _corerun_ is a simple host that does not support resolving NuGet dependencies. It relies on libraries being locatable via the `CORE_LIBRARIES` environment variable or present in the same directory as the corerun executable. The instructions above are equally applicable to the _dotnet_ host, however - e.g. for step 4 `lldb-3.9 dotnet artifacts/Debug/netcoreapp2.1/MvcApplication.dll` will let you debug _MvcApplication_ in the same manner.
 
 ### Debugging core dumps with lldb
 
