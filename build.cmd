@@ -433,7 +433,6 @@ if not exist "!IbcDataPackagePathOutputFile!" (
 )
 
 set /p __IbcOptDataPath=<"!IbcDataPackagePathOutputFile!"
-set __IbcOptDataPath="%__IbcOptDataPath%"
 
 REM =========================================================================================
 REM ===
@@ -696,14 +695,14 @@ if %__BuildCoreLib% EQU 1 (
         set /p __IbcMergePath=<"!IbcMergePackagePathOutputFile!"
 
         set IbcMergePath=!__IbcMergePath!\tools\netcoreapp2.0\ibcmerge.dll
-        if exist !IbcMergePath! (
+        if exist "!IbcMergePath!" (
             echo %__MsgPrefix%Optimizing using IBC training data
             set OptimizationDataDir=!__IbcOptDataPath!\data\System.Private.CoreLib.dll\
             set InputAssemblyFile=!OptimizationDataDir!System.Private.CoreLib.dll
             set TargetOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.pgo
 
             if exist "!InputAssemblyFile!" (
-                set RawOptimizationDataFilePattern=!OptimizationDataDir!*.ibc
+                set RawOptimizationDataFilePattern="!OptimizationDataDir!*.ibc"
                 set RawOptimizationDataFile=
                 for %%x in (!RawOptimizationDataFilePattern!) do @(
                   if [!RawOptimizationDataFile!] == [] (
@@ -738,7 +737,7 @@ if %__BuildCoreLib% EQU 1 (
                 )
 
                 REM Save the module as *.pgo to match the convention expected
-                copy /y !InputAssemblyFile! !TargetOptimizationDataFile!
+                copy /y !InputAssemblyFile! "!TargetOptimizationDataFile!"
             )
 
             if exist "!TargetOptimizationDataFile!" (
