@@ -328,7 +328,7 @@ namespace
         const bool useNativeLayout = true;
         // Iterate through the fields and make sure they meet requirements to pass in registers
         SystemVStructRegisterPassingHelper helper((unsigned int)totalStructSize);
-        if (pMT->ClassifyEightBytes(&helper, 0, 0, useNativeLayout))
+        if (pMT->ClassifyEightBytesWithNativeLayout(&helper, 0, 0, useNativeLayout, pNativeLayoutInfo))
         {
             pNativeLayoutInfo->SetNativeStructPassedInRegisters();
         }

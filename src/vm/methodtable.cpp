@@ -2198,7 +2198,7 @@ bool MethodTable::ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helpe
 {
     if (useNativeLayout)
     {
-        return ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
+        return ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout, GetNativeLayoutInfo());
     }
     else
     {
@@ -2401,7 +2401,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
             if (useNativeLayout && pFieldMT->HasLayout())
             {
 
-                structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout);
+                structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, normalizedFieldOffset, useNativeLayout, pFieldMT->GetNativeLayoutInfo());
             }
             else
             {
@@ -2556,7 +2556,8 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
 bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassingHelperPtr helperPtr,
                                                     unsigned int nestingLevel,
                                                     unsigned int startOffsetOfStruct,
-                                                    bool useNativeLayout)
+                                                    bool useNativeLayout,
+                                                    EEClassNativeLayoutInfo const* pNativeLayoutInfo)
 {
     CONTRACTL
     {
@@ -2568,8 +2569,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     // Should be in this method only doing a native layout classification.
     _ASSERTE(useNativeLayout);
-    
-    EEClassNativeLayoutInfo const* pNativeLayoutInfo = GetNativeLayoutInfo();
 
 #ifdef DACCESS_COMPILE
     // No register classification for this case.
@@ -2608,7 +2607,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     if (isFixedBuffer)
     {
-        numIntroducedFields = GetNativeSize() / pNativeFieldDescs->NativeSize();
+        numIntroducedFields = pNativeLayoutInfo->GetSize() / pNativeFieldDescs->NativeSize();
     }
 
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
@@ -2713,7 +2712,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             {
                 bool inEmbeddedStructPrev = helperPtr->inEmbeddedStruct;
                 helperPtr->inEmbeddedStruct = true;
-                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, nestedElementOffset, useNativeLayout);
+                bool structRet = pFieldMT->ClassifyEightBytesWithNativeLayout(helperPtr, nestingLevel + 1, nestedElementOffset, useNativeLayout, pFieldMT->GetNativeLayoutInfo());
                 helperPtr->inEmbeddedStruct = inEmbeddedStructPrev;
 
                 if (!structRet)
