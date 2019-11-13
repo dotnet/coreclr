@@ -229,11 +229,17 @@ namespace System.IO
             public override void Write(ReadOnlySpan<byte> span)
             {
                 if (_action != null)
+                {
                     _action(span, _state);
-                else if (_func != null)
-                    _func(span.ToArray(), _state, CancellationToken.None).GetAwaiter().GetResult();
-                else
-                    throw new NotSupportedException();
+                    return;
+                }
+
+                // In case a poorly implemented CopyToAsync(Stream, ...) method decides to call
+                // the destination stream's Write rather than WriteAsync, we make it work, but this
+                // does not need to be efficient.
+                Debug.Assert(_func != null);
+                _func(span.ToArray(), _state, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+
             }
 
             public override Task WriteAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
@@ -241,14 +247,27 @@ namespace System.IO
                 return WriteAsync(new ReadOnlyMemory<byte>(buffer, offset, length), cancellationToken).AsTask();
             }
 
-            public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (_func != null)
-                    await _func(buffer, _state, cancellationToken);
-                else if (_action != null)
+                {
+                    return _func(buffer, _state, cancellationToken);
+                }
+
+                // In case a poorly implemented CopyTo(Stream, ...) method decides to call
+                // the destination stream's WriteAsync rather than Write, we make it work,
+                // but this does not need to be efficient.
+                Debug.Assert(_action != null);
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
                     _action(buffer.Span, _state);
-                else
-                    throw new NotSupportedException();
+                    return default;
+                }
+                catch (Exception e)
+                {
+                    return new ValueTask(Task.FromException(e));
+                }
             }
 
             public override bool CanRead => false;
