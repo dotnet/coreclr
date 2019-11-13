@@ -2617,7 +2617,7 @@ protected:
         nomdStubNeedsCOMStarted   = 0x0800,  // EnsureComStarted must be called before executing the method
         nomdMulticastStub         = 0x1000,
         nomdUnboxingILStub        = 0x2000,
-        nomdSecureDelegateStub    = 0x4000,
+        nomdWrapperDelegateStub   = 0x4000,
 
         nomdILStub          = 0x00010000,
         nomdLCGMethod       = 0x00020000,
@@ -2727,10 +2727,10 @@ public:
         return !!(m_dwExtendedFlags & nomdMulticastStub);
     }
 #endif
-    bool IsSecureDelegateStub() {
+    bool IsWrapperDelegateStub() {
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(IsILStub());
-        return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
+        return !!(m_dwExtendedFlags & nomdWrapperDelegateStub);
     }
 #ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
     bool IsUnboxingILStub() {

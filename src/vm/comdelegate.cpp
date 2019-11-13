@@ -994,7 +994,7 @@ FCIMPLEND
 // This method is called (in the late bound case only) once a target method has been decided on. All the consistency checks
 // (signature matching etc.) have been done at this point and the only major reason we could fail now is on security grounds
 // (someone trying to create a delegate over a method that's not visible to them for instance). This method will initialize the
-// delegate (wrapping it in a secure delegate if necessary). Upon return the delegate should be ready for invocation.
+// delegate (wrapping it in a wrapper delegate if necessary). Upon return the delegate should be ready for invocation.
 void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
                                OBJECTREF     *pRefFirstArg,
                                MethodDesc    *pTargetMethod,
@@ -1014,8 +1014,8 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
     }
     CONTRACTL_END;
 
-    // We might have to wrap the delegate in a secure delegate depending on the location of the target method. The following local
-    // keeps track of the real (i.e. non-secure) delegate whether or not this is required.
+    // We might have to wrap the delegate in a wrapper delegate depending on the the target method. The following local
+    // keeps track of the real (i.e. non-wrapper) delegate whether or not this is required.
     DELEGATEREF refRealDelegate = NULL;
     GCPROTECT_BEGIN(refRealDelegate);
 
@@ -1050,11 +1050,11 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
                                       pTargetMethod);
     }
 
-    // If we didn't wrap the real delegate in a secure delegate then the real delegate is the one passed in.
+    // If we didn't wrap the real delegate in a wrapper delegate then the real delegate is the one passed in.
     if (refRealDelegate == NULL)
     {
         if (NeedsWrapperDelegate(pTargetMethod))
-            refRealDelegate = CreateSecureDelegate(*pRefThis, NULL, pTargetMethod);
+            refRealDelegate = CreateWrapperDelegate(*pRefThis, pTargetMethod);
         else
             refRealDelegate = *pRefThis;
     }
@@ -1818,7 +1818,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
     }
 
     if (NeedsWrapperDelegate(pMeth))
-        gc.refThis = CreateSecureDelegate(gc.refThis, NULL, pMeth);
+        gc.refThis = CreateWrapperDelegate(gc.refThis, pMeth);
 
     if (pMeth->GetLoaderAllocator()->IsCollectible())
         gc.refThis->SetMethodBase(pMeth->GetLoaderAllocator()->GetExposedObject());
@@ -1931,10 +1931,10 @@ MethodDesc *COMDelegate::GetMethodDesc(OBJECTREF orDelegate)
         // this is one of the following:
         // - multicast - _invocationList is Array && _invocationCount != 0
         // - unamanaged ftn ptr - _invocationList == NULL && _invocationCount == -1
-        // - secure delegate - _invocationList is Delegate && _invocationCount != NULL
+        // - wrapper delegate - _invocationList is Delegate && _invocationCount != NULL
         // - virtual delegate - _invocationList == null && _invocationCount == (target MethodDesc)
-        //                    or _invocationList points to a LoaderAllocator/DynamicResolver (inner open virtual delegate of a Secure Delegate)
-        // in the secure delegate case we want to unwrap and return the method desc of the inner delegate
+        //                    or _invocationList points to a LoaderAllocator/DynamicResolver (inner open virtual delegate of a Wrapper Delegate)
+        // in the wrapper delegate case we want to unwrap and return the method desc of the inner delegate
         // in the other cases we return the method desc for the invoke
         innerDel = (DELEGATEREF) thisDel->GetInvocationList();
         bool fOpenVirtualDelegate = false;
@@ -2015,10 +2015,10 @@ OBJECTREF COMDelegate::GetTargetObject(OBJECTREF obj)
         // this is one of the following:
         // - multicast
         // - unmanaged ftn ptr
-        // - secure delegate
+        // - wrapper delegate
         // - virtual delegate - _invocationList == null && _invocationCount == (target MethodDesc)
-        //                    or _invocationList points to a LoaderAllocator/DynamicResolver (inner open virtual delegate of a Secure Delegate)
-        // in the secure delegate case we want to unwrap and return the object of the inner delegate
+        //                    or _invocationList points to a LoaderAllocator/DynamicResolver (inner open virtual delegate of a Wrapper Delegate)
+        // in the wrapper delegate case we want to unwrap and return the object of the inner delegate
         innerDel = (DELEGATEREF) thisDel->GetInvocationList();
         if (innerDel != NULL)
         {
@@ -2205,9 +2205,9 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 #ifdef _TARGET_ARM_
     // For arm VSD expects r4 to contain the indirection cell. However r4 is a non-volatile register
     // and its value must be preserved. So we need to erect a frame and store indirection cell in r4 before calling
-    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure
+    // virtual stub dispatch. Erecting frame is already done by wrapper delegates so the Wrapper Delegate infrastructure
     //  can easliy be used for our purpose.
-    // set needsSecureDelegate flag in order to erect a frame. (Secure Delegate stub also loads the right value in r4)
+    // set needsWrapperDelegate flag in order to erect a frame. (Wrapper Delegate stub also loads the right value in r4)
     if (!pTargetMD->IsStatic() && pTargetMD->IsVirtual() && !pTargetMD->GetMethodTable()->IsValueType())
         return TRUE;
 #endif
@@ -2218,14 +2218,13 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 
 #ifndef CROSSGEN_COMPILE
 
-// to create a secure delegate wrapper we need:
+// to create a wrapper delegate wrapper we need:
 // - the delegate to forward to         -> _invocationList
-// - the creator assembly               -> _methodAuxPtr
 // - the delegate invoke MethodDesc     -> _count
 // the 2 fields used for invocation will contain:
 // - the delegate itself                -> _pORField
-// - the secure stub                    -> _pFPField
-DELEGATEREF COMDelegate::CreateSecureDelegate(DELEGATEREF delegate, MethodDesc* pCreatorMethod, MethodDesc* pTargetMD)
+// - the wrapper stub                    -> _pFPField
+DELEGATEREF COMDelegate::CreateWrapperDelegate(DELEGATEREF delegate, MethodDesc* pTargetMD)
 {
     CONTRACTL
     {
@@ -2239,10 +2238,10 @@ DELEGATEREF COMDelegate::CreateSecureDelegate(DELEGATEREF delegate, MethodDesc* 
     MethodDesc *pMD = ((DelegateEEClass*)(pDelegateType->GetClass()))->GetInvokeMethod();
     // allocate the object
     struct _gc {
-        DELEGATEREF refSecDel;
+        DELEGATEREF refWrapperDel;
         DELEGATEREF innerDel;
     } gc;
-    gc.refSecDel = delegate;
+    gc.refWrapperDel = delegate;
     gc.innerDel = NULL;
 
     GCPROTECT_BEGIN(gc);
@@ -2251,38 +2250,17 @@ DELEGATEREF COMDelegate::CreateSecureDelegate(DELEGATEREF delegate, MethodDesc* 
     //
 
     // Object reference field...
-    gc.refSecDel->SetTarget(gc.refSecDel);
+    gc.refWrapperDel->SetTarget(gc.refWrapperDel);
 
-    // save the secure invoke stub.  GetSecureInvoke() can trigger GC.
-    PCODE tmp = GetSecureInvoke(pMD);
-    gc.refSecDel->SetMethodPtr(tmp);
-    // save the assembly
-    gc.refSecDel->SetMethodPtrAux((PCODE)(void *)pCreatorMethod);
+    // save the secure invoke stub.  GetWrapperInvoke() can trigger GC.
+    PCODE tmp = GetWrapperInvoke(pMD);
+    gc.refWrapperDel->SetMethodPtr(tmp);
     // save the delegate MethodDesc for the frame
-    gc.refSecDel->SetInvocationCount((INT_PTR)pMD);
+    gc.refWrapperDel->SetInvocationCount((INT_PTR)pMD);
 
     // save the delegate to forward to
     gc.innerDel = (DELEGATEREF) pDelegateType->Allocate();
-    gc.refSecDel->SetInvocationList(gc.innerDel);
-
-    if (pCreatorMethod != NULL)
-    {
-        // If the pCreatorMethod is a collectible method, then stash a reference to the
-        // LoaderAllocator/DynamicResolver of the collectible assembly/method in the invocationList
-        // of the inner delegate
-        // (The invocationList of the inner delegate is the only field garaunteed to be unused for
-        //  other purposes at this time.)
-        if (pCreatorMethod->IsLCGMethod())
-        {
-            OBJECTREF refCollectible = pCreatorMethod->AsDynamicMethodDesc()->GetLCGMethodResolver()->GetManagedResolver();
-            gc.innerDel->SetInvocationList(refCollectible);
-        }
-        else if (pCreatorMethod->GetLoaderAllocator()->IsCollectible())
-        {
-            OBJECTREF refCollectible = pCreatorMethod->GetLoaderAllocator()->GetExposedObject();
-            gc.innerDel->SetInvocationList(refCollectible);
-        }
-    }
+    gc.refWrapperDel->SetInvocationList(gc.innerDel);
 
     GCPROTECT_END();
 
@@ -2525,7 +2503,7 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
 FCIMPLEND
 #endif // FEATURE_MULTICASTSTUB_AS_IL
 
-PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
+PCODE COMDelegate::GetWrapperInvoke(MethodDesc* pMD)
 {
     CONTRACTL
     {
@@ -2537,7 +2515,7 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 
     MethodTable *       pDelegateMT = pMD->GetMethodTable();
     DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
-    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
+    Stub *pStub = delegateEEClass->m_pWrapperDelegateInvokeStub;
 
     if (pStub == NULL)
     {
@@ -2576,7 +2554,7 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
         MethodDesc* pStubMD =
             ILStubCache::CreateAndLinkNewILStubMethodDesc(pMD->GetLoaderAllocator(),
                                                           pMD->GetMethodTable(),
-                                                          ILSTUB_SECUREDELEGATE_INVOKE,
+                                                          ILSTUB_WRAPPERDELEGATE_INVOKE,
                                                           pMD->GetModule(),
                                                           pSig, cbSig,
                                                           NULL,
@@ -2586,7 +2564,7 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 
         g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
 
-        InterlockedCompareExchangeT<PTR_Stub>(&delegateEEClass->m_pSecureDelegateInvokeStub, pStub, NULL);
+        InterlockedCompareExchangeT<PTR_Stub>(&delegateEEClass->m_pWrapperDelegateInvokeStub, pStub, NULL);
 
     }
     return pStub->GetEntryPoint();
@@ -3090,7 +3068,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
 
     if (NeedsWrapperDelegate(pTargetMethod))
     {
-        // If we need a wrapper even it is not a secure delegate, go through slow path
+        // If we need a wrapper, go through slow path
         return NULL;
     }
 
@@ -3118,7 +3096,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
     // 4- Static closed                 first arg       target method           null                null                0
     // 5- Static closed (special sig)   delegate        specialSig thunk        target method       first arg           0
     // 6- Static opened                 delegate        shuffle thunk           target method       null                0
-    // 7- Secure                        delegate        call thunk              MethodDesc (frame)  target delegate     creator assembly
+    // 7- Wrapper                       delegate        call thunk              MethodDesc (frame)  target delegate     (arm only, VSD indirection cell address)
     //
     // Delegate invoke arg count == target method arg count - 2, 3, 6
     // Delegate invoke arg count == 1 + target method arg count - 1, 4, 5
@@ -3287,7 +3265,7 @@ BOOL COMDelegate::ValidateCtor(TypeHandle instHnd,
     return IsMethodDescCompatible(instHnd, ftnParentHnd, pFtn, dlgtHnd, pDlgtInvoke, DBF_RelaxedSignature, pfIsOpenDelegate);
 }
 
-BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
+BOOL COMDelegate::IsWrapperDelegate(DELEGATEREF dRef)
 {
     CONTRACTL
     {
@@ -3302,7 +3280,7 @@ BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
         innerDel = (DELEGATEREF) dRef->GetInvocationList();
         if (innerDel != NULL && innerDel->GetMethodTable()->IsDelegate())
         {
-            // We have a secure delegate
+            // We have a wrapper delegate
             return TRUE;
         }
     }

@@ -5781,14 +5781,14 @@ void CEEInfo::getCallInfo(
         }
     }
 
-    pResult->secureDelegateInvoke = FALSE;
+    pResult->wrapperDelegateInvoke = FALSE;
 
     if (m_pMethodBeingCompiled->IsDynamicMethod())
     {
         auto pMD = m_pMethodBeingCompiled->AsDynamicMethodDesc();
-        if (pMD->IsILStub() && pMD->IsSecureDelegateStub())
+        if (pMD->IsILStub() && pMD->IsWrapperDelegateStub())
         {
-            pResult->secureDelegateInvoke = TRUE;
+            pResult->wrapperDelegateInvoke = TRUE;
         }
     }
 
@@ -10321,8 +10321,8 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     pEEInfoOut->offsetOfDelegateInstance    = OFFSETOF__DelegateObject__target;
     pEEInfoOut->offsetOfDelegateFirstTarget = OFFSETOF__DelegateObject__methodPtr;
 
-    // Secure delegate offsets
-    pEEInfoOut->offsetOfSecureDelegateIndirectCell = OFFSETOF__DelegateObject__methodPtrAux;
+    // Wrapper delegate offsets
+    pEEInfoOut->offsetOfWrapperDelegateIndirectCell = OFFSETOF__DelegateObject__methodPtrAux;
 
     // Remoting offsets
     pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;

@@ -3264,7 +3264,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
 
                     if (ctorData.pArg4 != NULL || ctorData.pArg5 != NULL)
                     {
-                        // This should never happen - we should never get collectible or secure delegates here
+                        // This should never happen - we should never get collectible or wrapper delegates here
                         _ASSERTE(false);
                         pDelegateCtor = NULL;
                     }

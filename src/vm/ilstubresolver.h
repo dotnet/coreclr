@@ -91,7 +91,7 @@ protected:
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
         MulticastDelegateStub,
 #endif
-        SecureDelegateStub,
+        WrapperDelegateStub,
 #ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
         UnboxingILStub,
         InstantiatingStub,
