@@ -378,36 +378,45 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
         return pField->GetOffset();
     }
 
+    UINT32 externalOffset;
+
+    // It isn't marshalable so throw an ArgumentException.
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refField);
     {
         GCX_PREEMP();
         // Determine if the type is marshalable.
         if (!IsStructMarshalable(th))
         {
-            // It isn't marshalable so throw an ArgumentException.
-            HELPER_METHOD_FRAME_BEGIN_RET_1(refField);
 
             StackSString strTypeName;
             TypeString::AppendType(strTypeName, th);
             COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);
 
-            HELPER_METHOD_FRAME_END();
         }
         EEClassNativeLayoutInfo const* pNativeLayoutInfo = th.GetMethodTable()->GetNativeLayoutInfo();
 
         NativeFieldDescriptor const*pNFD = pNativeLayoutInfo->GetNativeFieldDescriptors();
         UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
 
+#ifdef _DEBUG
+        bool foundField = false;
+#endif
         while (numReferenceFields--)
         {
             if (pNFD->GetFieldDesc() == pField)
             {
-                return pNFD->GetExternalOffset();
+                externalOffset = pNFD->GetExternalOffset();
+                INDEBUG(foundField = true);
+                break;
             }
             pNFD++;
         }
 
-        UNREACHABLE_MSG("We should never hit this point since we already verified that the requested field was present from managed code");
+        CONSISTENCY_CHECK(foundField, "We should never hit this point since we already verified that the requested field was present from managed code");
     }
+    HELPER_METHOD_FRAME_END();
+
+    return externalOffset;
 }
 FCIMPLEND
 
