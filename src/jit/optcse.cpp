@@ -1812,6 +1812,7 @@ public:
         bool     m_IsAggressive;
         bool     m_IsModerate;
         bool     m_IsConservative;
+        bool     m_IsStressCSE;
 
     public:
         CSE_Candidate(CSE_Heuristic* context, Compiler::CSEdsc* cseDsc)
@@ -1892,6 +1893,16 @@ public:
         bool IsConservative()
         {
             return m_IsConservative;
+        }
+
+        void SetIsStressCSE(bool value)
+        {
+            m_IsStressCSE = value;
+        }
+
+        bool IsStressCSE()
+        {
+            return m_IsStressCSE;
         }
 
         void InitializeCounts()
@@ -2383,7 +2394,7 @@ public:
     // It will also put cse0 into SSA if there is just one def.
     void PerformCSE(CSE_Candidate* successfulCandidate)
     {
-        const char* grabTempMessage;
+        const char* grabTempMessage = "CSE - unknown";
 
         unsigned cseRefCnt = (successfulCandidate->DefCount() * 2) + successfulCandidate->UseCount();
 
@@ -2402,10 +2413,13 @@ public:
             grabTempMessage = "CSE - moderate";
             moderateRefCnt += (incr / 2);
         }
-        else
+        else if (successfulCandidate->IsConservative())
         {
-            assert(successfulCandidate->IsConservative());
             grabTempMessage = "CSE - conservative";
+        }
+        else if (successfulCandidate->IsStressCSE())
+        {
+            grabTempMessage = "CSE - stress mode";
         }
 
         /* Introduce a new temp for the CSE */
