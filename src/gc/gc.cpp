@@ -4345,8 +4345,8 @@ typedef struct
     size_t block_size_large;
 
     int block_count;                // # of blocks in each
-    size_t current_block_normal;
-    size_t current_block_large;
+    int current_block_normal;
+    int current_block_large;
 
     enum
     {
@@ -4510,7 +4510,7 @@ void destroy_initial_memory()
         {
             assert (memory_details.allocation_pattern == initial_memory_details::EACH_BLOCK);
             imemory_data *current_block = memory_details.initial_memory;
-            for(size_t i = 0; i < (memory_details.block_count*2); i++, current_block++)
+            for(int i = 0; i < (memory_details.block_count*2); i++, current_block++)
             {
                 size_t block_size = (i < memory_details.block_count) ? memory_details.block_size_normal :
                                                                        memory_details.block_size_large;
