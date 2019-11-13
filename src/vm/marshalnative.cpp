@@ -412,7 +412,7 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
             pNFD++;
         }
 
-        CONSISTENCY_CHECK(foundField, "We should never hit this point since we already verified that the requested field was present from managed code");
+        CONSISTENCY_CHECK_MSG(foundField, "We should never hit this point since we already verified that the requested field was present from managed code");
     }
     HELPER_METHOD_FRAME_END();
 
