@@ -698,17 +698,11 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         parentAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
     }
 
-    if (cInstanceFields == 0 && classSizeInMetadata == 0 && (!fParentHasLayout || pParentLayoutInfo->IsZeroSized()))
-    {
-        pEEClassLayoutInfoOut->SetIsZeroSized(TRUE);
-    }
-
     BYTE parentManagedAlignmentRequirement = 0;
-    UINT32 parentSize = 0;
+    UINT32 parentSize = pParentMT->GetNumInstanceFieldBytes();
     if (pParentMT && (pParentMT->IsManagedSequential() || (pParentMT->GetClass()->HasExplicitFieldOffsetLayout() && pParentMT->IsBlittable())))
     {
         parentManagedAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
-        parentSize = pParentMT->GetNumInstanceFieldBytes();
     }
 
     CalculateSizeAndFieldOffsets(
@@ -725,7 +719,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 
     if (pEEClassLayoutInfoOut->m_cbManagedSize == 0)
     {
-        _ASSERTE(pEEClassLayoutInfoOut->IsZeroSized());
+        pEEClassLayoutInfoOut->SetIsZeroSized(TRUE);
         pEEClassLayoutInfoOut->m_cbManagedSize = 1; // Bump the managed size of the structure up to 1.
     }
 
