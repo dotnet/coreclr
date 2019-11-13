@@ -2248,42 +2248,38 @@ void LinearScan::buildIntervals()
 
         if (enregisterLocalVars)
         {
-            // We don't need exposed uses for an EH edge, because no lclVars will be kept in
-            // registers across such edges.
-            if (!blockInfo[block->bbNum].hasEHBoundaryOut)
-            {
-                // Insert exposed uses for a lclVar that is live-out of 'block' but not live-in to the
-                // next block, or any unvisited successors.
-                // This will address lclVars that are live on a backedge, as well as those that are kept
-                // live at a GT_JMP.
-                //
-                // Blocks ending with "jmp method" are marked as BBJ_HAS_JMP,
-                // and jmp call is represented using GT_JMP node which is a leaf node.
-                // Liveness phase keeps all the arguments of the method live till the end of
-                // block by adding them to liveout set of the block containing GT_JMP.
-                //
-                // The target of a GT_JMP implicitly uses all the current method arguments, however
-                // there are no actual references to them.  This can cause LSRA to assert, because
-                // the variables are live but it sees no references.  In order to correctly model the
-                // liveness of these arguments, we add dummy exposed uses, in the same manner as for
-                // backward branches.  This will happen automatically via expUseSet.
-                //
-                // Note that a block ending with GT_JMP has no successors and hence the variables
-                // for which dummy use ref positions are added are arguments of the method.
+            // Insert exposed uses for a lclVar that is live-out of 'block' but not live-in to the
+            // next block, or any unvisited successors.
+            // This will address lclVars that are live on a backedge, as well as those that are kept
+            // live at a GT_JMP.
+            //
+            // Blocks ending with "jmp method" are marked as BBJ_HAS_JMP,
+            // and jmp call is represented using GT_JMP node which is a leaf node.
+            // Liveness phase keeps all the arguments of the method live till the end of
+            // block by adding them to liveout set of the block containing GT_JMP.
+            //
+            // The target of a GT_JMP implicitly uses all the current method arguments, however
+            // there are no actual references to them.  This can cause LSRA to assert, because
+            // the variables are live but it sees no references.  In order to correctly model the
+            // liveness of these arguments, we add dummy exposed uses, in the same manner as for
+            // backward branches.  This will happen automatically via expUseSet.
+            //
+            // Note that a block ending with GT_JMP has no successors and hence the variables
+            // for which dummy use ref positions are added are arguments of the method.
 
-                VARSET_TP expUseSet(VarSetOps::MakeCopy(compiler, block->bbLiveOut));
-                VarSetOps::IntersectionD(compiler, expUseSet, registerCandidateVars);
-                BasicBlock* nextBlock = getNextBlock();
-                if (nextBlock != nullptr)
+            VARSET_TP expUseSet(VarSetOps::MakeCopy(compiler, block->bbLiveOut));
+            VarSetOps::IntersectionD(compiler, expUseSet, registerCandidateVars);
+            BasicBlock* nextBlock = getNextBlock();
+            if (nextBlock != nullptr)
+            {
+                VarSetOps::DiffD(compiler, expUseSet, nextBlock->bbLiveIn);
+            }
+            for (BasicBlock* succ : block->GetAllSuccs(compiler))
+            {
+                if (VarSetOps::IsEmpty(compiler, expUseSet))
                 {
-                    VarSetOps::DiffD(compiler, expUseSet, nextBlock->bbLiveIn);
+                    break;
                 }
-                for (BasicBlock* succ : block->GetAllSuccs(compiler))
-                {
-                    if (VarSetOps::IsEmpty(compiler, expUseSet))
-                    {
-                        break;
-                    }
 
                 if (isBlockVisited(succ))
                 {
@@ -2291,6 +2287,7 @@ void LinearScan::buildIntervals()
                 }
                 VarSetOps::DiffD(compiler, expUseSet, succ->bbLiveIn);
             }
+
             if (!VarSetOps::IsEmpty(compiler, expUseSet))
             {
                 JITDUMP("Exposed uses:");

@@ -8232,7 +8232,30 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             }
             if (!VarSetOps::IsEmpty(compiler, edgeResolutionSet))
             {
-                resolveEdge(block, succBlock, ResolveCritical, edgeResolutionSet);
+                // For EH vars, we can always safely load them from the stack into the target for this block,
+                // so if we have only EH vars, we'll do that instead of splitting the edge.
+                if ((compiler->compHndBBtabCount > 0) && VarSetOps::IsSubset(compiler, edgeResolutionSet, exceptVars))
+                {
+                    GenTree* insertionPoint = LIR::AsRange(succBlock).FirstNonPhiNode();
+                    VarSetOps::Iter edgeSetIter(compiler, edgeResolutionSet);
+                    unsigned        edgeVarIndex = 0;
+                    while (edgeSetIter.NextElem(&edgeVarIndex))
+                    {
+                        regNumber toReg = getVarReg(succInVarToRegMap, edgeVarIndex);
+                        setVarReg(succInVarToRegMap, edgeVarIndex, REG_STK);
+                        if (toReg != REG_STK)
+                        {
+                            Interval* interval = getIntervalForLocalVar(edgeVarIndex);
+                            assert(interval->isWriteThru);
+                            addResolution(succBlock, insertionPoint, interval, toReg, REG_STK);
+                            JITDUMP(" (EHvar)\n");
+                        }
+                    }
+                }
+                else
+                {
+                    resolveEdge(block, succBlock, ResolveCritical, edgeResolutionSet);
+                }
             }
         }
     }
