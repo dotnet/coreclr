@@ -7622,6 +7622,33 @@ void ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStop(UINT
     FireEtwTieredCompilationBackgroundJitStop(GetClrInstanceId(), pendingMethodCount, jittedMethodCount);
 }
 
+void ETW::CompilationLog::TieredCompilation::Runtime::IncrementMethodCallCounter(MethodDesc *pMethod, INT32 callCount)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    } CONTRACTL_END;
+    _ASSERTE(pMethod != NULL);
+    _ASSERTE(g_pConfig->TieredCompilation());
+
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, TieredCompilationIncrementMethodCallCounter))
+    {
+        EX_TRY
+        {
+                SString tNamespace, tMethodName, tMethodSignature;
+                pMethodDesc->GetMethodInfo(tNamespace, tMethodName, tMethodSignature);
+
+                FireEtwTieredCompilationIncrementMethodCallCounter(
+                    (UINT64)pMethodDesc,
+                    (PCWSTR)tNamespace.GetUnicode(),
+                    (PCWSTR)tMethodName.GetUnicode(),
+                    (PCWSTR)tMethodSignature.GetUnicode(),
+                    callCount,
+                    GetClrInstanceId());
+
+        } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
+}
+
 #endif // !FEATURE_REDHAWK
 
 #ifdef FEATURE_PERFTRACING

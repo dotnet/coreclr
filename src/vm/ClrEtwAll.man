@@ -387,6 +387,7 @@
                             <opcode name="Settings" message="$(string.RuntimePublisher.TieredCompilationSettingsOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_SETTINGS_OPCODE" value="11"/>
                             <opcode name="Pause" message="$(string.RuntimePublisher.TieredCompilationPauseOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_PAUSE_OPCODE" value="12"/>
                             <opcode name="Resume" message="$(string.RuntimePublisher.TieredCompilationResumeOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_RESUME_OPCODE" value="13"/>
+                            <opcode name="Increment" message="$(string.RuntimePublisher.TieredCompilationIncrementOpcodeMessage)" symbol="CLR_TIERED_COMPILATION_INCREMENT_OPCODE" value="14"/>
                         </opcodes>
                     </task>
 
@@ -2613,6 +2614,25 @@
                         </Settings>
                       </UserData>
                     </template>
+
+                    <template tid="TieredCompilationIncrementMethodCallCounter">
+                        <data name="MethodID" inType="win:UInt64" outType="win:HexInt64" />
+                        <data name="MethodNamespace" inType="win:UnicodeString" />
+                        <data name="MethodName" inType="win:UnicodeString" />
+                        <data name="MethodSignature" inType="win:UnicodeString" />
+                        <data name="CounterValue" inType="win:Int32" />
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                        <UserData>
+                            <TieredCompilationIncrementMethodCallCounter xmlns="myNs">
+                                <MethodID> %1 </MethodID>
+                                <MethodNamespace> %2 </MethodNamespace>
+                                <MethodName> %3 </MethodName>
+                                <MethodSignature> %4 </MethodSignature>
+                                <CounterValue> %5 </CounterValue>
+                                <ClrInstanceID> %6 </ClrInstanceID>
+                            </TieredCompilationIncrementMethodCallCounter>
+                        </UserData>
+                    </template>
                 </templates>
 
                 <events>
@@ -3546,6 +3566,9 @@
                     <event value="284" version="0" level="win:Informational" template="TieredCompilationBackgroundJitStop"
                            keywords="CompilationKeyword" task="TieredCompilation" opcode="win:Stop"
                            symbol="TieredCompilationBackgroundJitStop" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStopEventMessage)"/>
+                    <event value="285" version="0" level="win:Verbose" template="TieredCompilationIncrementMethodCallCounter"
+                           keywords ="CompilationDiagnosticKeyword" task="TieredCompilation" opcode="Increment"
+                           symbol="TieredCompilationIncrementMethodCallCounter" message="$(string.RuntimePublisher.TieredCompilationIncrementMethodCallCounterEventMessage)"/>
 
                     <!-- Assembly loader events 290-299 -->
                     <event value="290" version="0" level="win:Informational"  template="AssemblyLoadStart"
@@ -6803,6 +6826,7 @@
                 <string id="RuntimePublisher.TieredCompilationResumeEventMessage" value="ClrInstanceID=%1;%nNewMethodCount=%2" />
                 <string id="RuntimePublisher.TieredCompilationBackgroundJitStartEventMessage" value="ClrInstanceID=%1;%nPendingMethodCount=%2" />
                 <string id="RuntimePublisher.TieredCompilationBackgroundJitStopEventMessage" value="ClrInstanceID=%1;%nPendingMethodCount=%2;%nJittedMethodCount=%3" />
+                <string id="RuntimePublisher.TieredCompilationIncrementMethodCallCounterEventMessage" value="MethodID=%1;%nMethodNamespace=%2;%nMethodName=%3;%nMethodSignature=%4;%nCounterValue=%5;%nClrInstanceID=%6" />
 
                 <string id="RundownPublisher.MethodDCStartEventMessage" value="MethodID=%1;%nModuleID=%2;%nMethodStartAddress=%3;%nMethodSize=%4;%nMethodToken=%5;%nMethodFlags=%6" />
                 <string id="RundownPublisher.MethodDCStart_V1EventMessage" value="MethodID=%1;%nModuleID=%2;%nMethodStartAddress=%3;%nMethodSize=%4;%nMethodToken=%5;%nMethodFlags=%6;%nClrInstanceID=%7" />
@@ -7400,6 +7424,7 @@
                 <string id="RuntimePublisher.TieredCompilationSettingsOpcodeMessage" value="Settings" />
                 <string id="RuntimePublisher.TieredCompilationPauseOpcodeMessage" value="Pause" />
                 <string id="RuntimePublisher.TieredCompilationResumeOpcodeMessage" value="Resume" />
+                <string id="RuntimePublisher.TieredCompilationIncrementOpcodeMessage" value="Increment" />
 
                 <string id="RuntimePublisher.AssemblyLoadContextResolvingHandlerInvokedOpcodeMessage" value="AssemblyLoadContextResolvingHandlerInvoked" />
                 <string id="RuntimePublisher.AppDomainAssemblyResolveHandlerInvokedOpcodeMessage" value="AppDomainAssemblyResolveHandlerInvoked" />
