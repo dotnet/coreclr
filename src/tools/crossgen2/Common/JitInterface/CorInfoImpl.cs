@@ -697,12 +697,14 @@ namespace Internal.JitInterface
                 result |= CorInfoFlag.CORINFO_FLG_FINAL;
             }
 
+#if READYTORUN
             // Check for SIMD intrinsics
-            if (method.OwningType.IsIntrinsic && method.OwningType is MetadataType mdType && 
-                (mdType.Name == "Vector`1") && (mdType.Namespace == "System.Numerics"))
+            DefType owningDefType = method.OwningType as DefType;
+            if (owningDefType != null && VectorFieldLayoutAlgorithm.IsVectorOfTType(owningDefType))
             {
                 throw new RequiresRuntimeJitException("This function is using SIMD intrinsics, their size is machine specific");
             }
+#endif
 
             // Check for hardware intrinsics
             if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
