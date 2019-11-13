@@ -1826,6 +1826,7 @@ public:
             , m_IsAggressive(false)
             , m_IsModerate(false)
             , m_IsConservative(false)
+            , m_IsStressCSE(false)
         {
         }
 
