@@ -2119,10 +2119,10 @@ public:
                 if (largeFrame)
                 {
 #ifdef DEBUG
-                if (m_pCompiler->verbose)
-                {
-                    printf("Codesize CSE Promotion (%s frame)\n", hugeFrame ? "huge" : "large");
-                }
+                    if (m_pCompiler->verbose)
+                    {
+                        printf("Codesize CSE Promotion (%s frame)\n", hugeFrame ? "huge" : "large");
+                    }
 #endif
 #ifdef _TARGET_XARCH_
                     /* The following formula is good choice when optimizing CSE for SMALL_CODE */
