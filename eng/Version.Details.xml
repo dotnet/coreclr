@@ -3,21 +3,21 @@
   <ProductDependencies>
   </ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="5.0.0-beta.19558.11">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="5.0.0-beta.19562.5">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>be7971c98d4ad60cdf8c3d1aa41f950f42bd466a</Sha>
+      <Sha>993af9410c505680b9a260f3bfd79515c936de12</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="5.0.0-beta.19558.11">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="5.0.0-beta.19562.5">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>be7971c98d4ad60cdf8c3d1aa41f950f42bd466a</Sha>
+      <Sha>993af9410c505680b9a260f3bfd79515c936de12</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Build.Tasks.Feed" Version="5.0.0-beta.19558.11">
+    <Dependency Name="Microsoft.DotNet.Build.Tasks.Feed" Version="5.0.0-beta.19562.5">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>be7971c98d4ad60cdf8c3d1aa41f950f42bd466a</Sha>
+      <Sha>993af9410c505680b9a260f3bfd79515c936de12</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Build.Tasks.Packaging" Version="5.0.0-beta.19558.11">
+    <Dependency Name="Microsoft.DotNet.Build.Tasks.Packaging" Version="5.0.0-beta.19562.5">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>be7971c98d4ad60cdf8c3d1aa41f950f42bd466a</Sha>
+      <Sha>993af9410c505680b9a260f3bfd79515c936de12</Sha>
     </Dependency>
     <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="5.0.0-alpha.1.19562.1">
       <Uri>https://github.com/dotnet/corefx</Uri>
@@ -39,9 +39,9 @@
       <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
       <Sha>d0bb63d2ec7060714e63ee4082fac48f2e57f3e2</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.VersionTools.Tasks" Version="5.0.0-beta.19558.11">
+    <Dependency Name="Microsoft.DotNet.VersionTools.Tasks" Version="5.0.0-beta.19562.5">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>be7971c98d4ad60cdf8c3d1aa41f950f42bd466a</Sha>
+      <Sha>993af9410c505680b9a260f3bfd79515c936de12</Sha>
     </Dependency>
     <Dependency Name="ILLink.Tasks" Version="0.1.6-prerelease.19557.1">
       <Uri>https://github.com/mono/linker</Uri>
