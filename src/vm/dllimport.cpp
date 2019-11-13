@@ -4827,7 +4827,9 @@ void NDirect::PopulateNDirectMethodDesc(NDirectMethodDesc* pNMD, PInvokeStaticSi
         if (argit.HasRetBuffArg())
         {
             MethodTable *pRetMT = msig.GetRetTypeHandleThrowing().AsMethodTable();
-            if (IsUnmanagedValueTypeReturnedByRef(pRetMT->GetNativeSize()))
+            // The System.DateTime type itself technically doesn't have a native representation,
+            // so we have to special-case it here.
+            if (pRetMT != MscorlibBinder::GetClass(CLASS__DATE_TIME) && IsUnmanagedValueTypeReturnedByRef(pRetMT->GetNativeSize()))
             {
                 ndirectflags |= NDirectMethodDesc::kStdCallWithRetBuf;
             }
