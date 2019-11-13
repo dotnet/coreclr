@@ -12764,14 +12764,21 @@ DONE_MORPHING_CHILDREN:
 
             break;
 
-        case GT_NOT:
         case GT_NEG:
+            // Remove double negation
+            if ((oper == GT_NEG) && op1->OperIs(GT_NEG))
+            {
+                GenTree* child = op1->AsOp()->gtGetOp1();
+                return child;
+            }
 
+            __fallthrough;
+        case GT_NOT:
             /* Any constant cases should have been folded earlier */
             noway_assert(!op1->OperIsConst() || !opts.OptEnabled(CLFLG_CONSTANTFOLD) || optValnumCSE_phase);
             break;
 
-        case GT_CKFINITE:
+	case GT_CKFINITE:
 
             noway_assert(varTypeIsFloating(op1->TypeGet()));
 
