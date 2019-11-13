@@ -2502,7 +2502,7 @@ public:
     GenTree* gtNewSIMDVectorOne(var_types simdType, var_types baseType, unsigned size);
 #endif
 
-    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, unsigned size, bool isVolatile, bool isCopyBlock);
+    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, bool isVolatile, bool isCopyBlock);
 
     GenTree* gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg);
 
@@ -2512,7 +2512,7 @@ protected:
     void gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVal, bool isVolatile);
 
 public:
-    GenTree* gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
+    GenTreeObj* gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
     void gtSetObjGcInfo(GenTreeObj* objNode);
     GenTree* gtNewStructVal(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
     GenTree* gtNewBlockVal(GenTree* addr, unsigned size);
@@ -5446,7 +5446,6 @@ private:
     GenTree* fgMorphOneAsgBlockOp(GenTree* tree);
     GenTree* fgMorphInitBlock(GenTree* tree);
     GenTree* fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenTree* initVal, unsigned blockSize);
-    GenTree* fgMorphBlkToInd(GenTreeBlk* tree, var_types type);
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
     GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isDest);
@@ -6115,9 +6114,24 @@ protected:
 
     static const int MIN_CSE_COST = 2;
 
-    // Keeps tracked cse indices
-    BitVecTraits* cseTraits;
-    EXPSET_TP     cseFull;
+    // BitVec trait information only used by the optCSE_canSwap() method, for the  CSE_defMask and CSE_useMask.
+    // This BitVec uses one bit per CSE candidate
+    BitVecTraits* cseMaskTraits; // one bit per CSE candidate
+
+    // BitVec trait information for computing CSE availability using the CSE_DataFlow algorithm.
+    // Two bits are allocated per CSE candidate to compute CSE availability
+    // plus an extra bit to handle the initial unvisited case.
+    // (See CSE_DataFlow::EndMerge for an explaination of why this is necessary)
+    //
+    // The two bits per CSE candidate have the following meanings:
+    //     11 - The CSE is available, and is also available when considering calls as killing availability.
+    //     10 - The CSE is available, but is not available when considering calls as killing availability.
+    //     00 - The CSE is not available
+    //     01 - An illegal combination
+    //
+    BitVecTraits* cseLivenessTraits;
+
+    EXPSET_TP cseCallKillsMask; // Computed once - A mask that is used to kill available CSEs at callsites
 
     /* Generic list of nodes - used by the CSE logic */
 
@@ -6241,8 +6255,7 @@ protected:
     unsigned optCSECandidateCount; // Count of CSE's candidates, reset for Lexical and ValNum CSE's
     unsigned optCSEstart;          // The first local variable number that is a CSE
     unsigned optCSEcount;          // The total count of CSE's introduced.
-    unsigned optCSEweight;         // The weight of the current block when we are
-                                   // scanning for CSE expressions
+    unsigned optCSEweight;         // The weight of the current block when we are doing PerformCS
 
     bool optIsCSEcandidate(GenTree* tree);
 
@@ -7766,27 +7779,6 @@ private:
             return false;
         }
         return isOpaqueSIMDType(varDsc->lvVerTypeInfo.GetClassHandle());
-    }
-
-    // Returns true if the type of the tree is a byref of TYP_SIMD
-    bool isAddrOfSIMDType(GenTree* tree)
-    {
-        if (tree->TypeGet() == TYP_BYREF || tree->TypeGet() == TYP_I_IMPL)
-        {
-            switch (tree->OperGet())
-            {
-                case GT_ADDR:
-                    return varTypeIsSIMD(tree->gtGetOp1());
-
-                case GT_LCL_VAR_ADDR:
-                    return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
-
-                default:
-                    return isSIMDTypeLocal(tree);
-            }
-        }
-
-        return false;
     }
 
     static bool isRelOpSIMDIntrinsic(SIMDIntrinsicID intrinsicId)

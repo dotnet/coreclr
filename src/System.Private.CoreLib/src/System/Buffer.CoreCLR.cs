@@ -20,11 +20,6 @@ namespace System
 {
     public partial class Buffer
     {
-        // Returns a bool to indicate if the array is of primitive data types
-        // or not.
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool IsPrimitiveTypeArray(Array array);
-
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -40,7 +35,11 @@ namespace System
         private static extern unsafe void __ZeroMemory(void* b, nuint byteLength);
 
         // The maximum block size to for __BulkMoveWithWriteBarrier FCall. This is required to avoid GC starvation.
+#if DEBUG // Stress the mechanism in debug builds
+        private const uint BulkMoveWithWriteBarrierChunk = 0x400;
+#else
         private const uint BulkMoveWithWriteBarrierChunk = 0x4000;
+#endif
 
         internal static void BulkMoveWithWriteBarrier(ref byte destination, ref byte source, nuint byteCount)
         {
@@ -56,10 +55,11 @@ namespace System
         {
             Debug.Assert(byteCount > BulkMoveWithWriteBarrierChunk);
 
-            if (Unsafe.AreSame(ref destination, ref source))
+            if (Unsafe.AreSame(ref source, ref destination))
                 return;
 
-            if ((nuint)(nint)Unsafe.ByteOffset(ref destination, ref source) >= byteCount)
+            // This is equivalent to: (destination - source) >= byteCount || (destination - source) < 0
+            if ((nuint)(nint)Unsafe.ByteOffset(ref source, ref destination) >= byteCount)
             {
                 // Copy forwards
                 do

@@ -3481,15 +3481,13 @@ NoSpecialCase:
 
     DictionaryEntrySignatureSource signatureSource = (IsCompilationProcess() ? FromZapImage : FromJIT);
 
-    WORD dummySlot;
-
     // It's a method dictionary lookup
     if (pResultLookup->lookupKind.runtimeLookupKind == CORINFO_LOOKUP_METHODPARAM)
     {
         _ASSERTE(pContextMD != NULL);
         _ASSERTE(pContextMD->HasMethodInstantiation());
 
-        if (DictionaryLayout::FindToken(pContextMD, pContextMD->GetLoaderAllocator(), 1, &sigBuilder, NULL, signatureSource, pResult, &dummySlot))
+        if (DictionaryLayout::FindToken(pContextMD->GetLoaderAllocator(), pContextMD->GetNumGenericMethodArgs(), pContextMD->GetDictionaryLayout(), pResult, &sigBuilder, 1, signatureSource))
         {
             pResult->testForNull = 1;
             pResult->testForFixup = 0;
@@ -3507,7 +3505,7 @@ NoSpecialCase:
     // It's a class dictionary lookup (CORINFO_LOOKUP_CLASSPARAM or CORINFO_LOOKUP_THISOBJ)
     else
     {
-        if (DictionaryLayout::FindToken(pContextMT, pContextMT->GetLoaderAllocator(), 2, &sigBuilder, NULL, signatureSource, pResult, &dummySlot))
+        if (DictionaryLayout::FindToken(pContextMT->GetLoaderAllocator(), pContextMT->GetNumGenericArgs(), pContextMT->GetClass()->GetDictionaryLayout(), pResult, &sigBuilder, 2, signatureSource))
         {
             pResult->testForNull = 1;
             pResult->testForFixup = 0;
@@ -5759,7 +5757,7 @@ void CEEInfo::getCallInfo(
 
     pResult->methodFlags = getMethodAttribsInternal(pResult->hMethod);
 
-    SignatureKind signatureKind = flags & CORINFO_CALLINFO_CALLVIRT ? SK_VIRTUAL_CALLSITE : SK_CALLSITE;
+    SignatureKind signatureKind = flags & CORINFO_CALLINFO_CALLVIRT && !(pResult->kind == CORINFO_CALL) ? SK_VIRTUAL_CALLSITE : SK_CALLSITE;
     getMethodSigInternal(pResult->hMethod, &pResult->sig, (pResult->hMethod == pResolvedToken->hMethod) ? pResolvedToken->hClass : NULL, signatureKind);
 
     if (flags & CORINFO_CALLINFO_VERIFICATION)

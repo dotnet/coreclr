@@ -1604,8 +1604,6 @@ public:
 
 
 public:
-    // This API is not multi-threaded safe: the dictionary layout pointer can be updated by another
-    // thread during a generic dictionary size expansion.
     PTR_DictionaryLayout GetDictionaryLayout()
     {
         SUPPORTS_DAC;
