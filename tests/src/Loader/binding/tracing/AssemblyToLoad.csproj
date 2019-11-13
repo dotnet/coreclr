@@ -2,8 +2,13 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <CLRTestKind>BuildOnly</CLRTestKind>
+    <AssemblyName Condition="'$(AssemblyNameSuffix)'!=''">$(AssemblyName)_$(AssemblyNameSuffix)</AssemblyName>
+    <CleanFile>$(AssemblyName).FileListAbsolute.txt</CleanFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyToLoad.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="AssemblyToLoadDependency.csproj" />
   </ItemGroup>
 </Project>

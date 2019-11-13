@@ -63,11 +63,11 @@ jobs:
 
     # Install test build dependencies
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
-      - script: sh $(coreClrRepoRootDir)eng/install-native-dependencies.sh $(osGroup)
+      - script: sh $(Build.SourcesDirectory)/eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # Necessary to install correct cmake version
-      - script: $(coreClrRepoRootDir)eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
+      - script: $(Build.SourcesDirectory)\eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
 
 
