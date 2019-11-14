@@ -9,14 +9,11 @@ jobs:
   displayName: Checkout
 
   pool:
-    # Public Windows Build Pool
     ${{ if eq(variables['System.TeamProject'], 'public') }}:
-      vmImage: windows-latest
+      name: Hosted MacOS
 
-    # Private Windows Build Pool
     ${{ if ne(variables['System.TeamProject'], 'public') }}:
-      name: NetCoreInternal-Pool
-      queue: BuildPool.Windows.10.Amd64.VS2017
+      name: Hosted Mac Internal
   
   steps:
   - checkout: self
