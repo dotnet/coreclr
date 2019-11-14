@@ -113,6 +113,10 @@ case $CPUName in
         __Arch=armel
         ;;
 
+    armv6)
+        __Arch=armv6
+        ;;
+
     aarch64)
         __Arch=arm64
         ;;

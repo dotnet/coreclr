@@ -27,7 +27,7 @@ isMSBuildOnNETCoreSupported()
         return
     fi
 
-    if [ "$__HostOS" = "Linux" ] && { [ "$__HostArch" = "x64" ] || [ "$__HostArch" = "arm" ] || [ "$__HostArch" = "arm64" ]; }; then
+    if [ "$__HostOS" = "Linux" ] && { [ "$__HostArch" = "x64" ] || [ "$__HostArch" = "arm" ] || [ "$__HostArch" = "armv6" ] || [ "$__HostArch" = "arm64" ]; }; then
         __isMSBuildOnNETCoreSupported=1
     elif [ "$__HostArch" = "x64" ] && { [ "$__HostOS" = "OSX" ] || [ "$__HostOS" = "FreeBSD" ]; }; then
         __isMSBuildOnNETCoreSupported=1
@@ -40,7 +40,7 @@ usage()
     echo ""
     echo "Common Options:"
     echo ""
-    echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
+    echo "BuildArch can be: -x64, -x86, -arm, -armv6, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "-clang - optional argument to build using clang in PATH (default)."
@@ -96,7 +96,12 @@ case $CPUName in
         __HostArch=arm
         ;;
 
-    i686)
+   armv6)
+        echo "Unsupported CPU $CPUName detected, build might not succeed!"
+        __BuildArch=armv6
+        __HostArch=armv6
+        ;;
+   i686)
         echo "Unsupported CPU $CPUName detected, build might not succeed!"
         __BuildArch=x86
         __HostArch=x86
@@ -168,6 +173,10 @@ while :; do
 
         arm|-arm)
             __BuildArch=arm
+            ;;
+
+        armv6|-armv6)
+            __BuildArch=armv6
             ;;
 
         arm64|-arm64)
@@ -415,7 +424,7 @@ fi
 
 # Set default clang version
 if [ "$__ClangMajorVersion" = 0 ] && [ "$__ClangMinorVersion" = 0 ]; then
-    if [ "$__BuildArch" = "arm" ] || [ "$__BuildArch" = "armel" ]; then
+    if [ "$__BuildArch" = "arm" ] || [ "$__BuildArch" = "armel" ] || [ "$__BuildArch" = "armv6" ]; then
         __ClangMajorVersion=5
         __ClangMinorVersion=0
     else

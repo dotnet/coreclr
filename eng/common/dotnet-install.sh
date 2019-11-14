@@ -64,6 +64,9 @@ case $cpuname in
   armv7l)
     buildarch=arm
     ;;
+  armv6)
+    buildarch=armv6
+    ;;
   i686)
     buildarch=x86
     ;;

@@ -73,9 +73,9 @@ check_prereqs()
     fi
 
     # Minimum required version of clang is version 4.0 for arm/armel cross build
-    if [[ $__CrossBuild == 1 && $__GccBuild == 0 &&  ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
+    if [[ $__CrossBuild == 1 && $__GccBuild == 0 &&  ("$__BuildArch" == "arm" || "$__BuildArch" == "armel" || "$__BuildArch" == "armv6") ]]; then
         if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
-            echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
+            echo "Please install clang4.0 or latest for arm/armel/armv6 cross build"; exit 1;
         fi
     fi
 
@@ -435,6 +435,8 @@ build_CoreLib()
            build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
+       elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "armv6" ) ]]; then
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        else
            exit 1
        fi
@@ -442,6 +444,8 @@ build_CoreLib()
        if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
+       elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "armv6" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
