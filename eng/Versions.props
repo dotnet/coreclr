@@ -15,11 +15,11 @@
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19562.5</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19562.5</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19563.9</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19563.9</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
-    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19562.5</MicrosoftDotNetVersionToolsTasksVersion>
-    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19562.5</MicrosoftDotNetHelixSdkVersion>
+    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19563.9</MicrosoftDotNetVersionToolsTasksVersion>
+    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19563.9</MicrosoftDotNetHelixSdkVersion>
     <!-- corefx -->
     <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19562.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
     <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19562.8</MicrosoftNETCorePlatformsVersion>
