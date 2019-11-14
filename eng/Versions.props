@@ -15,16 +15,16 @@
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19558.11</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19558.11</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19562.5</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19562.5</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
-    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19558.11</MicrosoftDotNetVersionToolsTasksVersion>
-    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19558.11</MicrosoftDotNetHelixSdkVersion>
+    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19562.5</MicrosoftDotNetVersionToolsTasksVersion>
+    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19562.5</MicrosoftDotNetHelixSdkVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19562.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19562.1</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19562.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19562.8</MicrosoftNETCorePlatformsVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>5.0.0-alpha.1.19559.5</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>5.0.0-alpha.1.19562.8</MicrosoftNETCoreAppVersion>
     <!-- dotnet-optimization -->
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190716.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190716.1</optimizationPGOCoreCLRVersion>
