@@ -196,7 +196,7 @@
   <Target Name="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
     <PropertyGroup>
       <_TargetGroup>netcoreapp</_TargetGroup>
-      <_AssetManifestPath>$(TestAssetBlobFeedUrl)/corefx-tests/$(MicrosoftPrivateCoreFxNETCoreAppVersion)/$(__BuildOS).$(__BuildArch)/$(_TargetGroup)/corefx-test-assets.xml</_AssetManifestPath>
+      <_AssetManifestPath>$(TestAssetBlobFeedUrl)/corefx-tests/5.0.0-alpha.1.19563.4/$(__BuildOS).$(__BuildArch)/$(_TargetGroup)/corefx-test-assets.xml</_AssetManifestPath>
     </PropertyGroup>
 
     <ParseBuildManifest AssetManifestPath="$(_AssetManifestPath)">
