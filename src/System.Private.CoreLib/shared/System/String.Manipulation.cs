@@ -1092,12 +1092,13 @@ namespace System
                     pDst = ref Unsafe.Add(ref pDst, Vector<ushort>.Count);
                     remainingLength -= Vector<ushort>.Count;
                 }
-                while (remainingLength - Vector<ushort>.Count >= 0);
+                while (remainingLength >= Vector<ushort>.Count);
             }
 
             for (; remainingLength > 0; remainingLength--)
             {
-                pDst = pSrc == oldChar ? newChar : pSrc;
+                ushort currentChar = pSrc;
+                pDst = currentChar == oldChar ? newChar : currentChar;
 
                 pSrc = ref Unsafe.Add(ref pSrc, 1);
                 pDst = ref Unsafe.Add(ref pDst, 1);
