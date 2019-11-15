@@ -178,7 +178,8 @@ public:
                        size_t* lastRecordedHeapSizeBytes,
                        size_t* lastRecordedFragmentationBytes);
 
-    const char* GetGCConfigValue(const char* key);
+    const char* GetGCConfigurationVariable(const char* key);
+    slice<char const* const> GetGCConfigurationVariables();
 
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);

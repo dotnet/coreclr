@@ -814,7 +814,8 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #endif //BIT64
 
-    const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    if (!ullHeapHardLimit) ullHeapHardLimit = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimit, 0);
     iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
         ? static_cast<size_t>(ullHeapHardLimit)
         : ClrSafeInt<size_t>::MaxInt();

@@ -38831,7 +38831,27 @@ static const char* int64_t_to_str(const int64_t value)
     return out;
 }
 
-const char* GCHeap::GetGCConfigValue(const char* key)
+static char const* const configuration_variables[11] =
+{
+    "CpuGroup",
+    "HeapAffinitizeMask",
+    "HeapAffinitizeRanges",
+    "HeapCount",
+    "HeapHardLimit",
+    "HeapHardLimitPercent",
+    "HighMemoryPercent",
+    "LargePages",
+    "LOHThreshold",
+    "NoAffinitize",
+    "Server"
+};
+
+slice<char const* const> GCHeap::GetGCConfigurationVariables()
+{
+    return slice<char const* const>::FromArray<11>(configuration_variables);
+}
+
+const char* GCHeap::GetGCConfigurationVariable(const char* key)
 {
     if (strcmp(key, "CpuGroup") == 0)
     {
@@ -38867,6 +38887,14 @@ const char* GCHeap::GetGCConfigValue(const char* key)
     {
         return int64_t_to_str(gc_heap::high_memory_load_th);
     }
+    else if (strcmp(key, "LargePages") == 0)
+    {
+        return bool_to_str(gc_heap::use_large_pages_p);
+    }
+    else if (strcmp(key, "LOHThreshold") == 0)
+    {
+        return int64_t_to_str(loh_size_threshold);
+    }
     else if (strcmp(key, "NoAffinitize") == 0)
     {
 #ifdef MULTIPLE_HEAPS
@@ -38875,14 +38903,6 @@ const char* GCHeap::GetGCConfigValue(const char* key)
         const bool noAffinitize = false;
 #endif
         return bool_to_str(noAffinitize);
-    }
-    else if (strcmp(key, "LargePages") == 0)
-    {
-        return int64_t_to_str(gc_heap::use_large_pages_p);
-    }
-    else if (strcmp(key, "LOHThreshold") == 0)
-    {
-        return int64_t_to_str(loh_size_threshold);
     }
     else if (strcmp(key, "Server") == 0)
     {
