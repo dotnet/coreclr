@@ -79,8 +79,14 @@ LEAF_ENTRY CONTEXT_CaptureContext, _TEXT
 
     itttt ne
     addne r0, CONTEXT_D0
+#ifdef ARMV7D16
+    vstmiane r0!, {d0-d15}
+    addne r0, r0, #128
+#else
     vstmiane r0!, {d0-d15}
     vstmiane r0!, {d16-d31}
+#endif
+
     subne r0, CONTEXT_D31
 
     // Make sure sp is restored
@@ -129,8 +135,13 @@ LOCAL_LABEL(Restore_CONTEXT_FLOATING_POINT):
 
     itttt ne
     addne r0, CONTEXT_D0
+#ifdef ARMV7D16
+    vldmiane r0!, {d0-d15}
+    nopne
+#else
     vldmiane r0!, {d0-d15}
     vldmiane r0, {d16-d31}
+#endif
     subne r0, CONTEXT_D16
 
     itt ne
