@@ -186,7 +186,16 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
             if (refPos->getInterval()->isSpilled)
             {
                 // Decrease the weight if the interval has already been spilled.
-                weight -= BB_UNITY_WEIGHT;
+                if (varDsc->lvLiveInOutOfHndlr)
+                {
+                    // An EH var is always spilled at defs, and we'll decrease the weight by half,
+                    // since only the reload is needed.
+                    weight = weight / 2;
+                }
+                else
+                {
+                    weight -= compiler->fgFirstBB->getBBWeight(compiler);
+                }
             }
         }
         else
@@ -4798,17 +4807,17 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock)
 #if DEBUG
         if (blockInfo[currentBlock->bbNum].hasEHBoundaryIn)
         {
-#if DEBUG
-        // This should still be in its initialized empty state.
-        for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
-        {
-            // In the case where we're extending lifetimes for stress, we are intentionally modeling variables
-            // as live when they really aren't to create extra register pressure & constraints.
-            // However, this means that non-EH-vars will be live into EH regions. We can and should ignore the
-            // locations of these. Note that they aren't reported to codegen anyway.
-            if (!getLsraExtendLifeTimes() || VarSetOps::IsMember(compiler, currentBlock->bbLiveIn, varIndex))
+            // This should still be in its initialized empty state.
+            for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
             {
-                assert(inVarToRegMap[varIndex] == REG_STK);
+                // In the case where we're extending lifetimes for stress, we are intentionally modeling variables
+                // as live when they really aren't to create extra register pressure & constraints.
+                // However, this means that non-EH-vars will be live into EH regions. We can and should ignore the
+                // locations of these. Note that they aren't reported to codegen anyway.
+                if (!getLsraExtendLifeTimes() || VarSetOps::IsMember(compiler, currentBlock->bbLiveIn, varIndex))
+                {
+                    assert(inVarToRegMap[varIndex] == REG_STK);
+                }
             }
         }
 #endif // DEBUG
@@ -8236,7 +8245,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
                 // so if we have only EH vars, we'll do that instead of splitting the edge.
                 if ((compiler->compHndBBtabCount > 0) && VarSetOps::IsSubset(compiler, edgeResolutionSet, exceptVars))
                 {
-                    GenTree* insertionPoint = LIR::AsRange(succBlock).FirstNonPhiNode();
+                    GenTree*        insertionPoint = LIR::AsRange(succBlock).FirstNonPhiNode();
                     VarSetOps::Iter edgeSetIter(compiler, edgeResolutionSet);
                     unsigned        edgeVarIndex = 0;
                     while (edgeSetIter.NextElem(&edgeVarIndex))
