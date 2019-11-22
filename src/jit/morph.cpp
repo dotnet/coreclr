@@ -7325,9 +7325,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-    if (calleeStackSize > callerStackSize)
+    // The callee has stack arguments. This may cause us to shuffle arguments in lowerFastTailCall.
+    // Do not fastTailCall.
+    //
+    // We never can safely shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
+    if (calleeStackSize > 0)
     {
-        reportFastTailCallDecision("Will not fastTailCall calleeStackSize > callerStackSize", callerStackSize,
+        reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0", callerStackSize,
                                    calleeStackSize);
         return false;
     }
