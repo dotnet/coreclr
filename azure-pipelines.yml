@@ -4,10 +4,12 @@ trigger:
     include:
     - master
     - release/3.0
+    - internal/release/3.*
 
 pr:
 - master
 - release/3.0
+- internal/release/3.*
 
 # Temporarily set a build number format that includes a large revision
 # number that won't conflict with buildpipeline official builds.
