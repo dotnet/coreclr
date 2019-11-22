@@ -15,8 +15,8 @@
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19569.2</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19569.2</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19572.3</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19572.3</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- roslyn -->
     <MicrosoftNetCompilersToolsetVersion>3.3.0-beta2-19367-02</MicrosoftNetCompilersToolsetVersion>
