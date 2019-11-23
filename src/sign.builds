@@ -7,6 +7,7 @@
   <PropertyGroup>
     <!-- The SignFiles target needs OutDir to be defined -->
     <OutDir>$(BinDir)</OutDir>
+    <DebuggingCert>MicrosoftSHA2</DebuggingCert>
   </PropertyGroup>
 
   <UsingTask AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll" TaskName="ReadSigningRequired" />
@@ -35,9 +36,20 @@
       Managed assemblies should already have a requires_signing file dropped so only generate
       a requires_signing file for ones that don't exist which should leave just native assembies
     -->
+    <ItemGroup>
+        <!-- The DAC requires special signing for !analyze/watson to work properly. -->
+        <SpecialDebuggingDlls Include="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" >
+        <SpecialDebuggingDlls Include="$(BinDir)mscordacore*.dll" />
+        <WindowsNativeLocation Remove="@(SpecialDebuggingDlls)"/>
+    </ItemGroup>
+    
     <WriteSigningRequired AuthenticodeSig="$(AuthenticodeSig)"
                           MarkerFile="%(WindowsNativeLocation.Identity).requires_signing"
                           Condition="!Exists('%(WindowsNativeLocation.Identity).requires_signing')" />
+
+    <WriteSigningRequired AuthenticodeSig="$(DebuggingCert)"
+                          MarkerFile="%(SpecialDebuggingDlls.Identity).requires_signing"
+                          Condition="!Exists('%(SpecialDebuggingDlls.Identity).requires_signing')" />
   </Target>
 
   <!-- populates item group FilesToSign with the list of files to sign -->
