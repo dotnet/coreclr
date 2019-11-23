@@ -38,8 +38,8 @@
     -->
     <ItemGroup>
         <!-- The DAC requires special signing for !analyze/watson to work properly. -->
-        <SpecialDebuggingDlls Include="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" >
-        <SpecialDebuggingDlls Include="$(BinDir)mscordacore*.dll" />
+        <SpecialDebuggingDlls Include="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" />
+        <SpecialDebuggingDlls Include="$(BinDir)mscordaccore*.dll" />
         <WindowsNativeLocation Remove="@(SpecialDebuggingDlls)"/>
     </ItemGroup>
     
