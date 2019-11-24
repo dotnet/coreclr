@@ -40,7 +40,7 @@ usage()
     echo ""
     echo "Common Options:"
     echo ""
-    echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
+    echo "BuildArch can be: -x64, -x86, -arm, -armel, -armv7d16, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "-clang - optional argument to build using clang in PATH (default)."
@@ -176,6 +176,10 @@ while :; do
 
         armel|-armel)
             __BuildArch=armel
+            ;;
+
+        armv7d16|-armv7d16)
+            __BuildArch=armv7d16
             ;;
 
         bindir|-bindir)
@@ -415,7 +419,7 @@ fi
 
 # Set default clang version
 if [ "$__ClangMajorVersion" = 0 ] && [ "$__ClangMinorVersion" = 0 ]; then
-    if [ "$__BuildArch" = "arm" ] || [ "$__BuildArch" = "armel" ]; then
+    if [ "$__BuildArch" = "arm" ] || [ "$__BuildArch" = "armel" ] || [ "$__BuildArch" = "armv7d16" ]; then
         __ClangMajorVersion=5
         __ClangMinorVersion=0
     else

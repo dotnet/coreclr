@@ -1146,7 +1146,7 @@ int main()
 }" HAVE_FULLY_FEATURED_PTHREAD_MUTEXES)
 set(CMAKE_REQUIRED_LIBRARIES)
 
-if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARMV7D16 AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
   set(CMAKE_REQUIRED_LIBRARIES pthread)
   check_cxx_source_runs("
   // This test case verifies the pthread process-shared robust mutex's cross-process abandon detection. The parent process starts

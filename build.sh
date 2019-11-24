@@ -72,10 +72,10 @@ check_prereqs()
         echo "Please install CMake 3.14 or newer from http://www.cmake.org/download/ or https://apt.kitware.com and ensure it is on your path."; exit 1;
     fi
 
-    # Minimum required version of clang is version 4.0 for arm/armel cross build
-    if [[ $__CrossBuild == 1 && $__GccBuild == 0 &&  ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
+    # Minimum required version of clang is version 4.0 for arm/armel/armv7d16 cross build
+    if [[ $__CrossBuild == 1 && $__GccBuild == 0 &&  ("$__BuildArch" == "arm" || "$__BuildArch" == "armel" || "$__BuildArch" == "armv7d16") ]]; then
         if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
-            echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
+            echo "Please install clang4.0 or latest for arm/armel/armv7d16 cross build"; exit 1;
         fi
     fi
 
@@ -288,7 +288,7 @@ build_cross_architecture_components()
 
     __SkipCrossArchBuild=1
     # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
-    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") && ("$__CrossArch" == "x86" || "$__CrossArch" == "x64") ]]; then
+    if [[ ("$__BuildArch" == "arm" || "$__BuildArch" == "armel" || "$__BuildArch" == "armv7d16") && ("$__CrossArch" == "x86" || "$__CrossArch" == "x64") ]]; then
         __SkipCrossArchBuild=0
     elif [[ "$__BuildArch" == "arm64" && "$__CrossArch" == "x64" ]]; then
         __SkipCrossArchBuild=0
