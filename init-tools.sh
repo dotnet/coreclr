@@ -153,14 +153,7 @@ if [ -z "${__ILASM_RID-}" ]; then
 fi
 
 echo "Using RID $__ILASM_RID for BuildTools native tools"
-
-export ILASMCOMPILER_VERSION=$__ILASM_VERSION
 export NATIVE_TOOLS_RID=$__ILASM_RID
-
-if [ -n "${DotNetBootstrapCliTarPath-}" ]; then
-    # Assume ilasm is not in nuget yet when bootstrapping...
-    unset ILASMCOMPILER_VERSION
-fi
 
 # Build tools only supported on x64
 if [ "${__PKG_ARCH}" != "x64" ] &&  [ "${__PKG_ARCH}" != "arm" ]; then
@@ -176,6 +169,14 @@ else
         echo "ERROR: An error occurred when trying to initialize the tools." 1>&2
         display_error_message
         exit 1
+    fi
+
+
+    if [ ! -n "${DotNetBootstrapCliTarPath-}" ]; then
+        # Assume ilasm is not in nuget yet when bootstrapping...
+        # ILasm/ILDasm used to be restored by buildtools. The reference there was a netocreapp2.0, which was prior to our support of linux-musl. We initialize it locally as a 3.0 with the new SDK.
+        echo "Running: eval $__DOTNET_CMD build ${__scriptpath}/tests/ilasm-restore/ilasm.depproj --no-cache --packages $__PACKAGES_DIR -r $NATIVE_TOOLS_RID -p:ILAsmPackageVersion=$__ILASM_VERSION  -p:ExpectedILAsmPath=$__TOOLRUNTIME_DIR/ilasm" >> "$__init_tools_log"
+        eval "$__DOTNET_CMD" build "${__scriptpath}/tests/ilasm-restore/ilasm.depproj" --no-cache --packages "$__PACKAGES_DIR" -r "$NATIVE_TOOLS_RID" -p:ILAsmPackageVersion="$__ILASM_VERSION" -p:ExpectedILAsmPath="$__TOOLRUNTIME_DIR/ilasm"
     fi
 
     echo "Making all .sh files executable under Tools."

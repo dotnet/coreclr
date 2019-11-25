@@ -1,0 +1,6 @@
+<Project>
+  <!-- 
+    This project works around a restore issue in buildtools for musl distros. It shouldn't use any
+    other properties in the test tree. This file prevents any imports.
+  -->
+</Project>
