@@ -164,7 +164,7 @@ bool CallCounter::IncrementCount(MethodDesc* pMethodDesc)
     }
 
     // Insert the call counting event here.
-    ETW::CompilationLog::TieredCompilation::Runtime::IncrementMethodCallCounter(pMethodDesc, callCountLimit);
+    ETW::CompilationLog::TieredCompilation::Runtime::SendIncrementMethodCallCounter(pMethodDesc, callCountLimit);
 
     if (callCountLimit > 0)
     {

@@ -1201,7 +1201,7 @@ namespace ETW
                 static void SendResume(UINT32 newMethodCount);
                 static void SendBackgroundJitStart(UINT32 pendingMethodCount);
                 static void SendBackgroundJitStop(UINT32 pendingMethodCount, UINT32 jittedMethodCount);
-                static void SendIncrementMethodCallCounter(MethodDesc *pMethod, INT32 callCount);
+                static void SendIncrementMethodCallCounter(MethodDesc *pMethodDesc, INT32 callCount);
 #else
                 static bool IsEnabled() { return false; }
                 static void SendSettings() {}

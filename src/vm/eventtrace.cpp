@@ -7622,13 +7622,13 @@ void ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStop(UINT
     FireEtwTieredCompilationBackgroundJitStop(GetClrInstanceId(), pendingMethodCount, jittedMethodCount);
 }
 
-void ETW::CompilationLog::TieredCompilation::Runtime::IncrementMethodCallCounter(MethodDesc *pMethod, INT32 callCount)
+void ETW::CompilationLog::TieredCompilation::Runtime::SendIncrementMethodCallCounter(MethodDesc *pMethodDesc, INT32 callCount)
 {
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
-    _ASSERTE(pMethod != NULL);
+    _ASSERTE(pMethodDesc != NULL);
     _ASSERTE(g_pConfig->TieredCompilation());
 
     if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, TieredCompilationIncrementMethodCallCounter))
@@ -7647,6 +7647,7 @@ void ETW::CompilationLog::TieredCompilation::Runtime::IncrementMethodCallCounter
                     GetClrInstanceId());
 
         } EX_CATCH{ } EX_END_CATCH(SwallowAllExceptions);
+    }
 }
 
 #endif // !FEATURE_REDHAWK
