@@ -3106,6 +3106,12 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
             // get a register.
             def->regOptional = true;
         }
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        if (varTypeNeedsPartialCalleeSave(varDefInterval->registerType))
+        {
+            varDefInterval->isPartiallySpilled = false;
+        }
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
     else
     {

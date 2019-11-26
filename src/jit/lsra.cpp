@@ -2241,6 +2241,7 @@ BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
                                                BasicBlock* prevBlock DEBUGARG(bool* pPredBlockIsAllocated))
 {
     BasicBlock* predBlock = nullptr;
+    assert(*pPredBlockIsAllocated == false);
 
     // Blocks with exception flow on entry use no predecessor blocks, as all incoming vars
     // are on the stack.
@@ -2249,15 +2250,23 @@ BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
         return nullptr;
     }
 
-    // We may have throw blocks with no predecessors, or unreachable blocks.
-    if (block->bbPreds == nullptr)
+    if (block == compiler->fgFirstBB)
     {
-        JITDUMP("\n\nNo predecessor; ");
         return nullptr;
     }
 
+    // We may have throw blocks with no predecessors, or unreachable blocks.
+    // We don't want to set the predecessor as null in this case, since that may make it appear that
+    // the live-in vars are living on the stack, resulting in inconsistencies (since these unreachable
+    // blocks can have reachable successors).
+    if (block->bbPreds == nullptr)
+    {
+        assert(prevBlock != nullptr);
+        JITDUMP("\n\nNo predecessor; ");
+        return prevBlock;
+    }
+
 #ifdef DEBUG
-    assert(*pPredBlockIsAllocated == false);
     if (getLsraBlockBoundaryLocations() == LSRA_BLOCK_BOUNDARY_LAYOUT)
     {
         if (prevBlock != nullptr)
@@ -2267,7 +2276,6 @@ BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
     }
     else
 #endif // DEBUG
-        if (block != compiler->fgFirstBB)
     {
         predBlock = block->GetUniquePred(compiler);
         if (predBlock != nullptr)
