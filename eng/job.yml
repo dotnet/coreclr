@@ -1,0 +1,121 @@
+parameters:
+# Job schema parameters - https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=vsts&tabs=schema#job
+  cancelTimeoutInMinutes: ''
+
+  condition: ''
+
+  continueOnError: false
+
+  container: ''
+
+  dependsOn: ''
+
+  displayName: ''
+
+  steps: []
+
+  pool: ''
+
+  strategy: ''
+
+  timeoutInMinutes: ''
+
+  variables: []
+
+  workspace: ''
+
+  # Job base template specific parameters
+  # Optional: Enable installing Microbuild plugin
+  #           if 'true', these "variables" must be specified in the variables object or as part of the queue matrix
+  #             _TeamName - the name of your team
+  #             _SignType - 'test' or 'real'
+  enableMicrobuild: false
+
+  # Optional: Include PublishBuildArtifacts task
+  enablePublishBuildArtifacts: false
+
+  # Optional: Enable publishing to the build asset registry
+  enablePublishBuildAssets: false
+
+  # Optional: Prevent gather/push manifest from executing when using publishing pipelines
+  enablePublishUsingPipelines: false
+
+  # Optional: Include PublishTestResults task
+  enablePublishTestResults: false
+
+  # Optional: enable sending telemetry
+  enableTelemetry: false
+
+  # Optional: define the helix repo for telemetry (example: 'dotnet/arcade')
+  helixRepo: ''
+
+  # Optional: define the helix type for telemetry (example: 'build/product/')
+  helixType: ''
+
+  # Required: name of the job
+  name: ''
+
+  # Optional: should run as a public build even in the internal project
+  #           if 'true', the build won't run any of the internal only steps, even if it is running in non-public projects.
+  runAsPublic: false
+
+# Internal resources (telemetry, microbuild) can only be accessed from non-public projects,
+# and some (Microbuild) should only be applied to non-PR cases for internal builds.
+
+jobs:
+- job: ${{ parameters.name }}
+
+  ${{ if ne(parameters.cancelTimeoutInMinutes, '') }}:
+    cancelTimeoutInMinutes: ${{ parameters.cancelTimeoutInMinutes }}
+
+  ${{ if ne(parameters.condition, '') }}:
+    condition: ${{ parameters.condition }}
+
+  ${{ if ne(parameters.container, '') }}:
+    container: ${{ parameters.container }}
+
+  ${{ if ne(parameters.continueOnError, '') }}:
+    continueOnError: ${{ parameters.continueOnError }}
+
+  ${{ if ne(parameters.dependsOn, '') }}:
+    dependsOn: ${{ parameters.dependsOn }}
+
+  ${{ if ne(parameters.displayName, '') }}:
+    displayName: ${{ parameters.displayName }}
+
+  ${{ if ne(parameters.pool, '') }}:
+    pool: ${{ parameters.pool }}
+
+  ${{ if ne(parameters.strategy, '') }}:
+    strategy: ${{ parameters.strategy }}
+
+  ${{ if ne(parameters.timeoutInMinutes, '') }}:
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+  variables:
+  - ${{ if eq(parameters.enableTelemetry, 'true') }}:
+    - name: DOTNET_CLI_TELEMETRY_PROFILE
+      value: '$(Build.Repository.Uri)'
+  - ${{ each variable in parameters.variables }}:
+    # handle name-value variable syntax
+    # example:
+    # - name: [key]
+    #   value: [value]
+    - ${{ if ne(variable.name, '') }}:
+      - name: ${{ variable.name }}
+        value: ${{ variable.value }}
+    
+    # handle variable groups
+    - ${{ if ne(variable.group, '') }}:
+      - group: ${{ variable.group }}
+
+    # handle key-value variable syntax.
+    # example:
+    # - [key]: [value]
+    - ${{ if and(eq(variable.name, ''), eq(variable.group, '')) }}:
+      - ${{ each pair in variable }}:
+        - name: ${{ pair.key }}
+          value: ${{ pair.value }}
+
+  ${{ if ne(parameters.workspace, '') }}:
+    workspace: ${{ parameters.workspace }}

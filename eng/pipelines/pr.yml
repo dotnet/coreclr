@@ -1,0 +1,19 @@
+trigger: none
+
+pr:
+- master
+- release/2.1
+- release/2.2
+
+jobs:
+#
+# Checked builds
+#
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: build-job.yml
+    buildConfig: checked
+    platforms:
+    - Linux_x64
+    - OSX_x64
+    - Windows_NT_x64

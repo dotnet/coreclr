@@ -1,0 +1,62 @@
+parameters:
+  jobTemplate: ''
+  buildConfig: ''
+  platforms: []
+  # platformGroup is a named collection of platforms. Allowed values:
+  # 'all' - all platforms
+  # 'gcstress' - platforms that support running under GCStress0x3 and GCStress0xC scenarios
+  platformGroup: ''
+  # helixQueueGroup is a named collection of Helix Queues. If specified, it determines which Helix queues are
+  # used, instead of the usual criteria. Allowed values:
+  # 'pr' - the queues used for a pull request for the platform. Typically a small set.
+  # 'ci' - the queues used for a CI (post-merge) test run.
+  # 'all' - the queues used for non-PR, non-CI test runs, e.g., Manual or Scheduled runs. Typically this is all available queues.
+  # 'corefx' - the queues used for a corefx test run.
+  helixQueueGroup: 'pr'
+  ignoreDependencyOnBuildJobs: false
+  jobParameters: {}
+
+jobs:
+
+# TODO: simplify osIdentifier by adding osGroup and osSubGroup. See
+# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
+
+
+# Linux x64
+
+- ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: Linux
+      osIdentifier: Linux
+      container:
+        image: centos-7-3e800f1-20190501005343
+        registry: mcr
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# macOS x64
+
+- ${{ if or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all')) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: OSX
+      osIdentifier: OSX
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows x64
+
+- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      ${{ insert }}: ${{ parameters.jobParameters }}
