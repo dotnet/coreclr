@@ -144,6 +144,9 @@ initDistroRidGlobal()
         export __PortableBuild=0
         isPortable=0
     fi
+    if [ "$buildArch" = "armv7d16" ]; then
+        buildArch=arm
+    fi
 
     initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable} ${rootfsDir}
 
