@@ -82,7 +82,9 @@ namespace System.Numerics
             [Intrinsic]
             get => s_zero;
         }
-        private static readonly Vector<T> s_zero = new Vector<T>();
+#pragma warning disable 0649 // never assigned to
+        private static readonly Vector<T> s_zero;
+#pragma warning restore 0649
 
         /// <summary>
         /// Returns a vector containing all ones.
@@ -400,7 +402,7 @@ namespace System.Numerics
         /// <returns>The hash code.</returns>
         public override readonly int GetHashCode()
         {
-            HashCode hashCode = new HashCode();
+            HashCode hashCode = default;
 
             if (typeof(T) == typeof(byte) ||
                 typeof(T) == typeof(sbyte) ||
@@ -554,7 +556,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> sum = new Vector<T>();
+                    Vector<T> sum = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -614,7 +616,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> difference = new Vector<T>();
+                    Vector<T> difference = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -675,7 +677,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> product = new Vector<T>();
+                    Vector<T> product = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -756,7 +758,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> quotient = new Vector<T>();
+                    Vector<T> quotient = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -798,7 +800,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator &(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -829,7 +831,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator |(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -860,7 +862,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator ^(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -972,7 +974,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -1028,7 +1030,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -1084,7 +1086,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -1227,7 +1229,7 @@ namespace System.Numerics
             }
             else
             {
-                Vector<T> vec = new Vector<T>();
+                Vector<T> vec = default;
 <#
     foreach (Type type in supportedTypes)
     {
@@ -1282,7 +1284,7 @@ namespace System.Numerics
             }
             else
             {
-                Vector<T> vec = new Vector<T>();
+                Vector<T> vec = default;
 <#
     foreach (Type type in supportedTypes)
     {

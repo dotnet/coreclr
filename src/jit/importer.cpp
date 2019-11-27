@@ -1170,9 +1170,8 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                                       BasicBlock*          block       /* = NULL */
                                       )
 {
-    var_types destType;
-    GenTree*  dest      = nullptr;
-    unsigned  destFlags = 0;
+    GenTree* dest      = nullptr;
+    unsigned destFlags = 0;
 
     if (ilOffset == BAD_IL_OFFSET)
     {
@@ -1181,23 +1180,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 
     assert(src->OperIs(GT_LCL_VAR, GT_FIELD, GT_IND, GT_OBJ, GT_CALL, GT_MKREFANY, GT_RET_EXPR, GT_COMMA) ||
            (src->TypeGet() != TYP_STRUCT && (src->OperIsSimdOrHWintrinsic() || src->OperIs(GT_LCL_FLD))));
-
-    if (destAddr->OperGet() == GT_ADDR)
-    {
-        GenTree* destNode = destAddr->gtGetOp1();
-        // If the actual destination is a local, or already a block node, or is a node that
-        // will be morphed, don't insert an OBJ(ADDR).
-        if (destNode->gtOper == GT_INDEX || destNode->OperIsBlk() ||
-            ((destNode->OperGet() == GT_LCL_VAR) && (destNode->TypeGet() == src->TypeGet())))
-        {
-            dest = destNode;
-        }
-        destType = destNode->TypeGet();
-    }
-    else
-    {
-        destType = src->TypeGet();
-    }
 
     var_types asgType = src->TypeGet();
 
@@ -1309,13 +1291,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             src->gtType  = genActualType(returnType);
             call->gtType = src->gtType;
 
-            // If we've changed the type, and it no longer matches a local destination,
-            // we must use an indirection.
-            if ((dest != nullptr) && (dest->OperGet() == GT_LCL_VAR) && (dest->TypeGet() != asgType))
-            {
-                dest = nullptr;
-            }
-
             // !!! The destination could be on stack. !!!
             // This flag will let us choose the correct write barrier.
             destFlags = GTF_IND_TGTANYWHERE;
@@ -1407,6 +1382,33 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         asgType     = impNormStructType(structHnd);
         src->gtType = asgType;
     }
+    if ((dest == nullptr) && (destAddr->OperGet() == GT_ADDR))
+    {
+        GenTree* destNode = destAddr->gtGetOp1();
+        // If the actual destination is a local, a GT_INDEX or a block node, or is a node that
+        // will be morphed, don't insert an OBJ(ADDR) if it already has the right type.
+        if (destNode->OperIs(GT_LCL_VAR, GT_INDEX) || destNode->OperIsBlk())
+        {
+            var_types destType = destNode->TypeGet();
+            // If one or both types are TYP_STRUCT (one may not yet be normalized), they are compatible
+            // iff their handles are the same.
+            // Otherwise, they are compatible if their types are the same.
+            bool typesAreCompatible =
+                ((destType == TYP_STRUCT) || (asgType == TYP_STRUCT))
+                    ? ((gtGetStructHandleIfPresent(destNode) == structHnd) && varTypeIsStruct(asgType))
+                    : (destType == asgType);
+            if (typesAreCompatible)
+            {
+                dest = destNode;
+                if (destType != TYP_STRUCT)
+                {
+                    // Use a normalized type if available. We know from above that they're equivalent.
+                    asgType = destType;
+                }
+            }
+        }
+    }
+
     if (dest == nullptr)
     {
         if (asgType == TYP_STRUCT)
@@ -3357,15 +3359,14 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
         dataOffset = eeGetArrayDataOffset(elementType);
     }
 
-    GenTree* dst = gtNewOperNode(GT_ADD, TYP_BYREF, arrayLocalNode, gtNewIconNode(dataOffset, TYP_I_IMPL));
-    GenTree* blk = gtNewBlockVal(dst, blkSize);
-    GenTree* src = gtNewIndOfIconHandleNode(TYP_STRUCT, (size_t)initData, GTF_ICON_STATIC_HDL, false);
+    GenTree* dstAddr = gtNewOperNode(GT_ADD, TYP_BYREF, arrayLocalNode, gtNewIconNode(dataOffset, TYP_I_IMPL));
+    GenTree* dst     = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, dstAddr, typGetBlkLayout(blkSize));
+    GenTree* src     = gtNewIndOfIconHandleNode(TYP_STRUCT, (size_t)initData, GTF_ICON_STATIC_HDL, false);
 
-    return gtNewBlkOpNode(blk,     // dst
-                          src,     // src
-                          blkSize, // size
-                          false,   // volatil
-                          true);   // copyBlock
+    return gtNewBlkOpNode(dst,   // dst
+                          src,   // src
+                          false, // volatile
+                          true); // copyBlock
 }
 
 //------------------------------------------------------------------------
@@ -13673,7 +13674,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         }
 
                         CorInfoType jitTyp = info.compCompHnd->asCorInfoType(resolvedToken.hClass);
-                        unsigned    size   = info.compCompHnd->getClassSize(resolvedToken.hClass);
 
                         if (impIsPrimitive(jitTyp))
                         {
@@ -13693,7 +13693,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                             newObjThisPtr = gtNewBlkOpNode(newObjThisPtr,    // Dest
                                                            gtNewIconNode(0), // Value
-                                                           size,             // Size
                                                            false,            // isVolatile
                                                            false);           // not copyBlock
                             impAppendTree(newObjThisPtr, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
@@ -15634,7 +15633,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 op2  = gtNewIconNode(0);                                     // Value
                 op1  = impPopStack().val;                                    // Dest
                 op1  = gtNewBlockVal(op1, size);
-                op1  = gtNewBlkOpNode(op1, op2, size, (prefixFlags & PREFIX_VOLATILE) != 0, false);
+                op1  = gtNewBlkOpNode(op1, op2, (prefixFlags & PREFIX_VOLATILE) != 0, false);
                 goto SPILL_APPEND;
 
             case CEE_INITBLK:
@@ -15658,7 +15657,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     op1  = new (this, GT_DYN_BLK) GenTreeDynBlk(op1, op3);
                     size = 0;
                 }
-                op1 = gtNewBlkOpNode(op1, op2, size, (prefixFlags & PREFIX_VOLATILE) != 0, false);
+                op1 = gtNewBlkOpNode(op1, op2, (prefixFlags & PREFIX_VOLATILE) != 0, false);
 
                 goto SPILL_APPEND;
 
@@ -15691,7 +15690,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     op2 = gtNewOperNode(GT_IND, TYP_STRUCT, op2);
                 }
 
-                op1 = gtNewBlkOpNode(op1, op2, size, (prefixFlags & PREFIX_VOLATILE) != 0, true);
+                op1 = gtNewBlkOpNode(op1, op2, (prefixFlags & PREFIX_VOLATILE) != 0, true);
                 goto SPILL_APPEND;
 
             case CEE_CPOBJ:

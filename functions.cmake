@@ -250,7 +250,7 @@ function(target_precompile_header)
   endif(MSVC)
 endfunction()
 
-function(strip_symbols targetName outputFilename)
+function(strip_symbols targetName outputFilename skipStrip)
   if (CLR_CMAKE_PLATFORM_UNIX)
     if (STRIP_SYMBOLS)
       set(strip_source_file $<TARGET_FILE:${targetName}>)
@@ -258,26 +258,30 @@ function(strip_symbols targetName outputFilename)
       if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(strip_destination_file ${strip_source_file}.dwarf)
 
-        add_custom_command(
-          TARGET ${targetName}
-          POST_BUILD
-          VERBATIM
-          COMMAND ${DSYMUTIL} --flat --minimize ${strip_source_file}
-          COMMAND ${STRIP} -S ${strip_source_file}
-          COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
-        )
+        if(NOT ${skipStrip})
+            add_custom_command(
+            TARGET ${targetName}
+            POST_BUILD
+            VERBATIM
+            COMMAND ${DSYMUTIL} --flat --minimize ${strip_source_file}
+            COMMAND ${STRIP} -S ${strip_source_file}
+            COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
+            )
+        endif()
       else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(strip_destination_file ${strip_source_file}.dbg)
 
-        add_custom_command(
-          TARGET ${targetName}
-          POST_BUILD
-          VERBATIM
-          COMMAND ${OBJCOPY} --only-keep-debug ${strip_source_file} ${strip_destination_file}
-          COMMAND ${OBJCOPY} --strip-debug ${strip_source_file}
-          COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
-          COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
-        )
+        if(NOT ${skipStrip})
+            add_custom_command(
+            TARGET ${targetName}
+            POST_BUILD
+            VERBATIM
+            COMMAND ${OBJCOPY} --only-keep-debug ${strip_source_file} ${strip_destination_file}
+            COMMAND ${OBJCOPY} --strip-debug ${strip_source_file}
+            COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
+            COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
+            )
+        endif()
       endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
       set(${outputFilename} ${strip_destination_file} PARENT_SCOPE)
@@ -285,27 +289,46 @@ function(strip_symbols targetName outputFilename)
   endif(CLR_CMAKE_PLATFORM_UNIX)
 endfunction()
 
-function(install_clr targetName)
-  list(FIND CLR_CROSS_COMPONENTS_LIST ${targetName} INDEX)
-  if (NOT DEFINED CLR_CROSS_COMPONENTS_LIST OR NOT ${INDEX} EQUAL -1)
-    strip_symbols(${targetName} strip_destination_file)
+# install_clr(TARGETS TARGETS targetName [targetName2 ...] [DESTINATION destination] [SKIP_STRIP])
+function(install_clr)
+  set(options SKIP_STRIP)
+  set(oneValueArgs DESTINATION)
+  set(multiValueArgs TARGETS)
+  cmake_parse_arguments(PARSE_ARGV 0 INSTALL_CLR "${options}" "${oneValueArgs}" "${multiValueArgs}")
 
-    # We don't need to install the export libraries for our DLLs
-    # since they won't be directly linked against.
-    install(PROGRAMS $<TARGET_FILE:${targetName}> DESTINATION .)
-    if(WIN32)
-        # We can't use the $<TARGET_PDB_FILE> generator expression here since
-        # the generator expression isn't supported on resource DLLs.
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION PDB)
-    else()
-        install(FILES ${strip_destination_file} DESTINATION .)
-    endif()
-    if(CLR_CMAKE_PGO_INSTRUMENT)
+  if ("${INSTALL_CLR_TARGETS}" STREQUAL "")
+    message(FATAL_ERROR "At least one target must be passed to install_clr(TARGETS )")
+  endif()
+
+  if ("${INSTALL_CLR_DESTINATION}" STREQUAL "")
+    set(INSTALL_CLR_DESTINATION ".")
+  endif()
+
+  foreach(targetName ${INSTALL_CLR_TARGETS})
+    list(FIND CLR_CROSS_COMPONENTS_LIST ${targetName} INDEX)
+    if (NOT DEFINED CLR_CROSS_COMPONENTS_LIST OR NOT ${INDEX} EQUAL -1)
+        if("${INSTALL_CLR_SKIP_STRIP}" STREQUAL "")
+            set(INSTALL_CLR_SKIP_STRIP FALSE)
+        endif()
+        strip_symbols(${targetName} strip_destination_file ${INSTALL_CLR_SKIP_STRIP})
+
+        # We don't need to install the export libraries for our DLLs
+        # since they won't be directly linked against.
+        install(PROGRAMS $<TARGET_FILE:${targetName}> DESTINATION ${INSTALL_CLR_DESTINATION})
         if(WIN32)
-            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pgd DESTINATION PGD OPTIONAL)
+            # We can't use the $<TARGET_PDB_FILE> generator expression here since
+            # the generator expression isn't supported on resource DLLs.
+            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION ${INSTALL_CLR_DESTINATION}/PDB)
+        else()
+            install(FILES ${strip_destination_file} DESTINATION ${INSTALL_CLR_DESTINATION})
+        endif()
+        if(CLR_CMAKE_PGO_INSTRUMENT)
+            if(WIN32)
+                install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pgd DESTINATION ${INSTALL_CLR_DESTINATION}/PGD OPTIONAL)
+            endif()
         endif()
     endif()
-  endif()
+  endforeach()
 endfunction()
 
 # Disable PAX mprotect that would prevent JIT and other codegen in coreclr from working.

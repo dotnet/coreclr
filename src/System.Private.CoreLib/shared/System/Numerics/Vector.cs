@@ -77,7 +77,9 @@ namespace System.Numerics
             [Intrinsic]
             get => s_zero;
         }
-        private static readonly Vector<T> s_zero = new Vector<T>();
+#pragma warning disable 0649 // never assigned to
+        private static readonly Vector<T> s_zero;
+#pragma warning restore 0649
 
         /// <summary>
         /// Returns a vector containing all ones.
@@ -630,7 +632,7 @@ namespace System.Numerics
         /// <returns>The hash code.</returns>
         public override readonly int GetHashCode()
         {
-            HashCode hashCode = new HashCode();
+            HashCode hashCode = default;
 
             if (typeof(T) == typeof(byte) ||
                 typeof(T) == typeof(sbyte) ||
@@ -858,7 +860,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> sum = new Vector<T>();
+                    Vector<T> sum = default;
                     if (typeof(T) == typeof(byte))
                     {
                         sum.register.byte_0 = (byte)(left.register.byte_0 + right.register.byte_0);
@@ -1070,7 +1072,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> difference = new Vector<T>();
+                    Vector<T> difference = default;
                     if (typeof(T) == typeof(byte))
                     {
                         difference.register.byte_0 = (byte)(left.register.byte_0 - right.register.byte_0);
@@ -1283,7 +1285,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> product = new Vector<T>();
+                    Vector<T> product = default;
                     if (typeof(T) == typeof(byte))
                     {
                         product.register.byte_0 = (byte)(left.register.byte_0 * right.register.byte_0);
@@ -1516,7 +1518,7 @@ namespace System.Numerics
                 }
                 else
                 {
-                    Vector<T> quotient = new Vector<T>();
+                    Vector<T> quotient = default;
                     if (typeof(T) == typeof(byte))
                     {
                         quotient.register.byte_0 = (byte)(left.register.byte_0 / right.register.byte_0);
@@ -1636,7 +1638,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator &(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -1667,7 +1669,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator |(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -1698,7 +1700,7 @@ namespace System.Numerics
         [Intrinsic]
         public static unsafe Vector<T> operator ^(Vector<T> left, Vector<T> right)
         {
-            Vector<T> result = new Vector<T>();
+            Vector<T> result = default;
             unchecked
             {
                 if (Vector.IsHardwareAccelerated)
@@ -1954,7 +1956,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
                 if (typeof(T) == typeof(byte))
                 {
                     register.byte_0 = left.register.byte_0 == right.register.byte_0 ? ConstantHelper.GetByteWithAllBitsSet() : (byte)0;
@@ -2171,7 +2173,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
                 if (typeof(T) == typeof(byte))
                 {
                     register.byte_0 = left.register.byte_0 < right.register.byte_0 ? ConstantHelper.GetByteWithAllBitsSet() : (byte)0;
@@ -2388,7 +2390,7 @@ namespace System.Numerics
             }
             else
             {
-                Register register = new Register();
+                Register register = default;
                 if (typeof(T) == typeof(byte))
                 {
                     register.byte_0 = left.register.byte_0 > right.register.byte_0 ? ConstantHelper.GetByteWithAllBitsSet() : (byte)0;
@@ -2773,7 +2775,7 @@ namespace System.Numerics
             }
             else
             {
-                Vector<T> vec = new Vector<T>();
+                Vector<T> vec = default;
                 if (typeof(T) == typeof(byte))
                 {
                     vec.register.byte_0 = left.register.byte_0 < right.register.byte_0 ? left.register.byte_0 : right.register.byte_0;
@@ -2989,7 +2991,7 @@ namespace System.Numerics
             }
             else
             {
-                Vector<T> vec = new Vector<T>();
+                Vector<T> vec = default;
                 if (typeof(T) == typeof(byte))
                 {
                     vec.register.byte_0 = left.register.byte_0 > right.register.byte_0 ? left.register.byte_0 : right.register.byte_0;

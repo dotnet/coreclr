@@ -808,8 +808,8 @@ struct DECLSPEC_ALIGN(HS_CACHE_LINE_SIZE) join_structure
 
     // Keep volatile counted locks on separate cache line write many per join
     DECLSPEC_ALIGN(HS_CACHE_LINE_SIZE)
-    VOLATILE(int32_t) join_lock;
-    VOLATILE(int32_t) r_join_lock;
+    VOLATILE(int) join_lock;
+    VOLATILE(int) r_join_lock;
 
 };
 #pragma warning(pop)
@@ -4344,9 +4344,9 @@ typedef struct
     size_t block_size_normal;
     size_t block_size_large;
 
-    size_t block_count;                // # of blocks in each
-    size_t current_block_normal;
-    size_t current_block_large;
+    int block_count;                // # of blocks in each
+    int current_block_normal;
+    int current_block_large;
 
     enum
     {
@@ -4360,7 +4360,7 @@ typedef struct
 
 initial_memory_details memory_details;
 
-BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_heaps, bool use_large_pages_p)
+BOOL reserve_initial_memory (size_t normal_size, size_t large_size, int num_heaps, bool use_large_pages_p)
 {
     BOOL reserve_success = FALSE;
 
@@ -4408,7 +4408,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
         g_gc_highest_address = allatonce_block + requestedMemory;
         memory_details.allocation_pattern = initial_memory_details::ALLATONCE;
 
-        for (size_t i = 0; i < memory_details.block_count; i++)
+        for (int i = 0; i < memory_details.block_count; i++)
         {
             memory_details.initial_normal_heap[i].memory_base = allatonce_block + (i * normal_size);
             memory_details.initial_large_heap[i].memory_base = allatonce_block +
@@ -4431,7 +4431,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
                 g_gc_lowest_address = min (b1, b2);
                 g_gc_highest_address = max (b1 + memory_details.block_count * normal_size,
                     b2 + memory_details.block_count * large_size);
-                for (size_t i = 0; i < memory_details.block_count; i++)
+                for (int i = 0; i < memory_details.block_count; i++)
                 {
                     memory_details.initial_normal_heap[i].memory_base = b1 + (i * normal_size);
                     memory_details.initial_large_heap[i].memory_base = b2 + (i * large_size);
@@ -4451,7 +4451,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
             memory_details.allocation_pattern = initial_memory_details::EACH_BLOCK;
 
             imemory_data* current_block = memory_details.initial_memory;
-            for (size_t i = 0; i < (memory_details.block_count * 2); i++, current_block++)
+            for (int i = 0; i < (memory_details.block_count * 2); i++, current_block++)
             {
                 size_t block_size = ((i < memory_details.block_count) ?
                     memory_details.block_size_normal :
@@ -4462,7 +4462,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
                 {
                     // Free the blocks that we've allocated so far
                     current_block = memory_details.initial_memory;
-                    for (size_t j = 0; j < i; j++, current_block++) {
+                    for (int j = 0; j < i; j++, current_block++) {
                         if (current_block->memory_base != 0) {
                             block_size = ((j < memory_details.block_count) ?
                                 memory_details.block_size_normal :
@@ -4510,7 +4510,7 @@ void destroy_initial_memory()
         {
             assert (memory_details.allocation_pattern == initial_memory_details::EACH_BLOCK);
             imemory_data *current_block = memory_details.initial_memory;
-            for(size_t i = 0; i < (memory_details.block_count*2); i++, current_block++)
+            for(int i = 0; i < (memory_details.block_count*2); i++, current_block++)
             {
                 size_t block_size = (i < memory_details.block_count) ? memory_details.block_size_normal :
                                                                        memory_details.block_size_large;
@@ -5756,7 +5756,7 @@ void gc_heap::hb_log_new_allocation()
 #endif //HEAP_BALANCE_INSTRUMENTATION
 }
 
-BOOL gc_heap::create_thread_support (unsigned number_of_heaps)
+BOOL gc_heap::create_thread_support (int number_of_heaps)
 {
     BOOL ret = FALSE;
     if (!gc_start_event.CreateOSManualEventNoThrow (FALSE))
@@ -10548,13 +10548,11 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 #endif //BACKGROUND_GC
 
     reserved_memory = 0;
-    unsigned block_count;
 #ifdef MULTIPLE_HEAPS
     reserved_memory_limit = (segment_size + heap_size) * number_of_heaps;
-    block_count = number_of_heaps;
 #else //MULTIPLE_HEAPS
     reserved_memory_limit = segment_size + heap_size;
-    block_count = 1;
+    int number_of_heaps = 1;
 #endif //MULTIPLE_HEAPS
 
     if (heap_hard_limit)
@@ -10562,7 +10560,7 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
         check_commit_cs.Initialize();
     }
 
-    if (!reserve_initial_memory (segment_size,heap_size,block_count,use_large_pages_p))
+    if (!reserve_initial_memory (segment_size,heap_size,number_of_heaps,use_large_pages_p))
         return E_OUTOFMEMORY;
 
 #ifdef CARD_BUNDLE
@@ -19882,7 +19880,8 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                     *(place) = start;
                     *(background_mark_stack_tos++) = (uint8_t*)((size_t)oo | 1);
 
-                    int i = num_partial_refs;
+                    int num_pushed_refs = num_partial_refs;
+                    int num_processed_refs = num_pushed_refs * 16;
 
                     go_through_object (method_table(oo), oo, s, ppslot,
                                        start, use_start, (oo + s),
@@ -19900,7 +19899,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                             if (contain_pointers_or_collectible (o))
                             {
                                 *(background_mark_stack_tos++) = o;
-                                if (--i == 0)
+                                if (--num_pushed_refs == 0)
                                 {
                                     //update the start
                                     *place = (uint8_t*)(ppslot+1);
@@ -19909,13 +19908,19 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
 
                             }
                         }
+                        if (--num_processed_refs == 0)
+                        {
+                            // give foreground GC a chance to run
+                            *place = (uint8_t*)(ppslot + 1);
+                            goto more_to_do;
+                        }
 
-                    }
+                        }
                         );
                     //we are finished with this object
                     *place = 0;
                     *(place+1) = 0;
-
+                
                 more_to_do:;
                 }
                 else
@@ -25436,7 +25441,7 @@ void gc_heap::relocate_shortened_survivor_helper (uint8_t* plug, uint8_t* plug_e
 
     while (x < plug_end)
     {
-        if (check_short_obj_p && ((plug_end - x) < (DWORD)min_pre_pin_obj_size))
+        if (check_short_obj_p && ((DWORD)(plug_end - x) < (DWORD)min_pre_pin_obj_size))
         {
             dprintf (3, ("last obj %Ix is short", x));
 
@@ -27971,9 +27976,6 @@ void gc_heap::revisit_written_page (uint8_t* page,
             }
             else if (
                 concurrent_p &&
-#ifndef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP // see comment below
-                large_objects_p &&
-#endif // !FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
                 ((CObjectHeader*)o)->IsFree() &&
                 (next_o > min (high_address, page + WRITE_WATCH_UNIT_SIZE)))
             {
@@ -28022,6 +28024,11 @@ end_limit:
 
     dprintf (3,("Last object: %Ix", (size_t)last_object));
     last_page = align_write_watch_lower_page (o);
+
+    if (concurrent_p)
+    {
+        allow_fgc();
+    }
 }
 
 // When reset_only_p is TRUE, we should only reset pages that are in range
@@ -30474,8 +30481,13 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
             {
                 // we found the correct segment, but it's not the segment our caller is in
 
-                // our caller should still be in the previous segment
-                assert(heap_segment_next_in_range(seg) == segment);
+                // our caller should still be in one of the previous segments
+#ifdef _DEBUG
+                for (heap_segment* cur_seg = seg; cur_seg != segment; cur_seg = heap_segment_next_in_range(cur_seg))
+                {                    
+                    assert(cur_seg);
+                }
+#endif //_DEBUG
 
                 // keep the chunk index for later
                 old_chunk_index = chunk_index;

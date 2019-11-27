@@ -2502,7 +2502,7 @@ public:
     GenTree* gtNewSIMDVectorOne(var_types simdType, var_types baseType, unsigned size);
 #endif
 
-    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, unsigned size, bool isVolatile, bool isCopyBlock);
+    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, bool isVolatile, bool isCopyBlock);
 
     GenTree* gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg);
 
@@ -2512,7 +2512,7 @@ protected:
     void gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVal, bool isVolatile);
 
 public:
-    GenTree* gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
+    GenTreeObj* gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
     void gtSetObjGcInfo(GenTreeObj* objNode);
     GenTree* gtNewStructVal(CORINFO_CLASS_HANDLE structHnd, GenTree* addr);
     GenTree* gtNewBlockVal(GenTree* addr, unsigned size);
@@ -4173,6 +4173,10 @@ public:
     unsigned* fgDomTreePreOrder;
     unsigned* fgDomTreePostOrder;
 
+    // Dominator tree used by SSA construction and copy propagation (the two are expected to use the same tree
+    // in order to avoid the need for SSA reconstruction and an "out of SSA" phase).
+    DomTreeNode* fgSsaDomTree;
+
     bool fgBBVarSetsInited;
 
     // Allocate array like T* a = new T[fgBBNumMax + 1];
@@ -4804,21 +4808,16 @@ protected:
     BlockSet_ValRet_T fgDomFindStartNodes(); // Computes which basic blocks don't have incoming edges in the flow graph.
                                              // Returns this as a set.
 
-    BlockSet_ValRet_T fgDomTreeEntryNodes(BasicBlockList** domTree); // Computes which nodes in the dominance forest are
-                                                                     // root nodes. Returns this as a set.
+    INDEBUG(void fgDispDomTree(DomTreeNode* domTree);) // Helper that prints out the Dominator Tree in debug builds.
 
-#ifdef DEBUG
-    void fgDispDomTree(BasicBlockList** domTree); // Helper that prints out the Dominator Tree in debug builds.
-#endif                                            // DEBUG
-
-    void fgBuildDomTree(); // Once we compute all the immediate dominator sets for each node in the flow graph
-                           // (performed by fgComputeDoms), this procedure builds the dominance tree represented
-                           // adjacency lists.
+    DomTreeNode* fgBuildDomTree(); // Once we compute all the immediate dominator sets for each node in the flow graph
+                                   // (performed by fgComputeDoms), this procedure builds the dominance tree represented
+                                   // adjacency lists.
 
     // In order to speed up the queries of the form 'Does A dominates B', we can perform a DFS preorder and postorder
     // traversal of the dominance tree and the dominance query will become A dominates B iif preOrder(A) <= preOrder(B)
     // && postOrder(A) >= postOrder(B) making the computation O(1).
-    void fgTraverseDomTree(unsigned bbNum, BasicBlockList** domTree, unsigned* preNum, unsigned* postNum);
+    void fgNumberDomTree(DomTreeNode* domTree);
 
     // When the flow graph changes, we need to update the block numbers, predecessor lists, reachability sets, and
     // dominators.
@@ -5465,7 +5464,6 @@ private:
     GenTree* fgMorphOneAsgBlockOp(GenTree* tree);
     GenTree* fgMorphInitBlock(GenTree* tree);
     GenTree* fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenTree* initVal, unsigned blockSize);
-    GenTree* fgMorphBlkToInd(GenTreeBlk* tree, var_types type);
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
     GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isDest);
@@ -6134,9 +6132,24 @@ protected:
 
     static const int MIN_CSE_COST = 2;
 
-    // Keeps tracked cse indices
-    BitVecTraits* cseTraits;
-    EXPSET_TP     cseFull;
+    // BitVec trait information only used by the optCSE_canSwap() method, for the  CSE_defMask and CSE_useMask.
+    // This BitVec uses one bit per CSE candidate
+    BitVecTraits* cseMaskTraits; // one bit per CSE candidate
+
+    // BitVec trait information for computing CSE availability using the CSE_DataFlow algorithm.
+    // Two bits are allocated per CSE candidate to compute CSE availability
+    // plus an extra bit to handle the initial unvisited case.
+    // (See CSE_DataFlow::EndMerge for an explaination of why this is necessary)
+    //
+    // The two bits per CSE candidate have the following meanings:
+    //     11 - The CSE is available, and is also available when considering calls as killing availability.
+    //     10 - The CSE is available, but is not available when considering calls as killing availability.
+    //     00 - The CSE is not available
+    //     01 - An illegal combination
+    //
+    BitVecTraits* cseLivenessTraits;
+
+    EXPSET_TP cseCallKillsMask; // Computed once - A mask that is used to kill available CSEs at callsites
 
     /* Generic list of nodes - used by the CSE logic */
 
@@ -6260,8 +6273,7 @@ protected:
     unsigned optCSECandidateCount; // Count of CSE's candidates, reset for Lexical and ValNum CSE's
     unsigned optCSEstart;          // The first local variable number that is a CSE
     unsigned optCSEcount;          // The total count of CSE's introduced.
-    unsigned optCSEweight;         // The weight of the current block when we are
-                                   // scanning for CSE expressions
+    unsigned optCSEweight;         // The weight of the current block when we are doing PerformCS
 
     bool optIsCSEcandidate(GenTree* tree);
 
@@ -7785,27 +7797,6 @@ private:
             return false;
         }
         return isOpaqueSIMDType(varDsc->lvVerTypeInfo.GetClassHandle());
-    }
-
-    // Returns true if the type of the tree is a byref of TYP_SIMD
-    bool isAddrOfSIMDType(GenTree* tree)
-    {
-        if (tree->TypeGet() == TYP_BYREF || tree->TypeGet() == TYP_I_IMPL)
-        {
-            switch (tree->OperGet())
-            {
-                case GT_ADDR:
-                    return varTypeIsSIMD(tree->gtGetOp1());
-
-                case GT_LCL_VAR_ADDR:
-                    return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
-
-                default:
-                    return isSIMDTypeLocal(tree);
-            }
-        }
-
-        return false;
     }
 
     static bool isRelOpSIMDIntrinsic(SIMDIntrinsicID intrinsicId)
@@ -10356,6 +10347,84 @@ public:
     {
         m_walkData->parent = user;
         return m_walkData->wtpoVisitorFn(use, m_walkData);
+    }
+};
+
+// A dominator tree visitor implemented using the curiosly-recurring-template pattern, similar to GenTreeVisitor.
+template <typename TVisitor>
+class DomTreeVisitor
+{
+protected:
+    Compiler* const    m_compiler;
+    DomTreeNode* const m_domTree;
+
+    DomTreeVisitor(Compiler* compiler, DomTreeNode* domTree) : m_compiler(compiler), m_domTree(domTree)
+    {
+    }
+
+    void Begin()
+    {
+    }
+
+    void PreOrderVisit(BasicBlock* block)
+    {
+    }
+
+    void PostOrderVisit(BasicBlock* block)
+    {
+    }
+
+    void End()
+    {
+    }
+
+public:
+    //------------------------------------------------------------------------
+    // WalkTree: Walk the dominator tree, starting from fgFirstBB.
+    //
+    // Notes:
+    //    This performs a non-recursive, non-allocating walk of the tree by using
+    //    DomTreeNode's firstChild and nextSibling links to locate the children of
+    //    a node and BasicBlock's bbIDom parent link to go back up the tree when
+    //    no more children are left.
+    //
+    //    Forests are also supported, provided that all the roots are chained via
+    //    DomTreeNode::nextSibling to fgFirstBB.
+    //
+    void WalkTree()
+    {
+        static_cast<TVisitor*>(this)->Begin();
+
+        for (BasicBlock *next, *block = m_compiler->fgFirstBB; block != nullptr; block = next)
+        {
+            static_cast<TVisitor*>(this)->PreOrderVisit(block);
+
+            next = m_domTree[block->bbNum].firstChild;
+
+            if (next != nullptr)
+            {
+                assert(next->bbIDom == block);
+                continue;
+            }
+
+            do
+            {
+                static_cast<TVisitor*>(this)->PostOrderVisit(block);
+
+                next = m_domTree[block->bbNum].nextSibling;
+
+                if (next != nullptr)
+                {
+                    assert(next->bbIDom == block->bbIDom);
+                    break;
+                }
+
+                block = block->bbIDom;
+
+            } while (block != nullptr);
+        }
+
+        static_cast<TVisitor*>(this)->End();
     }
 };
 

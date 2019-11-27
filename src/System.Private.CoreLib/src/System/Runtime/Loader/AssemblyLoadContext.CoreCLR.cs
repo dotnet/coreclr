@@ -35,6 +35,15 @@ namespace System.Runtime.Loader
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsTracingEnabled();
 
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern bool TraceResolvingHandlerInvoked(string assemblyName, string handlerName, string? alcName, string? resultAssemblyName, string? resultAssemblyPath);
+
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern bool TraceAssemblyResolveHandlerInvoked(string assemblyName, string handlerName, string? resultAssemblyName, string? resultAssemblyPath);
+
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern bool TraceAssemblyLoadFromResolveHandlerInvoked(string assemblyName, bool isTrackedAssembly, string requestingAssemblyPath, string? requestedAssemblyPath);
+
         private Assembly InternalLoadFromPath(string? assemblyPath, string? nativeImagePath)
         {
             RuntimeAssembly? loadedAssembly = null;
@@ -97,28 +106,6 @@ namespace System.Runtime.Loader
         {
             AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target)!;
             return context.GetResolvedUnmanagedDll(assembly, unmanagedDllName);
-        }
-
-        private IntPtr GetResolvedUnmanagedDll(Assembly assembly, string unmanagedDllName)
-        {
-            IntPtr resolvedDll = IntPtr.Zero;
-
-            Func<Assembly, string, IntPtr>? dllResolveHandler = _resolvingUnmanagedDll;
-
-            if (dllResolveHandler != null)
-            {
-                // Loop through the event subscribers and return the first non-null native library handle
-                foreach (Func<Assembly, string, IntPtr> handler in dllResolveHandler.GetInvocationList())
-                {
-                    resolvedDll = handler(assembly, unmanagedDllName);
-                    if (resolvedDll != IntPtr.Zero)
-                    {
-                        return resolvedDll;
-                    }
-                }
-            }
-
-            return IntPtr.Zero;
         }
 
         [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
