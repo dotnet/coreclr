@@ -4,8 +4,9 @@
   <PropertyGroup>
       <RestoreOutputPath>$(SourceDir)Common\CoreFX\obj</RestoreOutputPath>
       <Language>C#</Language>
-      <NugetTargetMoniker>.NETCoreApp,Version=v3.0</NugetTargetMoniker>
-      <TargetFramework>netcoreapp3.0</TargetFramework>
+      <NugetTargetMoniker>.NETCoreApp,Version=v3.1</NugetTargetMoniker>
+      <TargetFramework>netcoreapp3.1</TargetFramework>
+      <RuntimeFrameworkVersion>$(MicrosoftNETCoreAppVersion)</RuntimeFrameworkVersion>
       <ContainsPackageReferences>true</ContainsPackageReferences>
       <CLRTestKind>SharedLibrary</CLRTestKind>
       <IsTestProject>false</IsTestProject>
@@ -30,6 +31,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+
+    <!-- Workaround to exclude runtime assets from this package while we fix a bug in CoreFx -->
+    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="$(SystemIOFileSystemAccessControlVersion)" ExcludeAssets="Runtime" />
 
     <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
     <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />

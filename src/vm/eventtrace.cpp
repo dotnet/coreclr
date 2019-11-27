@@ -1135,6 +1135,7 @@ void BulkComLogger::FlushRcw()
 #else
     ULONG result = FireEtXplatGCBulkRCW(m_currRcw, instance, sizeof(EventRCWEntry) * m_currRcw, m_etwRcwData);
 #endif // !defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRCW(m_currRcw, instance, sizeof(EventRCWEntry) * m_currRcw, m_etwRcwData);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -1224,6 +1225,7 @@ void BulkComLogger::FlushCcw()
 #else
     ULONG result = FireEtXplatGCBulkRootCCW(m_currCcw, instance, sizeof(EventCCWEntry) * m_currCcw, m_etwCcwData);
 #endif //!defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRootCCW(m_currCcw, instance, sizeof(EventCCWEntry) * m_currCcw, m_etwCcwData);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -1428,6 +1430,7 @@ void BulkStaticsLogger::FireBulkStaticsEvent()
 #else
     ULONG result = FireEtXplatGCBulkRootStaticVar(m_count, appDomain, instance, m_used, m_buffer);
 #endif //!defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRootStaticVar(m_count, appDomain, instance, m_used, m_buffer);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -4269,6 +4272,12 @@ VOID EtwCallbackCommon(
 #endif // !defined(FEATURE_PAL)
         ETW::GCLog::ForceGC(l64ClientSequenceNumber);
     }
+    // TypeSystemLog needs a notification when certain keywords are modified, so
+    // give it a hook here.
+    if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
+    {
+        ETW::TypeSystemLog::OnKeywordsChanged();
+    }
 }
 
 // Individual callbacks for each EventPipe provider.
@@ -4487,13 +4496,6 @@ extern "C"
         }
 
         EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData, false);
-
-        // TypeSystemLog needs a notification when certain keywords are modified, so
-        // give it a hook here.
-        if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
-        {
-            ETW::TypeSystemLog::OnKeywordsChanged();
-        }
 
         // A manifest based provider can be enabled to multiple event tracing sessions
         // As long as there is atleast 1 enabled session, IsEnabled will be TRUE
@@ -7541,3 +7543,11 @@ bool EventPipeHelper::IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONG
     return false;
 }
 #endif // FEATURE_PERFTRACING
+
+#if defined(FEATURE_PAL)  && defined(FEATURE_PERFTRACING)
+// This is a wrapper method for LTTng. See https://github.com/dotnet/coreclr/pull/27273 for details.
+extern "C" bool XplatEventLoggerIsEnabled()
+{
+    return XplatEventLogger::IsEventLoggingEnabled();
+}
+#endif // FEATURE_PAL && FEATURE_PERFTRACING
