@@ -19,7 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="non_virtual_calls_to_instance_methods.il" />
+    <Compile Include="nonvirtcall_instmethods.il" />
   </ItemGroup>
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
