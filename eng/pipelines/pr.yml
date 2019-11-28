@@ -123,8 +123,8 @@ jobs:
 #
 # Formatting
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: format-job.yml
-    platforms:
-    - Linux_x64
+# - template: /eng/platform-matrix.yml
+#   parameters:
+#     jobTemplate: format-job.yml
+#     platforms:
+#     - Linux_x64
