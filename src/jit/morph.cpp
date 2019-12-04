@@ -7055,7 +7055,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
     if (info.compIsVarArgs || callee->IsVarargs())
     {
-        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64");
+        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64", 0, 0);
         return false;
     }
 #endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
