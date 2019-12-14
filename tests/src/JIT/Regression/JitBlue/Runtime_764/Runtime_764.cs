@@ -21,6 +21,8 @@ public struct Ptr<T> where T: class
         _value = null;
         return tmp;
     }
+
+    T _value;
 }
 
 class Runtime_764
