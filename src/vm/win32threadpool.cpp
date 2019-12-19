@@ -421,7 +421,20 @@ BOOL ThreadpoolMgr::Initialize()
     // initialize Worker and CP thread settings
     DWORD forceMin;
     forceMin = GetForceMinWorkerThreadsValue();
-    MinLimitTotalWorkerThreads = forceMin > 0 ? (LONG)forceMin : (LONG)NumberOfProcessors;
+
+    if (forceMin <= 0)
+    {
+        forceMin = NumberOfProcessors;
+
+#ifdef FEATURE_PAL	
+        UINT cpuLimit;	
+
+        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < forceMin)	
+            forceMin = cpuLimit;	
+#endif
+    }
+
+    MinLimitTotalWorkerThreads = forceMin;
 
     DWORD forceMax;
     forceMax = GetForceMaxWorkerThreadsValue();
