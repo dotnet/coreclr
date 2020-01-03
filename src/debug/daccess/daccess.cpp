@@ -28,6 +28,11 @@
 #include <dactablerva.h>
 #endif
 
+#ifndef DAC_TABLE_RVA
+size_t dacTableRva = 0x0000000000765688;
+#define DAC_TABLE_RVA dacTableRva
+#endif
+
 #include "dwbucketmanager.hpp"
 #include "gcinterface.dac.h"
 
@@ -5527,7 +5532,7 @@ ClrDataAccess::Initialize(void)
 
     // Determine our platform based on the pre-processor macros set when we were built
 
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
     #if defined(DBG_TARGET_X86)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
     #elif defined(DBG_TARGET_AMD64)
@@ -5724,12 +5729,12 @@ ClrDataAccess::GetJitHelperName(
     };
     static_assert_no_msg(COUNTOF(s_rgHelperNames) == CORINFO_HELP_COUNT);
 
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
     if (!dynamicHelpersOnly)
 #else
     if (!dynamicHelpersOnly && g_runtimeLoadedBaseAddress <= address &&
             address < g_runtimeLoadedBaseAddress + g_runtimeVirtualSize)
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
     {
         // Read the whole table from the target in one shot for better performance
         VMHELPDEF * pTable = static_cast<VMHELPDEF *>(
@@ -7028,7 +7033,7 @@ bool ClrDataAccess::TargetConsistencyAssertsEnabled()
 //
 HRESULT ClrDataAccess::VerifyDlls()
 {
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
     // Provide a knob for disabling this check if we really want to try and proceed anyway with a
     // DAC mismatch.  DAC behavior may be arbitrarily bad - globals probably won't be at the same
     // address, data structures may be laid out differently, etc.
@@ -7249,7 +7254,7 @@ bool ClrDataAccess::MdCacheGetEEName(TADDR taEEStruct, SString & eeName)
 HRESULT
 ClrDataAccess::GetDacGlobals()
 {
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
 #ifdef DAC_TABLE_SIZE
     if (DAC_TABLE_SIZE != sizeof(g_dacGlobals))
     {
@@ -7404,7 +7409,7 @@ BOOL ClrDataAccess::IsExceptionFromManagedCode(EXCEPTION_RECORD* pExceptionRecor
     return flag;
 }
 
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
 
 //----------------------------------------------------------------------------
 //
@@ -7444,7 +7449,7 @@ HRESULT ClrDataAccess::GetWatsonBuckets(DWORD dwThreadId, GenericModeBlock * pGM
     return hr;
 }
 
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
 
 //----------------------------------------------------------------------------
 //
@@ -7598,7 +7603,7 @@ typedef struct _WER_RUNTIME_EXCEPTION_INFORMATION
 #endif // !defined(WER_RUNTIME_EXCEPTION_INFORMATION)
 
 
-#ifndef FEATURE_PAL
+#ifdef TARGET_WINDOWS
 
 //----------------------------------------------------------------------------
 //
@@ -7885,7 +7890,7 @@ STDAPI OutOfProcessExceptionEventSignatureCallback(__in PDWORD pContext,
     return S_OK;
 }
 
-#endif // FEATURE_PAL
+#endif // TARGET_WINDOWS
 
 //----------------------------------------------------------------------------
 //

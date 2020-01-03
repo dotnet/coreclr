@@ -1195,9 +1195,9 @@ public:
     HRESULT Initialize(void);
 
     BOOL IsExceptionFromManagedCode(EXCEPTION_RECORD * pExceptionRecord);
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
     HRESULT GetWatsonBuckets(DWORD dwThreadId, GenericModeBlock * pGM);
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
 
 
     Thread* FindClrThreadByTaskId(ULONG64 taskId);
@@ -1259,9 +1259,9 @@ public:
     // Get the MethodDesc for a function
     MethodDesc * FindLoadedMethodRefOrDef(Module* pModule, mdToken memberRef);
     
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
     HRESULT GetClrWatsonBucketsWorker(Thread * pThread, GenericModeBlock * pGM);
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
 
     HRESULT ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr,
                                 DacpGcHeapDetails *detailsData);

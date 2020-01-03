@@ -1648,7 +1648,7 @@ public:
     // we fire the AllocationTick event. It's only for tooling purpose.
     TypeHandle m_thAllocContextObj;
 
-#ifndef FEATURE_PAL    
+#ifndef TARGET_UNIX    
 private:
     _NT_TIB *m_pTEB;
 public:
@@ -1660,7 +1660,7 @@ public:
         WRAPPER_NO_CONTRACT;
         return &GetTEB()->ExceptionList;
     }
-#endif // !FEATURE_PAL
+#endif // !TARGET_UNIX
     
     inline void SetTHAllocContextObj(TypeHandle th) {LIMITED_METHOD_CONTRACT; m_thAllocContextObj = th; }
     
@@ -3268,7 +3268,7 @@ public:
     static void SetCulture(OBJECTREF *CultureObj, BOOL bUICulture);
 
 private:
-#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
+#if defined(FEATURE_HIJACK) && !defined(TARGET_UNIX)
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
     BOOL RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, T_CONTEXT *pCurrentThreadCtx);
@@ -3289,7 +3289,7 @@ public:
 private:
     bool        m_fPreemptiveGCDisabledForGCStress;
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
-#endif // FEATURE_HIJACK && !PLATFORM_UNIX
+#endif // FEATURE_HIJACK && !TARGET_UNIX
 
 public:
 
@@ -4925,10 +4925,10 @@ public:
     void SetGCSpecial(bool fGCSpecial);
 
 private:
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
     WORD m_wCPUGroup;
     DWORD_PTR m_pAffinityMask;
-#endif // !FEATURE_PAL
+#endif // !TARGET_UNIX
 public:
     void ChooseThreadCPUGroupAffinity();
     void ClearThreadCPUGroupAffinity();
