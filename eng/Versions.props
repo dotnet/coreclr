@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.2</ProductVersion>
+    <ProductVersion>3.0.3</ProductVersion>
     <!-- File version numbers -->
     <MajorVersion>4</MajorVersion>
     <MinorVersion>7</MinorVersion>
