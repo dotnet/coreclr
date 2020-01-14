@@ -70,9 +70,12 @@
 # https://github.com/dotnet/coreclr/issues/22414
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 
-# Failure in System.Text.Encoding.Tests due to bug fix in DecoderNLS.Convert
-# https://github.com/dotnet/coreclr/issues/27191
+# Failure in System.Text.Encoding.Tests due to bug fix in EncoderNLS.Convert and DecoderNLS.Convert
+# https://github.com/dotnet/coreclr/pull/27996
 -nomethod System.Text.Tests.DecoderConvert2.PosTest6
+-nomethod System.Text.Tests.DecoderConvert2.PosTest11
+-nomethod System.Text.Tests.EncoderConvert2.EncoderUTF8ConvertMixedASCIIUnicodeCharArrayPartial
+-nomethod System.Text.Tests.EncoderConvert2.EncoderUTF8ConvertUnicodeCharArrayPartial
 
 # Timeout in System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
 # https://github.com/dotnet/coreclr/issues/18912
