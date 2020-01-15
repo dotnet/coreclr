@@ -73,7 +73,7 @@ jobs:
     - OSX_x64
     - Windows_NT_x64
     - Windows_NT_x86
-    - Windows_NT_arm
+    # - Windows_NT_arm return this when https://github.com/dotnet/runtime/issues/1097 is fixed.
     - Windows_NT_arm64
     helixQueueGroup: ci
     jobParameters:
