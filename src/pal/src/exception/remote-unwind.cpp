@@ -68,13 +68,19 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 #include <elf.h>
 #include <link.h>
 
-#if defined(_X86_) || defined(_ARM_) 
+#if defined(_X86_) || defined(_ARM_)
+#if !defined(PRIx32)
+#define PRIx32 "lx"
+#endif
 #define PRIx PRIx32
 #define PRIu PRIu32
 #define PRId PRId32
 #define PRIA "08"
 #define PRIxA PRIA PRIx
 #elif defined(_AMD64_) || defined(_ARM64_)
+#if !defined(PRIx64)
+#define PRIx64 "llx"
+#endif
 #define PRIx PRIx64
 #define PRIu PRIu64
 #define PRId PRId64

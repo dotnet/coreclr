@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.2</ProductVersion>
+    <ProductVersion>3.0.3</ProductVersion>
     <!-- File version numbers -->
     <MajorVersion>4</MajorVersion>
     <MinorVersion>7</MinorVersion>
@@ -17,6 +17,7 @@
     <!-- arcade -->
     <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19577.5</MicrosoftDotNetBuildTasksFeedVersion>
     <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19577.5</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetHelixSdkVersion>2.0.0-beta.19461.7</MicrosoftDotNetHelixSdkVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- roslyn -->
     <MicrosoftNetCompilersToolsetVersion>3.3.0-beta2-19367-02</MicrosoftNetCompilersToolsetVersion>
