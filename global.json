@@ -1,14 +1,14 @@
 {
   "tools": {
-    "dotnet": "3.0.100"
+    "dotnet": "3.0.101"
   },
   "native-tools": {
     "cmake": "3.11.1",
     "python": "2.7.15"
   },
   "msbuild-sdks": {
-    "Microsoft.DotNet.Arcade.Sdk": "1.0.0-beta.19461.7",
-    "Microsoft.DotNet.Helix.Sdk": "2.0.0-beta.19461.7",
+    "Microsoft.DotNet.Arcade.Sdk": "1.0.0-beta.19577.5",
+    "Microsoft.DotNet.Helix.Sdk": "2.0.0-beta.19577.5",
     "Microsoft.Build.NoTargets": "1.0.53",
     "Microsoft.Build.Traversal": "2.0.2"
   }
