@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.DotNet.Build.Tasks.Packaging" Version="$(MicrosoftDotNetBuildTasksPackagingVersion)" />
+    <PackageDownload Include="Microsoft.DotNet.Helix.Sdk" Version="[$(MicrosoftDotNetHelixSdkVersion)]" />
     <PackageReference Include="Microsoft.NETCore.Platforms" Version="$(MicrosoftNETCorePlatformsVersion)" />
   </ItemGroup>
 </Project>
