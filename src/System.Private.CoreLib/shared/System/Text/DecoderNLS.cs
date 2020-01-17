@@ -207,9 +207,11 @@ namespace System.Text
             charsUsed = _encoding.GetChars(bytes, byteCount, chars, charCount, this);
             bytesUsed = _bytesUsed;
 
-            // Its completed if they've used what they wanted AND if they didn't want flush or if we are flushed
-            completed = (bytesUsed == byteCount) && (!flush || !this.HasState) &&
-                               (_fallbackBuffer == null || _fallbackBuffer.Remaining == 0);
+            // See comment in EncoderNLS.Convert for the details of the logic below.
+
+            completed = (bytesUsed == byteCount)
+                && (!flush || !this.HasState)
+                && (_fallbackBuffer is null || _fallbackBuffer.Remaining == 0);
 
             // Our data thingy are now full, we can return
         }

@@ -107,7 +107,7 @@ namespace VirtualMemoryLogging
     // An entry in the in-memory log
     struct LogRecord
     {
-        LONG RecordId;
+        ULONG RecordId;
         DWORD Operation;
         LPVOID CurrentThread;
         LPVOID RequestedAddress;
@@ -118,14 +118,14 @@ namespace VirtualMemoryLogging
     };
 
     // Maximum number of records in the in-memory log
-    const LONG MaxRecords = 128;
+    const ULONG MaxRecords = 128;
 
     // Buffer used to store the logged data
     volatile LogRecord logRecords[MaxRecords];
 
     // Current record number. Use (recordNumber % MaxRecords) to determine
     // the current position in the circular buffer.
-    volatile LONG recordNumber = 0;
+    volatile ULONG recordNumber = 0;
 
     // Record an entry in the in-memory log
     void LogVaOperation(
@@ -137,7 +137,7 @@ namespace VirtualMemoryLogging
         IN LPVOID returnedAddress,
         IN BOOL result)
     {
-        LONG i = InterlockedIncrement(&recordNumber) - 1;
+        ULONG i = (ULONG)InterlockedIncrement((LONG*)&recordNumber) - 1;
         LogRecord* curRec = (LogRecord*)&logRecords[i % MaxRecords];
 
         curRec->RecordId = i;
@@ -916,6 +916,10 @@ static LPVOID VIRTUALReserveMemory(
     if (pRetVal == NULL)
     {
         // Try to reserve memory from the OS
+        if ((flProtect & 0xff) == PAGE_EXECUTE_READWRITE)
+        {
+             flAllocationType |= MEM_RESERVE_EXECUTABLE;
+        }
         pRetVal = ReserveVirtualMemory(pthrCurrent, (LPVOID)StartBoundary, MemSize, flAllocationType);
     }
 
@@ -969,24 +973,7 @@ static LPVOID ReserveVirtualMemory(
 
     // Most platforms will only commit memory if it is dirtied,
     // so this should not consume too much swap space.
-    int mmapFlags = 0;
-
-#if HAVE_VM_ALLOCATE
-    // Allocate with vm_allocate first, then map at the fixed address.
-    int result = vm_allocate(mach_task_self(),
-                             &StartBoundary,
-                             MemSize,
-                             ((LPVOID) StartBoundary != nullptr) ? FALSE : TRUE);
-
-    if (result != KERN_SUCCESS)
-    {
-        ERROR("vm_allocate failed to allocated the requested region!\n");
-        pthrCurrent->SetLastError(ERROR_INVALID_ADDRESS);
-        return nullptr;
-    }
-
-    mmapFlags |= MAP_FIXED;
-#endif // HAVE_VM_ALLOCATE
+    int mmapFlags = MAP_ANON | MAP_PRIVATE;
 
     if ((fAllocationType & MEM_LARGE_PAGES) != 0)
     {
@@ -1001,7 +988,12 @@ static LPVOID ReserveVirtualMemory(
 #endif
     }
 
-    mmapFlags |= MAP_ANON | MAP_PRIVATE;
+#ifdef __APPLE__
+    if ((fAllocationType & MEM_RESERVE_EXECUTABLE) && IsRunningOnMojaveHardenedRuntime())
+    {
+        mmapFlags |= MAP_JIT;
+    }
+#endif
 
     LPVOID pRetVal = mmap((LPVOID) StartBoundary,
                           MemSize,
@@ -1013,10 +1005,6 @@ static LPVOID ReserveVirtualMemory(
     if (pRetVal == MAP_FAILED)
     {
         ERROR( "Failed due to insufficient memory.\n" );
-
-#if HAVE_VM_ALLOCATE
-        vm_deallocate(mach_task_self(), StartBoundary, MemSize);
-#endif // HAVE_VM_ALLOCATE
 
         pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         return nullptr;
@@ -2160,7 +2148,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // Do actual memory reservation.
     do
     {
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation, 0 /* fAllocationType */);
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation, MEM_RESERVE_EXECUTABLE);
         if (m_startAddress != nullptr)
         {
             break;
@@ -2190,7 +2178,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
         //   - The code heap allocator for the JIT can allocate from this address space. Beyond this reservation, one can use
         //     the COMPlus_CodeHeapReserveForJumpStubs environment variable to reserve space for jump stubs.
         sizeOfAllocation = MaxExecutableMemorySize;
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation, 0 /* fAllocationType */);
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation, MEM_RESERVE_EXECUTABLE);
         if (m_startAddress == nullptr)
         {
             return;

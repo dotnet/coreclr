@@ -708,6 +708,7 @@ typedef enum
     COR_PRF_SUSPEND_FOR_INPROC_DEBUGGER     = 6,
     COR_PRF_SUSPEND_FOR_GC_PREP             = 7,
     COR_PRF_SUSPEND_FOR_REJIT               = 8,
+    COR_PRF_SUSPEND_FOR_PROFILER            = 9,
 } COR_PRF_SUSPEND_REASON;
 
 /*
@@ -1431,6 +1432,8 @@ interface ICorProfilerCallback : IUnknown
      *      the runtime is preparing for a GC.
      *  COR_PRF_SUSPEND_FOR_INPROC_DEBUGGER
      *      the runtime is suspending for in-process debugging.
+     *  COR_PRF_SUSPEND_FOR_PROFILER
+     *      the runtime is suspending because of ICorProfilerInfo10::SuspendRuntime.
      *  COR_PRF_SUSPEND_OTHER
      *      the runtime is suspending for a reason other than those above.
      */
@@ -3980,6 +3983,40 @@ interface ICorProfilerInfo10 : ICorProfilerInfo9
 
     // Restart the runtime from a previous suspension.
     HRESULT ResumeRuntime();
+}
+
+[
+    object,
+    uuid(06398876-8987-4154-B621-40A00D6E4D04),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo11 : ICorProfilerInfo10
+{
+    /*
+     * Get environment variable for the running managed code.
+     */
+    HRESULT GetEnvironmentVariable(
+                [in, string] const WCHAR *szName,
+                [in]         ULONG cchValue,
+                [out]        ULONG *pcchValue,
+                [out, annotation("_Out_writes_to_(cchValue, *pcchValue)")]
+                             WCHAR szValue[]);
+
+    /*
+     * Set environment variable for the running managed code.
+     *
+     * The code profiler calls this function to modify environment variables of the
+     * current managed process. For example, it can be used in the profiler's Initialize()
+     * or InitializeForAttach() callbacks.
+     *
+     * szName is the name of the environment variable, should not be NULL.
+     *
+     * szValue is the contents of the environment variable, or NULL if the variable should be deleted.
+     */
+    HRESULT SetEnvironmentVariable(
+                [in, string] const WCHAR *szName,
+                [in, string] const WCHAR *szValue);
 }
 
 /*

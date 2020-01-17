@@ -2559,10 +2559,10 @@ PAL_GetCPUBusyTime(
             return 0;
         }
 
-        UINT cpuLimit;
-        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)
-        {
-            dwNumberOfProcessors = cpuLimit;
+        UINT cpuLimit;	
+        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)	
+        {	
+            dwNumberOfProcessors = cpuLimit;	
         }
     }
 
