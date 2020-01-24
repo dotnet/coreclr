@@ -66,6 +66,7 @@ void EntryPointSlots::Backpatch_Locked(TADDR slot, SlotType slotType, PCODE entr
 // MethodDescBackpatchInfoTracker
 
 CrstStatic MethodDescBackpatchInfoTracker::s_lock;
+bool MethodDescBackpatchInfoTracker::s_isLocked = false;
 
 #ifndef DACCESS_COMPILE
 
@@ -139,5 +140,31 @@ bool MethodDescBackpatchInfoTracker::MayHaveEntryPointSlotsToBackpatch(PTR_Metho
 }
 
 #endif // _DEBUG
+
+#ifndef DACCESS_COMPILE
+void MethodDescBackpatchInfoTracker::PollForDebuggerSuspension()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(!IsLockedByCurrentThread());
+
+    // If suspension is pending for the debugger, pulse the GC mode to suspend the thread here. Following this call, typically
+    // the lock is acquired and the GC mode is changed, and suspending there would cause FuncEvals to fail (see
+    // Debugger::FuncEvalSetup() at the reference to IsLockOwnedByAnyThread()). Since this thread is in preemptive mode, the
+    // debugger may think it's already suspended and it would be unfortunate to suspend the thread with the lock held.
+    Thread *thread = GetThread();
+    _ASSERTE(thread != nullptr);
+    if (thread->HasThreadState(Thread::TS_DebugSuspendPending))
+    {
+        GCX_COOP();
+    }
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
