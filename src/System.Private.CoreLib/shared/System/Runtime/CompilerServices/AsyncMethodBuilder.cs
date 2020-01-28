@@ -447,7 +447,7 @@ namespace System.Runtime.CompilerServices
             ref TStateMachine stateMachine)
             where TStateMachine : IAsyncStateMachine
         {
-            ExecutionContext? currentContext = ExecutionContext.Capture();
+            ExecutionContext? currentContext = ExecutionContext.Capture()?.TryCloneAsyncLocals();
 
             // Check first for the most common case: not the first yield in an async method.
             // In this case, the first yield will have already "boxed" the state machine in

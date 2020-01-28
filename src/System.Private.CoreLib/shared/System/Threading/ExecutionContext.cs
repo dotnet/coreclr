@@ -68,6 +68,14 @@ namespace System.Threading
             return executionContext;
         }
 
+        public ExecutionContext TryCloneAsyncLocals()
+        {
+            var localValuesClone = m_localValues?.TryClone();
+            return localValuesClone == null || ReferenceEquals(localValuesClone, m_localValues)
+                ? this
+                : new ExecutionContext(localValuesClone, m_localChangeNotifications, m_isFlowSuppressed);
+        }
+
         private ExecutionContext? ShallowClone(bool isFlowSuppressed)
         {
             Debug.Assert(isFlowSuppressed != m_isFlowSuppressed);

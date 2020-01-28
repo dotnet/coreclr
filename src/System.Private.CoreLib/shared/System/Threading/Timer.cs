@@ -445,7 +445,7 @@ namespace System.Threading
             _period = Timeout.UnsignedInfinite;
             if (flowExecutionContext)
             {
-                _executionContext = ExecutionContext.Capture();
+                _executionContext = ExecutionContext.Capture()?.TryCloneAsyncLocals();
             }
             _associatedTimerQueue = TimerQueue.Instances[Thread.GetCurrentProcessorId() % TimerQueue.Instances.Length];
 

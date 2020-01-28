@@ -629,7 +629,7 @@ namespace System.IO
                 if (callback != null)
                 {
                     _callback = callback;
-                    _context = ExecutionContext.Capture();
+                    _context = ExecutionContext.Capture()?.TryCloneAsyncLocals();
                     base.AddCompletionAction(this);
                 }
             }

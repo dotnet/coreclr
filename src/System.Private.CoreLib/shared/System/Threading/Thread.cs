@@ -158,7 +158,7 @@ namespace System.Threading
 
         public static Thread CurrentThread => t_currentThread ?? InitializeCurrentThread();
 
-        public ExecutionContext? ExecutionContext => ExecutionContext.Capture();
+        public ExecutionContext? ExecutionContext => ExecutionContext.Capture()?.TryCloneAsyncLocals();
 
         public string? Name
         {

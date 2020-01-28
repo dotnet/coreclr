@@ -117,7 +117,7 @@ namespace System.Threading.Tasks.Sources
 
             if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
             {
-                _executionContext = ExecutionContext.Capture();
+                _executionContext = ExecutionContext.Capture()?.TryCloneAsyncLocals();
             }
 
             if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)

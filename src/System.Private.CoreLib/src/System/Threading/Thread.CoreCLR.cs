@@ -215,7 +215,7 @@ namespace System.Threading
                 Debug.Assert(_delegate.Target is ThreadHelper);
                 var t = (ThreadHelper)_delegate.Target;
 
-                ExecutionContext? ec = ExecutionContext.Capture();
+                ExecutionContext? ec = ExecutionContext.Capture()?.TryCloneAsyncLocals();
                 t.SetExecutionContextHelper(ec);
             }
 

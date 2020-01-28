@@ -923,7 +923,7 @@ namespace System.Threading
             if (flowExecutionContext)
             {
                 // capture the exection context
-                _executionContext = ExecutionContext.Capture();
+                _executionContext = ExecutionContext.Capture()?.TryCloneAsyncLocals();
             }
         }
 
@@ -1087,7 +1087,7 @@ namespace System.Threading
 
             EnsureInitialized();
 
-            ExecutionContext? context = ExecutionContext.Capture();
+            ExecutionContext? context = ExecutionContext.Capture()?.TryCloneAsyncLocals();
 
             object tpcallBack = (context == null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext(callBack!, state) :
@@ -1107,7 +1107,7 @@ namespace System.Threading
 
             EnsureInitialized();
 
-            ExecutionContext? context = ExecutionContext.Capture();
+            ExecutionContext? context = ExecutionContext.Capture()?.TryCloneAsyncLocals();
 
             object tpcallBack = (context == null || context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext<TState>(callBack!, state) :
