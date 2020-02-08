@@ -42,6 +42,10 @@
 #include <vm/vm_param.h>
 #endif // HAVE_XSWDEV
 
+#if HAVE_XSW_USAGE
+#include <sys/sysctl.h>
+#endif // HAVE_XSW_USAGE
+
 #ifdef __APPLE__
 #include <mach/vm_types.h>
 #include <mach/vm_param.h>
@@ -49,8 +53,12 @@
 #include <mach/mach_host.h>
 #endif // __APPLE__
 
-#if HAVE_SYSCTL
+#if HAVE_SYSCONF
+// <unistd.h> already included above
+#elif HAVE_SYSCTL
 #include <sys/sysctl.h>
+#else
+#error "Don't know how to get total physical memory on this platform"
 #endif
 
 #ifdef __linux__
