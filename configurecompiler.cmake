@@ -503,11 +503,15 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # to a struct or a class that has virtual members or a base class. In that case, clang
     # may not generate the same object layout as MSVC.
     add_compile_options(-Wno-incompatible-ms-struct)
+    # Do not convert a #warning into an #error
+    add_compile_options("-Wno-error=#warnings")
   else()
     add_compile_options(-Wno-unused-variable)
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
+    # Do not convert a #warning into an #error
+    add_compile_options(-Wno-error=cpp)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
       add_compile_options(-Wno-nonnull-compare)
     endif()
