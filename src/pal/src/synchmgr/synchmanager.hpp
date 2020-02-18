@@ -1019,6 +1019,11 @@ namespace CorUnix
             struct timespec * ptsAbsTmo,
             BOOL fPreferMonotonicClock);
     };
+
+    PAL_ERROR _PalGetAbsoluteTimeout(
+        DWORD dwTimeout,
+        struct timespec * ptsAbsTmo,
+        BOOL fPreferMonotonicClock);
 }
 
 #endif // _SYNCHMANAGER_HPP_

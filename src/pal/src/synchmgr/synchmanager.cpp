@@ -4575,6 +4575,17 @@ namespace CorUnix
     --*/
     PAL_ERROR CPalSynchronizationManager::GetAbsoluteTimeout(DWORD dwTimeout, struct timespec * ptsAbsTmo, BOOL fPreferMonotonicClock)
     {
+        return _PalGetAbsoluteTimeout(dwTimeout, ptsAbsTmo, fPreferMonotonicClock);
+    }
+
+    /*++
+    Method:
+      _PalGetAbsoluteTimeout
+
+    Converts a relative timeout to an absolute one.
+    --*/
+    PAL_ERROR _PalGetAbsoluteTimeout(DWORD dwTimeout, struct timespec * ptsAbsTmo, BOOL fPreferMonotonicClock)
+    {
         PAL_ERROR palErr = NO_ERROR;
         int iRet;
 

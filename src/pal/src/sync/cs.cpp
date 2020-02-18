@@ -22,6 +22,16 @@
 
 #include <sched.h>
 #include <pthread.h>
+#include <time.h>
+
+namespace CorUnix {
+
+extern PAL_ERROR _PalGetAbsoluteTimeout(
+    DWORD dwTimeout,
+    struct timespec * ptsAbsTmo,
+    BOOL fPreferMonotonicClock);
+
+}
 
 using namespace CorUnix;
 
@@ -1247,13 +1257,21 @@ namespace CorUnix
         
         while (0 == pPalCriticalSection->csndNativeData.iPredicate)
         {
+            struct timespec tsAbsTmo;
+
+            // Set timeout
+            PAL_ERROR palError = _PalGetAbsoluteTimeout(1000, &tsAbsTmo, /*fPreferMonotonicClock*/ TRUE);
+
             // Wait on the condition
-            iRet = pthread_cond_wait(&pPalCriticalSection->csndNativeData.condition, 
-                                     &pPalCriticalSection->csndNativeData.mutex);
-            
+            iRet = pthread_cond_timedwait(&pPalCriticalSection->csndNativeData.condition, 
+                                          &pPalCriticalSection->csndNativeData.mutex,
+                                          &tsAbsTmo);
+
+            // When pthread_cond_timewait times out, it returns ETIMEDOUT
+            // handling this the same we we handle spurious wake-up: checking if iPredicate is 1
             CS_TRACE("Got a signal on condition [pred=%d]!\n",
                            pPalCriticalSection->csndNativeData.iPredicate);
-            if (0 != iRet)
+            if (0 != iRet && ETIMEDOUT != iRet)
             {
                 // Failed: unlock the mutex and bail out
                 ASSERT("Failed waiting on condition in CS %p [err=%d]\n", 
