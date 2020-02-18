@@ -522,7 +522,13 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
-    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
+
+    bool mayHaveEntryPointSlotsToBackpatch = pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
+    if (mayHaveEntryPointSlotsToBackpatch)
+    {
+        MethodDescBackpatchInfoTracker::PollForDebuggerSuspension();
+    }
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
 
     EX_TRY
     {
@@ -746,6 +752,10 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
     ILCodeVersion ilParent;
     HRESULT hr = S_OK;
     bool mayHaveEntryPointSlotsToBackpatch = pMethod->MayHaveEntryPointSlotsToBackpatch();
+    if (mayHaveEntryPointSlotsToBackpatch)
+    {
+        MethodDescBackpatchInfoTracker::PollForDebuggerSuspension();
+    }
     MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
 
     {

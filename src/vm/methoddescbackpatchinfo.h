@@ -66,6 +66,7 @@ class MethodDescBackpatchInfoTracker
 {
 private:
     static CrstStatic s_lock;
+    static bool s_isLocked;
 
     class BackpatchInfoTrackerHashTraits : public NoRemoveDefaultCrossLoaderAllocatorHashTraits<MethodDesc *, UINT_PTR>
     {
@@ -93,9 +94,23 @@ public:
     static bool IsLockedByCurrentThread();
 #endif
 
+#ifndef DACCESS_COMPILE
+public:
+    static bool IsLockedByAnyThread()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return VolatileLoadWithoutBarrier(&s_isLocked);
+    }
+
+    static void PollForDebuggerSuspension();
+#endif
+
 public:
     class ConditionalLockHolder : CrstHolderWithState
     {
+    private:
+        bool m_isLocked;
+
     public:
         ConditionalLockHolder(bool acquireLock = true)
             : CrstHolderWithState(
@@ -104,9 +119,34 @@ public:
 #else
                 nullptr
 #endif
-                )
+                ),
+            m_isLocked(false)
         {
-            LIMITED_METHOD_CONTRACT;
+            WRAPPER_NO_CONTRACT;
+
+        #ifndef DACCESS_COMPILE
+            if (acquireLock)
+            {
+                _ASSERTE(IsLockedByCurrentThread());
+                _ASSERTE(!s_isLocked);
+                m_isLocked = true;
+                s_isLocked = true;
+            }
+        #endif
+        }
+
+        ~ConditionalLockHolder()
+        {
+            WRAPPER_NO_CONTRACT;
+
+        #ifndef DACCESS_COMPILE
+            if (m_isLocked)
+            {
+                _ASSERTE(IsLockedByCurrentThread());
+                _ASSERTE(s_isLocked);
+                s_isLocked = false;
+            }
+        #endif
         }
     };
 
