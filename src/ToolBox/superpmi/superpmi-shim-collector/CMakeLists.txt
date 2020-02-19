@@ -53,7 +53,7 @@ _add_library(superpmi-shim-collector
     ${SUPERPMI_SHIM_COLLECTOR_SOURCES}
 )
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     target_link_libraries(superpmi-shim-collector
         utilcodestaticnohost
         mscorrc_debug
@@ -68,6 +68,6 @@ else()
     )
 
     _install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-collector.pdb DESTINATION PDB)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 _install (TARGETS superpmi-shim-collector DESTINATION .)

@@ -72,7 +72,7 @@ if(WIN32)
     stacktrace.cpp
   )
 
-  if(CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+  if(CLR_CMAKE_HOST_ARCH_I386 OR CLR_CMAKE_HOST_ARCH_ARM)
     list(APPEND UTILCODE_COMMON_SOURCES
       lazycow.cpp
     )
@@ -108,9 +108,9 @@ convert_to_absolute_path(UTILCODE_DAC_SOURCES ${UTILCODE_DAC_SOURCES})
 convert_to_absolute_path(UTILCODE_CROSSGEN_SOURCES ${UTILCODE_CROSSGEN_SOURCES})
 convert_to_absolute_path(UTILCODE_STATICNOHOST_SOURCES ${UTILCODE_STATICNOHOST_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 add_subdirectory(dac)
 add_subdirectory(dyncrt)

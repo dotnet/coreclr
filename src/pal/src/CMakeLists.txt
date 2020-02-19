@@ -146,18 +146,18 @@ elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
   set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
-if(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+if(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_HOST_ALPINE_LINUX)
   # Currently the _xstate is not available on Alpine Linux
   add_definitions(-DXSTATE_SUPPORTED)
-endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_HOST_ALPINE_LINUX)
 
-if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+if(CLR_CMAKE_HOST_ALPINE_LINUX)
   # Setting RLIMIT_NOFILE breaks debugging of coreclr on Alpine Linux for some reason
   add_definitions(-DDONT_SET_RLIMIT_NOFILE)
   # On Alpine Linux, we need to ensure that the reported stack range for the primary thread is
   # larger than the initial committed stack size.
   add_definitions(-DENSURE_PRIMARY_STACK_SIZE)
-endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
+endif(CLR_CMAKE_HOST_ALPINE_LINUX)
 
 # turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no-gc-sections")
@@ -333,12 +333,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  if(CLR_CMAKE_PLATFORM_ALPINE_LINUX OR CLR_CMAKE_PLATFORM_ANDROID)
+  if(CLR_CMAKE_HOST_ALPINE_LINUX OR CLR_CMAKE_HOST_ANDROID)
     find_library(INTL intl)
   endif()
 
   # On Android, we don't need to link with gcc_s, pthread and rt
-  if(NOT CLR_CMAKE_PLATFORM_ANDROID)
+  if(NOT CLR_CMAKE_HOST_ANDROID)
     target_link_libraries(coreclrpal
       gcc_s
       pthread
@@ -346,7 +346,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     )
   endif()
 
-  if(CLR_CMAKE_PLATFORM_ANDROID)
+  if(CLR_CMAKE_HOST_ANDROID)
     find_library(LZMA NAMES lzma)
 
     if(LZMA STREQUAL LZMA-NOTFOUND)

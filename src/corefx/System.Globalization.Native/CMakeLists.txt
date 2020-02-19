@@ -13,7 +13,7 @@ if(UTYPES_H STREQUAL UTYPES_H-NOTFOUND)
     return()
 endif()
 
-if (NOT CLR_CMAKE_PLATFORM_DARWIN)
+if (NOT CLR_CMAKE_HOST_DARWIN)
     find_library(ICUUC icuuc)
     if(ICUUC STREQUAL ICUUC-NOTFOUND)
         message(FATAL_ERROR "Cannot find libicuuc, try installing libicu-dev (or the appropriate package for your platform)")
@@ -71,7 +71,7 @@ set_target_properties(System.Globalization.Native PROPERTIES PREFIX "")
 set_target_properties(System.Globalization.Native_Static PROPERTIES PREFIX "")
 set_target_properties(System.Globalization.Native_Static PROPERTIES OUTPUT_NAME System.Globalization.Native)
 
-if(NOT CLR_CMAKE_PLATFORM_DARWIN)
+if(NOT CLR_CMAKE_HOST_DARWIN)
     if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
         target_link_libraries(System.Globalization.Native
             dl

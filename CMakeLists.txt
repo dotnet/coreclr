@@ -153,15 +153,15 @@ include(pgosupport.cmake)
 #     - project which require platform header not clr's
 #     - do not depend on clr's compile definitions
 #-----------------------------------------
-if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+if(CLR_CMAKE_HOST_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
     add_subdirectory(src/corefx)
 endif()
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts)
     add_subdirectory(src/ildasm/unixcoreclrloader)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 # Add this subdir. We install the headers for the jit.
 add_subdirectory(src/pal/prebuilt/inc)
@@ -206,11 +206,11 @@ if(FEATURE_STANDALONE_GC)
   add_subdirectory(src/gc)
 endif(FEATURE_STANDALONE_GC)
 
-if (CLR_CMAKE_PLATFORM_UNIX)
+if (CLR_CMAKE_HOST_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
-endif (CLR_CMAKE_PLATFORM_UNIX)
+endif (CLR_CMAKE_HOST_UNIX)
 
 #------------------------------
 # Add Product Directory

@@ -31,7 +31,7 @@ set(RYUJIT_LINK_LIBRARIES
    gcinfo
 )
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     list(APPEND RYUJIT_LINK_LIBRARIES
        mscorrc_debug
        coreclrpal
@@ -53,7 +53,7 @@ else()
        crypt32.lib
        RuntimeObject.lib
     )
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 target_link_libraries(protojit
    ${RYUJIT_LINK_LIBRARIES}

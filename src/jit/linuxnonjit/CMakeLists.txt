@@ -9,13 +9,13 @@ if(FEATURE_READYTORUN)
   add_definitions(-DFEATURE_READYTORUN_COMPILER)
 endif(FEATURE_READYTORUN)
 
-if (CLR_CMAKE_PLATFORM_ARCH_I386)
+if (CLR_CMAKE_HOST_ARCH_I386)
     remove_definitions(-DFEATURE_SIMD)
     remove_definitions(-DFEATURE_HW_INTRINSICS)
     add_definitions(-DUNIX_X86_ABI)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_I386_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_linuxx86)
-elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+elseif(CLR_CMAKE_HOST_ARCH_AMD64)
     add_definitions(-DUNIX_AMD64_ABI)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_AMD64_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo)
@@ -45,7 +45,7 @@ set(RYUJIT_LINK_LIBRARIES
    ${JIT_ARCH_LINK_LIBRARIES}
 )
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     list(APPEND RYUJIT_LINK_LIBRARIES
        mscorrc_debug
        coreclrpal
@@ -67,7 +67,7 @@ else()
        crypt32.lib
        RuntimeObject.lib
     )
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 target_link_libraries(linuxnonjit
    ${RYUJIT_LINK_LIBRARIES}

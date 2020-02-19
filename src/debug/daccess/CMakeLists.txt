@@ -9,10 +9,10 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CLR_DIR}/src/debug/ee)
 include_directories(${CLR_DIR}/src/gcdump)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
   include_directories(${GENERATED_INCLUDE_DIR})
   add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 set(DACCESS_SOURCES
   dacdbiimpl.cpp
@@ -45,7 +45,7 @@ add_library_clr(daccess ${DACCESS_SOURCES})
 
 add_dependencies(daccess eventing_headers)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
   add_custom_command(
     OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
     DEPENDS coreclr
@@ -65,4 +65,4 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   )
 
   add_dependencies(daccess dactablerva_header)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)

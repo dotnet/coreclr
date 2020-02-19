@@ -9,7 +9,7 @@ if (WIN32)
 
   set(ASM_FILE ${CORDBEE_DIR}/${ARCH_SOURCES_DIR}/dbghelpers.asm)
 
-  if(CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  if(CLR_CMAKE_HOST_ARCH_ARM OR CLR_CMAKE_HOST_ARCH_ARM64)
 
     get_filename_component(name ${ASM_FILE} NAME_WE)
     file(TO_CMAKE_PATH "${CMAKE_CURRENT_BINARY_DIR}/${name}.asm" ASM_PREPROCESSED_FILE)
@@ -38,9 +38,9 @@ if (WIN32)
 
     set(ASM_OPTIONS /c /Zi /W3 /errorReport:prompt)
 
-    if (CLR_CMAKE_PLATFORM_ARCH_I386)
+    if (CLR_CMAKE_HOST_ARCH_I386)
       list (APPEND ASM_OPTIONS /safeseh)
-    endif (CLR_CMAKE_PLATFORM_ARCH_I386)
+    endif (CLR_CMAKE_HOST_ARCH_I386)
 
     # Need to compile asm file using custom command as include directories are not provided to asm compiler
     add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dbghelpers.obj
@@ -56,7 +56,7 @@ else ()
 
   add_compile_options(-fPIC)
 
-  if(CLR_CMAKE_PLATFORM_ARCH_AMD64 OR CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64 OR CLR_CMAKE_PLATFORM_ARCH_I386)
+  if(CLR_CMAKE_HOST_ARCH_AMD64 OR CLR_CMAKE_HOST_ARCH_ARM OR CLR_CMAKE_HOST_ARCH_ARM64 OR CLR_CMAKE_HOST_ARCH_I386)
     add_library_clr(cordbee_wks ${CORDBEE_SOURCES_WKS} ../${ARCH_SOURCES_DIR}/dbghelpers.S)
   else()
     message(FATAL_ERROR "Unknown platform")

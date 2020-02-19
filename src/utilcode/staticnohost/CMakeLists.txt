@@ -7,8 +7,8 @@ endif(WIN32)
 
 add_library_clr(utilcodestaticnohost STATIC ${UTILCODE_STATICNOHOST_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
   target_link_libraries(utilcodestaticnohost  nativeresourcestring)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 add_dependencies(utilcodestaticnohost ${UTILCODE_DEPENDENCIES})

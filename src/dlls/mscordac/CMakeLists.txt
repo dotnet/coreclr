@@ -1,9 +1,9 @@
 include(${CLR_DIR}/dac.cmake)
 add_definitions(-DFEATURE_NO_HOST)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 set(CLR_DAC_SOURCES
 )
@@ -36,18 +36,18 @@ else(WIN32)
     # Add dependency on export file
     add_custom_target(mscordaccore_exports DEPENDS ${EXPORTS_FILE})
 
-    if(CLR_CMAKE_PLATFORM_DARWIN OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+    if(CLR_CMAKE_HOST_DARWIN OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
         generate_exports_file(${DEF_SOURCES} ${EXPORTS_FILE})
-    endif(CLR_CMAKE_PLATFORM_DARWIN OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+    endif(CLR_CMAKE_HOST_DARWIN OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
 
-    if(CLR_CMAKE_PLATFORM_LINUX)
+    if(CLR_CMAKE_HOST_LINUX)
 
         # Generate DAC export file with the DAC_ prefix
         generate_exports_file_prefix(${DEF_SOURCES} ${EXPORTS_FILE} DAC_)
 
         set(REDEFINES_FILE_AWK_SCRIPT ${CMAKE_SOURCE_DIR}/generateredefinesfile.awk)
 
-        if (CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
+        if (CLR_CMAKE_HOST_ARCH_ARM OR CLR_CMAKE_HOST_ARCH_ARM64)
             set(JUMP_INSTRUCTION b)
         else()
             set(JUMP_INSTRUCTION jmp)
@@ -75,10 +75,10 @@ else(WIN32)
 
         # Add lib redefines file to DAC
         list(APPEND CLR_DAC_SOURCES libredefines.S)
-    endif(CLR_CMAKE_PLATFORM_LINUX)
+    endif(CLR_CMAKE_HOST_LINUX)
 endif(WIN32)
 
-if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+if(CLR_CMAKE_HOST_LINUX OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
     # This option is necessary to ensure that the overloaded delete operator defined inside
     # of the utilcode will be used instead of the standard library delete operator.
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Xlinker -Bsymbolic-functions")    
@@ -94,12 +94,12 @@ if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_
 
     # Add linker exports file option
     set(EXPORTS_LINKER_OPTION -Wl,--version-script=${EXPORTS_FILE})
-endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+endif(CLR_CMAKE_HOST_LINUX OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
 
-if(CLR_CMAKE_PLATFORM_DARWIN)
+if(CLR_CMAKE_HOST_DARWIN)
     # Add linker exports file option
     set(EXPORTS_LINKER_OPTION -Wl,-exported_symbols_list,${EXPORTS_FILE})
-endif(CLR_CMAKE_PLATFORM_DARWIN)
+endif(CLR_CMAKE_HOST_DARWIN)
 
 # Create object library to enable creation of proper dependency of mscordaccore.exp on mscordac.obj and
 # mscordaccore on both the mscordaccore.exp and mscordac.obj.
@@ -107,15 +107,15 @@ _add_library(mscordacobj OBJECT mscordac.cpp)
 
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
-if(CLR_CMAKE_PLATFORM_LINUX)
+if(CLR_CMAKE_HOST_LINUX)
     add_dependencies(mscordaccore lib_redefines_inc)
-endif(CLR_CMAKE_PLATFORM_LINUX)
+endif(CLR_CMAKE_HOST_LINUX)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_HOST_UNIX)
     add_dependencies(mscordaccore mscordaccore_exports)
     set_property(TARGET mscordaccore APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})
     set_property(TARGET mscordaccore APPEND_STRING PROPERTY LINK_DEPENDS ${EXPORTS_FILE})
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_HOST_UNIX)
 
 # IMPORTANT! Please do not rearrange the order of the libraries. The linker on Linux is
 # order dependent and changing the order can result in undefined symbols in the shared 
