@@ -17,7 +17,7 @@
 #include "frames.h"
 #include "openum.h"
 
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
 
 //
 // The AMD64 walker is currently pretty minimal.  It only recognizes call and return opcodes, plus a few jumps.  The rest

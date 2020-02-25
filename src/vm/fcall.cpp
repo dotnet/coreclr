@@ -157,7 +157,7 @@ unsigned FcallTimeHist[11];
 #ifdef ENABLE_CONTRACTS
 
 /**************************************************************************************/
-#if defined(_TARGET_X86_) && defined(ENABLE_PERF_COUNTERS)
+#if defined(TARGET_X86) && defined(ENABLE_PERF_COUNTERS)
 static __int64 getCycleCount() {
 
     LIMITED_METHOD_CONTRACT;
@@ -256,7 +256,7 @@ DEBUG_NOINLINE FCallCheck::~FCallCheck()
 }
 
 
-#if defined(_TARGET_AMD64_)
+#if defined(TARGET_AMD64)
 
 
 FCallTransitionState::FCallTransitionState ()
@@ -404,6 +404,6 @@ CompletedFCallTransitionState::~CompletedFCallTransitionState ()
 }
 
 
-#endif // _TARGET_AMD64_
+#endif // TARGET_AMD64
 
 #endif // ENABLE_CONTRACTS

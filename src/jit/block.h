@@ -417,7 +417,7 @@ struct BasicBlock : private LIR::Range
 #define BBF_HAS_NEWARRAY        0x00400000 // BB contains 'new' of an array
 #define BBF_HAS_NEWOBJ          0x00800000 // BB contains 'new' of an object type.
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #define BBF_FINALLY_TARGET      0x01000000 // BB is the target of a finally return: where a finally will return during
                                            // non-exceptional flow. Because the ARM calling sequence for calling a
@@ -426,7 +426,7 @@ struct BasicBlock : private LIR::Range
                                            // generate correct code at the finally target, to allow for proper stack
                                            // unwind from within a non-exceptional call to a finally.
 
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #define BBF_BACKWARD_JUMP       0x02000000 // BB is surrounded by a backward jump/switch arc
 #define BBF_RETLESS_CALL        0x04000000 // BBJ_CALLFINALLY that will never return (and therefore, won't need a paired
@@ -662,13 +662,13 @@ struct BasicBlock : private LIR::Range
     // generating code.
     bool isBBCallAlwaysPair()
     {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
         if (this->bbJumpKind == BBJ_CALLFINALLY)
 #else
         if ((this->bbJumpKind == BBJ_CALLFINALLY) && !(this->bbFlags & BBF_RETLESS_CALL))
 #endif
         {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             // On ARM, there are no retless BBJ_CALLFINALLY.
             assert(!(this->bbFlags & BBF_RETLESS_CALL));
 #endif
@@ -977,9 +977,9 @@ struct BasicBlock : private LIR::Range
 
     void* bbEmitCookie;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     void* bbUnwindNopEmitCookie;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #ifdef VERIFIER
     stackDesc bbStackIn;  // stack descriptor for  input

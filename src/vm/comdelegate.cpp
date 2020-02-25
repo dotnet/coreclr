@@ -35,11 +35,11 @@
 
 #ifndef DACCESS_COMPILE
 
-#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
+#if defined(TARGET_AMD64) && !defined(UNIX_AMD64_ABI)
 
 // ShuffleOfs not needed
 
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
 
 // Return an encoded shuffle entry describing a general register or stack offset that needs to be shuffled.
 static UINT16 ShuffleOfs(INT ofs, UINT stackSizeDelta = 0)
@@ -246,7 +246,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     ShuffleEntry entry;
     ZeroMemory(&entry, sizeof(entry));
 
-#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
+#if defined(TARGET_AMD64) && !defined(UNIX_AMD64_ABI)
     MetaSig msig(pInvoke);
     ArgIterator argit(&msig);
 
@@ -282,7 +282,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     entry.srcofs  = ShuffleEntry::SENTINEL;
     pShuffleEntryArray->Append(entry);
 
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
     // Must create independent msigs to prevent the argiterators from
     // interfering with other.
     MetaSig sSigSrc(pInvoke);
@@ -404,7 +404,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     {
         // The return buffer argument is implicit in both signatures.
 
-#if !defined(_TARGET_ARM64_) || !defined(CALLDESCR_RETBUFFARGREG)
+#if !defined(TARGET_ARM64) || !defined(CALLDESCR_RETBUFFARGREG)
         // The ifdef above disables this code if the ret buff arg is always in the same register, which
         // means that we don't need to do any shuffling for it.
 
@@ -422,7 +422,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         // along) in the case where it's not a no-op (i.e. the source and destination ops are different).
         if (entry.srcofs != entry.dstofs)
             pShuffleEntryArray->Append(entry);
-#endif // !defined(_TARGET_ARM64_) || !defined(CALLDESCR_RETBUFFARGREG)
+#endif // !defined(TARGET_ARM64) || !defined(CALLDESCR_RETBUFFARGREG)
     }
 
     // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
@@ -1064,7 +1064,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
     // Get UMEntryThunk from the thunk cache.
     UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
 
     // System.Runtime.InteropServices.NativeCallableAttribute
     BYTE* pData = NULL;
@@ -1096,7 +1096,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
             pUMThunkMarshalInfo->SetCallingConvention(callConv);
         }
 }
-#endif  //_TARGET_X86_ && !FEATURE_STUBS_AS_IL
+#endif  //TARGET_X86 && !FEATURE_STUBS_AS_IL
 
     pCode = (PCODE)pUMEntryThunk->GetCode();
     _ASSERTE(pCode != NULL);
@@ -1332,7 +1332,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         delObj->SetInvocationCount(DELEGATE_MARKER_UNMANAGEDFPTR);
     }
 
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     GCPROTECT_BEGIN(delObj);
 
     Stub *pInterceptStub = NULL;
@@ -1355,7 +1355,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     }
 
     GCPROTECT_END();
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
     return delObj;
 }
@@ -1606,10 +1606,10 @@ FCIMPL3(PCODE, COMDelegate::AdjustTarget, Object* refThisUNSAFE, Object* targetU
 }
 FCIMPLEND
 
-#if defined(_MSC_VER) && !defined(FEATURE_PAL)
+#if defined(_MSC_VER) && !defined(TARGET_UNIX)
 // VC++ Compiler intrinsic.
 extern "C" void * _ReturnAddress(void);
-#endif // _MSC_VER && !FEATURE_PAL
+#endif // _MSC_VER && !TARGET_UNIX
 
 // This is the single constructor for all Delegates.  The compiler
 //  doesn't provide an implementation of the Delegate constructor.  We
@@ -1942,7 +1942,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     }
     CONTRACT_END;
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
     static PCODE s_pInvokeStub;
 
     if (s_pInvokeStub == NULL)
@@ -1962,7 +1962,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     RETURN s_pInvokeStub;
 #else
     RETURN GetEEFuncEntryPoint(SinglecastDelegateInvokeStub);
-#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
+#endif // TARGET_X86 && !FEATURE_STUBS_AS_IL
 }
 
 // Get the cpu stub for a delegate invoke.
@@ -2073,7 +2073,7 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef _TARGET_ARM_
+#ifdef TARGET_ARM
     // For arm VSD expects r4 to contain the indirection cell. However r4 is a non-volatile register
     // and its value must be preserved. So we need to erect a frame and store indirection cell in r4 before calling
     // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure

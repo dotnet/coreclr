@@ -435,7 +435,7 @@ public:
     // The size of the code used to jump stamp the prolog
 #ifdef FEATURE_JUMPSTAMP
     static const size_t JumpStubSize =
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
         5;
 #else
 #error "Need to define size of jump-stamp for this platform"

@@ -7,11 +7,11 @@
 
 #include <stdint.h>
 
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
   struct sockaddr_un;
 #else
   #include <Windows.h>
-#endif /* FEATURE_PAL */
+#endif /* TARGET_UNIX */
 
 typedef void (*ErrorCallback)(const char *szMessage, uint32_t code);
 
@@ -40,7 +40,7 @@ public:
 
     private:
 
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
         const int _serverSocket;
         sockaddr_un *const _pServerAddress;
         bool _isUnlinked = false;
@@ -51,7 +51,7 @@ public:
         char _pNamedPipeName[MaxNamedPipeNameLength]; // https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-createnamedpipea
 
         DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPipeNameLength]);
-#endif /* FEATURE_PAL */
+#endif /* TARGET_UNIX */
 
         DiagnosticsIpc() = delete;
         DiagnosticsIpc(const DiagnosticsIpc &src) = delete;
@@ -61,13 +61,13 @@ public:
     };
 
 private:
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
     int _clientSocket = -1;
     IpcStream(int clientSocket) : _clientSocket(clientSocket) {}
 #else
     HANDLE _hPipe = INVALID_HANDLE_VALUE;
     IpcStream(HANDLE hPipe) : _hPipe(hPipe) {}
-#endif /* FEATURE_PAL */
+#endif /* TARGET_UNIX */
 
     IpcStream() = delete;
     IpcStream(const IpcStream &src) = delete;

@@ -215,7 +215,7 @@ PAL_strtoul(const char *szNumber, char **pszEnd, int nBase)
 
     ulResult = strtoul(szNumber, pszEnd, nBase);
 
-#ifdef BIT64
+#ifdef HOST_64BIT
     if (ulResult > _UI32_MAX)
     {
         char ch = *szNumber;

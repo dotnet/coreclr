@@ -15,7 +15,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef _TARGET_ARM_
+#ifdef TARGET_ARM
 #include "codegen.h"
 #include "lower.h"
 #include "gcinfo.h"
@@ -1638,4 +1638,4 @@ void CodeGen::genCodeForMulLong(GenTreeMultiRegOp* node)
     genProduceReg(node);
 }
 
-#endif // _TARGET_ARM_
+#endif // TARGET_ARM

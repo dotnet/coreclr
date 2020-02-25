@@ -8,7 +8,7 @@
 #ifndef _common_h_ 
 #define _common_h_
 
-#if defined(_MSC_VER) && defined(_X86_) && !defined(FPO_ON)
+#if defined(_MSC_VER) && defined(HOST_X86) && !defined(FPO_ON)
 #pragma optimize("y", on)       // Small critical routines, don't put in EBP frame 
 #define FPO_ON 1
 #define COMMON_TURNED_FPO_ON 1
@@ -192,7 +192,7 @@ EXTERN_C AppDomain* STDCALL GetAppDomain();
 
 inline void RetailBreak()  
 {
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     __asm int 3
 #else
     DebugBreak();
@@ -223,11 +223,11 @@ inline void* memcpyUnsafe(void *dest, const void *src, size_t len)
 
     //If memcpy has been defined to PAL_memcpy, we undefine it so that this case
     //can be covered by the if !defined(memcpy) block below
-    #ifdef FEATURE_PAL
+    #ifdef TARGET_UNIX
     #if IS_REDEFINED_IN_PAL(memcpy)
     #undef memcpy
     #endif //IS_REDEFINED_IN_PAL
-    #endif //FEATURE_PAL
+    #endif //TARGET_UNIX
 
         // You should be using CopyValueClass if you are doing an memcpy
         // in the CG heap.
@@ -235,11 +235,11 @@ inline void* memcpyUnsafe(void *dest, const void *src, size_t len)
     inline void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
 
-            #ifndef FEATURE_PAL
+            #ifndef TARGET_UNIX
                 return memcpy(dest, src, len);
-            #else //FEATURE_PAL
+            #else //TARGET_UNIX
                 return PAL_memcpy(dest, src, len);
-            #endif //FEATURE_PAL
+            #endif //TARGET_UNIX
             
         }
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);

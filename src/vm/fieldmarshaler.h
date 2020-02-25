@@ -1665,12 +1665,12 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
-#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+#if defined(TARGET_X86) && defined(UNIX_X86_ABI)
     // The System V ABI for i386 defines 4-byte alignment for 64-bit types.
     SCALAR_MARSHALER_IMPL(8, 4)
 #else
     SCALAR_MARSHALER_IMPL(8, 8)
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
     COPY_TO_IMPL_BASE_STRUCT_ONLY()
 

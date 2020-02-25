@@ -44,9 +44,9 @@ One advantage of the CLR is that the VM (mostly) hides the (non-ABI) OS differen
 ## Target ISA "Configuration"
 * Conditional compilation (set in jit.h, based on incoming define, e.g. #ifdef X86)
 ```C++
-_TARGET_64_BIT_ (32 bit target is just ! _TARGET_64BIT_)
-_TARGET_XARCH_, _TARGET_ARMARCH_
-_TARGET_AMD64_, _TARGET_X86_, _TARGET_ARM64_, _TARGET_ARM_
+_TARGET_64_BIT_ (32 bit target is just ! TARGET_64BIT)
+TARGET_XARCH, TARGET_ARMARCH
+TARGET_AMD64, TARGET_X86, TARGET_ARM64, TARGET_ARM
 ```
 * Target.h
 * InstrsXXX.h

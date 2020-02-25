@@ -63,12 +63,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
 // Only used on the AMD64/ARM64 builds - ARM32 uses EXIDX which isn't currently supported
-#if (defined(_AMD64_) || defined(_ARM64_)) && defined(HAVE_UNW_GET_ACCESSORS)
+#if (defined(HOST_AMD64) || defined(HOST_ARM64)) && defined(HAVE_UNW_GET_ACCESSORS)
 
 #include <elf.h>
 #include <link.h>
 
-#if defined(_X86_) || defined(_ARM_)
+#if defined(HOST_X86) || defined(HOST_ARM)
 #if !defined(PRIx32)
 #define PRIx32 "lx"
 #endif
@@ -77,7 +77,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 #define PRId PRId32
 #define PRIA "08"
 #define PRIxA PRIA PRIx
-#elif defined(_AMD64_) || defined(_ARM64_)
+#elif defined(HOST_AMD64) || defined(HOST_ARM64)
 #if !defined(PRIx64)
 #define PRIx64 "llx"
 #endif
@@ -243,7 +243,7 @@ ReadValue64(const libunwindInfo* info, unw_word_t* addr, uint64_t* valp)
 static bool
 ReadPointer(const libunwindInfo* info, unw_word_t* addr, unw_word_t* valp)
 {
-#ifdef BIT64
+#ifdef HOST_64BIT
     uint64_t val64;
     if (ReadValue64(info, addr, &val64)) {
         *valp = val64;
@@ -486,7 +486,7 @@ ParseCie(const libunwindInfo* info, unw_word_t addr, dwarf_cie_info_t* dci)
     // "address-unit sized constants".  The `R' augmentation can be used
     // to override this, but by default, we pick an address-sized unit
     // for fde_encoding.
-#if BIT64
+#if HOST_64BIT
     fdeEncoding = DW_EH_PE_udata8;
 #else
     fdeEncoding = DW_EH_PE_udata4;
@@ -785,7 +785,7 @@ ExtractProcInfoFromFde(const libunwindInfo* info, unw_word_t* addrp, unw_proc_in
 
 static void UnwindContextToContext(unw_cursor_t *cursor, CONTEXT *winContext)
 {
-#if defined(_AMD64_)
+#if defined(HOST_AMD64)
     unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Rip);
     unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Rsp);
     unw_get_reg(cursor, UNW_X86_64_RBP, (unw_word_t *) &winContext->Rbp);
@@ -794,7 +794,7 @@ static void UnwindContextToContext(unw_cursor_t *cursor, CONTEXT *winContext)
     unw_get_reg(cursor, UNW_X86_64_R13, (unw_word_t *) &winContext->R13);
     unw_get_reg(cursor, UNW_X86_64_R14, (unw_word_t *) &winContext->R14);
     unw_get_reg(cursor, UNW_X86_64_R15, (unw_word_t *) &winContext->R15);
-#elif defined(_ARM64_)
+#elif defined(HOST_ARM64)
     unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Pc);
     unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Sp);
     unw_get_reg(cursor, UNW_AARCH64_X19, (unw_word_t *) &winContext->X19);
@@ -855,7 +855,7 @@ access_reg(unw_addr_space_t as, unw_regnum_t regnum, unw_word_t *valp, int write
 
     switch (regnum)
     {
-#if defined(_AMD64_)
+#if defined(HOST_AMD64)
     case UNW_REG_IP:       *valp = (unw_word_t)winContext->Rip; break;
     case UNW_REG_SP:       *valp = (unw_word_t)winContext->Rsp; break;
     case UNW_X86_64_RBP:   *valp = (unw_word_t)winContext->Rbp; break;
@@ -864,7 +864,7 @@ access_reg(unw_addr_space_t as, unw_regnum_t regnum, unw_word_t *valp, int write
     case UNW_X86_64_R13:   *valp = (unw_word_t)winContext->R13; break;
     case UNW_X86_64_R14:   *valp = (unw_word_t)winContext->R14; break;
     case UNW_X86_64_R15:   *valp = (unw_word_t)winContext->R15; break;
-#elif defined(_ARM_)
+#elif defined(HOST_ARM)
     case UNW_ARM_R13:      *valp = (unw_word_t)winContext->Sp; break;
     case UNW_ARM_R14:      *valp = (unw_word_t)winContext->Lr; break;
     case UNW_ARM_R15:      *valp = (unw_word_t)winContext->Pc; break;
@@ -876,7 +876,7 @@ access_reg(unw_addr_space_t as, unw_regnum_t regnum, unw_word_t *valp, int write
     case UNW_ARM_R9:       *valp = (unw_word_t)winContext->R9; break;
     case UNW_ARM_R10:      *valp = (unw_word_t)winContext->R10; break;
     case UNW_ARM_R11:      *valp = (unw_word_t)winContext->R11; break;
-#elif defined(_ARM64_)
+#elif defined(HOST_ARM64)
     case UNW_AARCH64_SP:   *valp = (unw_word_t)winContext->Sp; break;
     case UNW_AARCH64_PC:   *valp = (unw_word_t)winContext->Pc; break;
     case UNW_AARCH64_X29:  *valp = (unw_word_t)winContext->Fp; break;
@@ -1156,4 +1156,4 @@ PAL_VirtualUnwindOutOfProc(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *cont
     return FALSE;
 }
 
-#endif // defined(_AMD64_) && defined(HAVE_UNW_GET_ACCESSORS)
+#endif // defined(HOST_AMD64) && defined(HAVE_UNW_GET_ACCESSORS)

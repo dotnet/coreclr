@@ -196,7 +196,7 @@ struct ShuffleEntry
         SENTINEL     = 0xffff, // Indicates end of shuffle array
     };
 
-#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
+#if defined(TARGET_AMD64) && !defined(UNIX_AMD64_ABI)
     union {
         UINT16          srcofs;
         CorElementType  argtype;    // AMD64: shuffle array is just types
@@ -209,7 +209,7 @@ struct ShuffleEntry
         UINT16    dstofs;           //if srcofs != SENTINEL
         UINT16    stacksizedelta;   //if dstofs == SENTINEL, difference in stack size between virtual and static sigs
     };
-#endif // _TARGET_AMD64_
+#endif // TARGET_AMD64
 };
 
 

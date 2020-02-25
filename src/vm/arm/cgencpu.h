@@ -4,7 +4,7 @@
 //
 
 
-#ifndef _TARGET_ARM_
+#ifndef TARGET_ARM
 #error Should only include "cGenCpu.h" for ARM builds
 #endif
 
@@ -30,9 +30,9 @@ struct ArgLocDesc;
 
 extern PCODE GetPreStubEntryPoint();
 
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
 #define USE_REDIRECT_FOR_GCSTRESS
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
 
 // CPU-dependent functions
 Stub * GenerateInitPInvokeFrameHelper();
@@ -102,7 +102,7 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-#ifdef BIT64
+#ifdef HOST_64BIT
 #define MAXFIELDMARSHALERSIZE               40
 #else
 #define MAXFIELDMARSHALERSIZE               24
@@ -1080,7 +1080,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
 #define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
 
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
 #define JIT_Stelem_Ref                      JIT_Stelem_Ref
 #endif
 

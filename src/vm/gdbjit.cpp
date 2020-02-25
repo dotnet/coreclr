@@ -2300,7 +2300,7 @@ void Elf_Builder::Finalize()
     //
     Elf_Ehdr *elfHeader = new (m_Buffer.GetPtr()) Elf_Ehdr;
 
-#ifdef _TARGET_ARM_
+#ifdef TARGET_ARM
     elfHeader->e_flags = EF_ARM_EABI_VER5;
 #ifdef ARM_SOFTFP
     elfHeader->e_flags |= EF_ARM_SOFT_FLOAT;
@@ -2354,7 +2354,7 @@ struct __attribute__((packed)) FDE
 
 static void BuildDebugFrame(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSize)
 {
-#if defined(_TARGET_ARM_)
+#if defined(TARGET_ARM)
     const unsigned int code_alignment_factor = 2;
     const int data_alignment_factor = -4;
 
@@ -2375,7 +2375,7 @@ static void BuildDebugFrame(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSize
        // DW_CFA_def_cfa_register 11(r11)
        0x0d, 0x0b,
     };
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
     const unsigned int code_alignment_factor = 1;
     const int data_alignment_factor = -4;
 
@@ -2396,7 +2396,7 @@ static void BuildDebugFrame(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSize
        // DW_CFA_def_cfa_register 5(ebp)
        0x0d, 0x05,
     };
-#elif defined(_TARGET_AMD64_)
+#elif defined(TARGET_AMD64)
     const unsigned int code_alignment_factor = 1;
     const int data_alignment_factor = -8;
 
@@ -2417,7 +2417,7 @@ static void BuildDebugFrame(Elf_Builder &elfBuilder, PCODE pCode, TADDR codeSize
       // DW_CFA_def_cfa_register(6)
       0x0d, 0x06,
     };
-#elif defined(_TARGET_ARM64_)
+#elif defined(TARGET_ARM64)
     const unsigned int code_alignment_factor = 1;
     const int data_alignment_factor = -4;
 
@@ -3614,7 +3614,7 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize,
         sym[i].st_other = 0;
         sym[i].st_shndx = thunkIndexBase + (i - (1 + methodCount)); // .thunks section index
         sym[i].st_size = 8;
-#ifdef _TARGET_ARM_
+#ifdef TARGET_ARM
         sym[i].st_value = 1; // for THUMB code
 #else
         sym[i].st_value = 0;
@@ -3653,9 +3653,9 @@ Elf32_Ehdr::Elf32_Ehdr()
         e_ident[i] = 0;
 
     e_type = ET_REL;
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     e_machine = EM_386;
-#elif defined(_TARGET_ARM_)
+#elif defined(TARGET_ARM)
     e_machine = EM_ARM;
 #endif
     e_flags = 0;
@@ -3683,9 +3683,9 @@ Elf64_Ehdr::Elf64_Ehdr()
         e_ident[i] = 0;
 
     e_type = ET_REL;
-#if defined(_TARGET_AMD64_)
+#if defined(TARGET_AMD64)
     e_machine = EM_X86_64;
-#elif defined(_TARGET_ARM64_)
+#elif defined(TARGET_ARM64)
     e_machine = EM_AARCH64;
 #endif
     e_flags = 0;

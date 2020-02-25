@@ -1929,7 +1929,7 @@ void Compiler::fgComputeEnterBlocksSet()
         }
     }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     // TODO-ARM-Cleanup: The ARM code here to prevent creating retless calls by adding the BBJ_ALWAYS
     // to the enter blocks is a bit of a compromise, because sometimes the blocks are already reachable,
     // and it messes up DFS ordering to have them marked as enter block. We should prevent the
@@ -1945,7 +1945,7 @@ void Compiler::fgComputeEnterBlocksSet()
             BlockSetOps::AddElemD(this, fgEnterBlks, block->bbNext->bbNum);
         }
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #ifdef DEBUG
     if (verbose)
@@ -2028,7 +2028,7 @@ bool Compiler::fgRemoveUnreachableBlocks()
             block->bbJumpKind = BBJ_THROW;
             block->bbSetRunRarely();
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             // If this is a <BBJ_CALLFINALLY, BBJ_ALWAYS> pair, we have to clear BBF_FINALLY_TARGET flag on
             // the target node (of BBJ_ALWAYS) since BBJ_CALLFINALLY node is getting converted to a BBJ_THROW.
             if (bIsBBCallAlwaysPair)
@@ -2036,7 +2036,7 @@ bool Compiler::fgRemoveUnreachableBlocks()
                 noway_assert(block->bbNext->bbJumpKind == BBJ_ALWAYS);
                 fgClearFinallyTargetBit(block->bbNext->bbJumpDest);
             }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
         }
         else
         {
@@ -2228,7 +2228,7 @@ void Compiler::fgDfsInvPostOrder()
     // an incoming edge into the block).
     assert(fgEnterBlksSetValid);
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     //
     //    BlockSetOps::UnionD(this, startNodes, fgEnterBlks);
     //
@@ -4855,7 +4855,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
             case CEE_JMP:
                 retBlocks++;
 
-#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
+#if !defined(TARGET_X86) && !defined(TARGET_ARM)
                 if (!isInlining)
                 {
                     // We transform this into a set of ldarg's + tail call and
@@ -4866,7 +4866,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
                     info.compMaxStack = max(info.compMaxStack, info.compILargsCount);
                     break;
                 }
-#endif // !_TARGET_X86_ && !_TARGET_ARM_
+#endif // !TARGET_X86 && !TARGET_ARM
 
                 // If we are inlining, we need to fail for a CEE_JMP opcode, just like
                 // the list of other opcodes (for all platforms).
@@ -5596,12 +5596,12 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                     if (!impIsTailCallILPattern(tailCall, opcode, codeAddr + sz, codeEndp, isRecursive,
                                                 &isCallPopAndRet))
                     {
-#if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
+#if !defined(FEATURE_CORECLR) && defined(TARGET_AMD64)
                         BADCODE3("tail call not followed by ret or pop+ret", " at offset %04X",
                                  (IL_OFFSET)(codeAddr - codeBegp));
 #else
                         BADCODE3("tail call not followed by ret", " at offset %04X", (IL_OFFSET)(codeAddr - codeBegp));
-#endif // !FEATURE_CORECLR && _TARGET_AMD64_
+#endif // !FEATURE_CORECLR && TARGET_AMD64
                     }
 
                     if (fgCanSwitchToOptimized() && fgMayExplicitTailCall())
@@ -5612,7 +5612,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                         fgSwitchToOptimized();
                     }
 
-#if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
+#if !defined(FEATURE_CORECLR) && defined(TARGET_AMD64)
                     if (isCallPopAndRet)
                     {
                         // By breaking here, we let pop and ret opcodes to be
@@ -5621,7 +5621,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                         // in fgMorphCall().
                         break;
                     }
-#endif // !FEATURE_CORECLR && _TARGET_AMD64_
+#endif // !FEATURE_CORECLR && TARGET_AMD64
                 }
                 else
                 {
@@ -9392,9 +9392,9 @@ BasicBlock* Compiler::fgSplitBlockAtEnd(BasicBlock* curr)
     // interruptible if we exercised more care here.
     newBlock->bbFlags &= ~BBF_GC_SAFE_POINT;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     newBlock->bbFlags &= ~(BBF_FINALLY_TARGET);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     // The new block has no code, so we leave bbCodeOffs/bbCodeOffsEnd set to BAD_IL_OFFSET. If a caller
     // puts code in the block, then it needs to update these.
@@ -10160,7 +10160,7 @@ bool Compiler::fgCanCompactBlocks(BasicBlock* block, BasicBlock* bNext)
         return false;
     }
 
-#if defined(_TARGET_ARM_)
+#if defined(TARGET_ARM)
     // We can't compact a finally target block, as we need to generate special code for such blocks during code
     // generation
     if ((bNext->bbFlags & BBF_FINALLY_TARGET) != 0)
@@ -10218,9 +10218,9 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     noway_assert(bNext->countOfInEdges() == 1 || block->isEmpty());
     noway_assert(bNext->bbPreds);
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     noway_assert((bNext->bbFlags & BBF_FINALLY_TARGET) == 0);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     // Make sure the second block is not the start of a TRY block or an exception handler
 
@@ -10701,9 +10701,9 @@ void Compiler::fgUnreachableBlock(BasicBlock* block)
 
     noway_assert(block->bbPrev != nullptr); // Can use this function to remove the first block
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     assert(!block->bbPrev->isBBCallAlwaysPair()); // can't remove the BBJ_ALWAYS of a BBJ_CALLFINALLY / BBJ_ALWAYS pair
-#endif                                            // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif                                            // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     /* First walk the statement trees in this basic block and delete each stmt */
 
@@ -11006,10 +11006,10 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
     // Should never remove a genReturnBB, as we might have special hookups there.
     noway_assert(block != genReturnBB);
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     // Don't remove a finally target
     assert(!(block->bbFlags & BBF_FINALLY_TARGET));
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     if (unreachable)
     {
@@ -11036,9 +11036,9 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
             // bPrev CALL becomes RETLESS as the BBJ_ALWAYS block is unreachable
             bPrev->bbFlags |= BBF_RETLESS_CALL;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             NO_WAY("No retless call finally blocks; need unwind target instead");
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
         }
         else if (bPrev->bbJumpKind == BBJ_ALWAYS && bPrev->bbJumpDest == block->bbNext &&
                  !(bPrev->bbFlags & BBF_KEEP_BBJ_ALWAYS) && (block != fgFirstColdBlock) &&
@@ -11078,9 +11078,9 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 
             fgRemoveBlock(leaveBlk, true);
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             fgClearFinallyTargetBit(leaveBlk->bbJumpDest);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
         }
         else if (block->bbJumpKind == BBJ_RETURN)
         {
@@ -12391,7 +12391,7 @@ DONE:
 
 #if FEATURE_EH_FUNCLETS
 
-#if defined(_TARGET_ARM_)
+#if defined(TARGET_ARM)
 
 /*****************************************************************************
  * We just removed a BBJ_CALLFINALLY/BBJ_ALWAYS pair. If this was the only such pair
@@ -12426,7 +12426,7 @@ void Compiler::fgClearFinallyTargetBit(BasicBlock* block)
     block->bbFlags &= ~BBF_FINALLY_TARGET;
 }
 
-#endif // defined(_TARGET_ARM_)
+#endif // defined(TARGET_ARM)
 
 /*****************************************************************************
  * Is this an intra-handler control flow edge?
@@ -13771,7 +13771,7 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
         optimizeJump = false;
     }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     // Don't optimize a jump to a finally target. For BB1->BB2->BB3, where
     // BB2 is a finally target, if we changed BB1 to jump directly to BB3,
     // it would skip the finally target. BB1 might be a BBJ_ALWAYS block part
@@ -13781,7 +13781,7 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
     {
         optimizeJump = false;
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     // Must optimize jump if bDest has been removed
     //
@@ -13979,11 +13979,11 @@ bool Compiler::fgOptimizeEmptyBlock(BasicBlock* block)
                 }
             }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             /* Don't remove finally targets */
             if (block->bbFlags & BBF_FINALLY_TARGET)
                 break;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #if FEATURE_EH_FUNCLETS
             /* Don't remove an empty block that is in a different EH region
@@ -16826,7 +16826,7 @@ bool Compiler::fgUpdateFlowGraph(bool doTailDuplication)
                 continue;
             }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             // Don't remove the BBJ_ALWAYS block of a BBJ_CALLFINALLY/BBJ_ALWAYS pair.
             if (block->countOfInEdges() == 0 && bPrev->bbJumpKind == BBJ_CALLFINALLY)
             {
@@ -16836,7 +16836,7 @@ bool Compiler::fgUpdateFlowGraph(bool doTailDuplication)
                 bPrev = block;
                 continue;
             }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
             noway_assert(!block->bbCatchTyp);
             noway_assert(!(block->bbFlags & BBF_TRY_BEG));
@@ -16977,7 +16977,7 @@ void Compiler::fgDebugCheckUpdate()
         /* no unreachable blocks */
 
         if ((block->countOfInEdges() == 0) && !(block->bbFlags & BBF_DONT_REMOVE)
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
             // With funclets, we never get rid of the BBJ_ALWAYS part of a BBJ_CALLFINALLY/BBJ_ALWAYS pair,
             // even if we can prove that the finally block never returns.
             && (prev == NULL || block->bbJumpKind != BBJ_ALWAYS || !prev->isBBCallAlwaysPair())
@@ -25275,7 +25275,7 @@ void Compiler::fgCleanupContinuation(BasicBlock* continuation)
 
 void Compiler::fgUpdateFinallyTargetFlags()
 {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     // Any fixup required?
     if (!fgOptimizedFinally)
@@ -25289,7 +25289,7 @@ void Compiler::fgUpdateFinallyTargetFlags()
     fgClearAllFinallyTargetBits();
     fgAddFinallyTargetFlags();
 
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 }
 
 //------------------------------------------------------------------------
@@ -25298,7 +25298,7 @@ void Compiler::fgUpdateFinallyTargetFlags()
 //
 void Compiler::fgClearAllFinallyTargetBits()
 {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     JITDUMP("*************** In fgClearAllFinallyTargetBits()\n");
 
@@ -25311,7 +25311,7 @@ void Compiler::fgClearAllFinallyTargetBits()
         block->bbFlags &= ~BBF_FINALLY_TARGET;
     }
 
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 }
 
 //------------------------------------------------------------------------
@@ -25319,7 +25319,7 @@ void Compiler::fgClearAllFinallyTargetBits()
 //
 void Compiler::fgAddFinallyTargetFlags()
 {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
     JITDUMP("*************** In fgAddFinallyTargetFlags()\n");
 
@@ -25345,7 +25345,7 @@ void Compiler::fgAddFinallyTargetFlags()
             }
         }
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 }
 
 //------------------------------------------------------------------------

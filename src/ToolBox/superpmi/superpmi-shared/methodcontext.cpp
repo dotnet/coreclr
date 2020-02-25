@@ -6386,7 +6386,7 @@ int MethodContext::dumpMethodMD5HashToBuffer(char* buff, int len)
 
 int MethodContext::dumpMD5HashToBuffer(BYTE* pBuffer, int bufLen, char* hash, int hashLen)
 {
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
 
     MD5HASHDATA md5_hashdata;
     MD5         md5_hasher;
@@ -6406,7 +6406,7 @@ int MethodContext::dumpMD5HashToBuffer(BYTE* pBuffer, int bufLen, char* hash, in
 
     return MD5_HASH_BUFFER_SIZE; // if we had success we wrote MD5_HASH_BUFFER_SIZE bytes to the buffer
 
-#else // !FEATURE_PAL
+#else // !TARGET_UNIX
 
     HCRYPTPROV hProv = NULL; // CryptoProvider
     HCRYPTHASH hHash = NULL;
@@ -6453,7 +6453,7 @@ OnError:
         CryptReleaseContext(hProv, 0);
     return -1;
 
-#endif // !FEATURE_PAL
+#endif // !TARGET_UNIX
 }
 
 MethodContext::Environment MethodContext::cloneEnvironment()

@@ -21,7 +21,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef _TARGET_XARCH_ // This file is only used for xarch
+#ifdef TARGET_XARCH // This file is only used for xarch
 
 #include "jit.h"
 #include "sideeffects.h"
@@ -201,7 +201,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                 // the largest width store of the desired inline expansion.
 
                 ssize_t fill = initVal->gtIntCon.gtIconVal & 0xFF;
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
                 if (size < REGSIZE_BYTES)
                 {
                     initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
@@ -215,9 +215,9 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                         MakeSrcContained(blkNode, source);
                     }
                 }
-#else  // !_TARGET_AMD64_
+#else  // !TARGET_AMD64
                 initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
-#endif // !_TARGET_AMD64_
+#endif // !TARGET_AMD64
 
                 if ((fill == 0) && ((size & 0xf) == 0))
                 {
@@ -232,11 +232,11 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         }
         else
         {
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
-#else  // !_TARGET_AMD64_
+#else  // !TARGET_AMD64
             blkNode->gtBlkOpKind            = GenTreeBlk::BlkOpKindRepInstr;
-#endif // !_TARGET_AMD64_
+#endif // !TARGET_AMD64
         }
     }
     else
@@ -365,17 +365,17 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
                     blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindRepInstr;
                 }
             }
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
             else
             {
                 blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
             }
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
             else
             {
                 blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindRepInstr;
             }
-#endif // _TARGET_X86_
+#endif // TARGET_X86
             assert(blkNode->gtBlkOpKind != GenTreeBlk::BlkOpKindInvalid);
         }
 
@@ -409,7 +409,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 //
 void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
 {
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     if (putArgStk->gtOp1->gtOper == GT_FIELD_LIST)
     {
         putArgStk->gtNumberReferenceSlots = 0;
@@ -556,7 +556,7 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
         }
         return;
     }
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
     GenTree* src = putArgStk->gtOp1;
 
@@ -581,9 +581,9 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
         //      push rdx
 
         if (IsContainableImmed(putArgStk, src)
-#if defined(_TARGET_AMD64_)
+#if defined(TARGET_AMD64)
             && !src->IsIntegralConst(0)
-#endif // _TARGET_AMD64_
+#endif // TARGET_AMD64
                 )
         {
             MakeSrcContained(putArgStk, src);
@@ -625,25 +625,25 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
     // our framework assemblies, so this is the main code generation scheme we'll use.
     if (size <= CPBLK_UNROLL_LIMIT && putArgStk->gtNumberReferenceSlots == 0)
     {
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
         if (size < XMM_REGSIZE_BYTES)
         {
             putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::Push;
         }
         else
-#endif // _TARGET_X86_
+#endif // TARGET_X86
         {
             putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::Unroll;
         }
     }
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     else if (putArgStk->gtNumberReferenceSlots != 0)
     {
         // On x86, we must use `push` to store GC references to the stack in order for the emitter to properly update
         // the function's GC info. These `putargstk` nodes will generate a sequence of `push` instructions.
         putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::Push;
     }
-#endif // _TARGET_X86_
+#endif // TARGET_X86
     else
     {
         putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::RepInstr;
@@ -821,7 +821,7 @@ void Lowering::LowerSIMD(GenTreeSIMD* simdNode)
         }
     }
 
-#ifdef _TARGET_XARCH_
+#ifdef TARGET_XARCH
     if ((simdNode->gtSIMDIntrinsicID == SIMDIntrinsicGetItem) && (simdNode->gtGetOp1()->OperGet() == GT_IND))
     {
         // If SIMD vector is already in memory, we force its
@@ -1418,11 +1418,11 @@ void Lowering::ContainCheckCallOperands(GenTreeCall* call)
         assert(call->gtCallAddr != nullptr);
         ctrlExpr = call->gtCallAddr;
 
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
         // Fast tail calls aren't currently supported on x86, but if they ever are, the code
         // below that handles indirect VSD calls will need to be fixed.
         assert(!call->IsFastTailCall() || !call->IsVirtualStub());
-#endif // _TARGET_X86_
+#endif // TARGET_X86
     }
 
     // set reg requirements on call target represented as control sequence.
@@ -1435,7 +1435,7 @@ void Lowering::ContainCheckCallOperands(GenTreeCall* call)
         // computed into a register.
         if (!call->IsFastTailCall())
         {
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
             // On x86, we need to generate a very specific pattern for indirect VSD calls:
             //
             //    3-byte nop
@@ -1449,7 +1449,7 @@ void Lowering::ContainCheckCallOperands(GenTreeCall* call)
                 MakeSrcContained(call, ctrlExpr);
             }
             else
-#endif // _TARGET_X86_
+#endif // TARGET_X86
                 if (ctrlExpr->isIndir())
             {
                 // We may have cases where we have set a register target on the ctrlExpr, but if it
@@ -1587,7 +1587,7 @@ void Lowering::ContainCheckStoreIndir(GenTreeIndir* node)
 //
 void Lowering::ContainCheckMul(GenTreeOp* node)
 {
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     assert(node->OperIs(GT_MUL, GT_MULHI, GT_MUL_LONG));
 #else
     assert(node->OperIs(GT_MUL, GT_MULHI));
@@ -1629,7 +1629,7 @@ void Lowering::ContainCheckMul(GenTreeOp* node)
     {
         hasImpliedFirstOperand = true;
     }
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     else if (node->OperGet() == GT_MUL_LONG)
     {
         hasImpliedFirstOperand = true;
@@ -1766,7 +1766,7 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
     GenTree* divisor = node->gtGetOp2();
 
     bool divisorCanBeRegOptional = true;
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     GenTree* dividend = node->gtGetOp1();
     if (dividend->OperGet() == GT_LONG)
     {
@@ -1797,14 +1797,14 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
 void Lowering::ContainCheckShiftRotate(GenTreeOp* node)
 {
     assert(node->OperIsShiftOrRotate());
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     GenTree* source = node->gtOp1;
     if (node->OperIsShiftLong())
     {
         assert(source->OperGet() == GT_LONG);
         MakeSrcContained(node, source);
     }
-#endif // !_TARGET_X86_
+#endif // !TARGET_X86
 
     GenTree* shiftBy = node->gtOp2;
     if (IsContainableImmed(node, shiftBy) && (shiftBy->gtIntConCommon.IconValue() <= 255) &&
@@ -1845,12 +1845,12 @@ void Lowering::ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc)
     {
         MakeSrcContained(storeLoc, op1);
     }
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     else if (op1->OperGet() == GT_LONG)
     {
         MakeSrcContained(storeLoc, op1);
     }
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 }
 
 //------------------------------------------------------------------------
@@ -1897,13 +1897,13 @@ void Lowering::ContainCheckCast(GenTreeCast* node)
             }
         }
     }
-#if !defined(_TARGET_64BIT_)
+#if !defined(TARGET_64BIT)
     if (varTypeIsLong(srcType))
     {
         noway_assert(castOp->OperGet() == GT_LONG);
         castOp->SetContained();
     }
-#endif // !defined(_TARGET_64BIT_)
+#endif // !defined(TARGET_64BIT)
 }
 
 //------------------------------------------------------------------------
@@ -2341,7 +2341,7 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
         case SIMDIntrinsicInit:
         {
             op1 = simdNode->gtOp.gtOp1;
-#ifndef _TARGET_64BIT_
+#ifndef TARGET_64BIT
             if (op1->OperGet() == GT_LONG)
             {
                 MakeSrcContained(simdNode, op1);
@@ -2356,7 +2356,7 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
                 }
             }
             else
-#endif // !_TARGET_64BIT_
+#endif // !TARGET_64BIT
                 if (op1->IsFPZero() || op1->IsIntegralConst(0) ||
                     (varTypeIsIntegral(simdNode->gtSIMDBaseType) && op1->IsIntegralConst(-1)))
             {
@@ -3449,4 +3449,4 @@ void Lowering::ContainCheckFloatBinary(GenTreeOp* node)
     }
 }
 
-#endif // _TARGET_XARCH_
+#endif // TARGET_XARCH

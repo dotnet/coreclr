@@ -79,7 +79,7 @@ This method is responsible for the first part of what is currently `fgMorphArgs(
     maximum number of registers used for a single argument). If the first register
     in `REG_STK`, the argument is passed entirely on the stack. For most targets,
     if the first register is a register, the argument is passed entirely in
-    registers. When arguments can be split (`_TARGET_ARM_`), this will be indicated
+    registers. When arguments can be split (`TARGET_ARM`), this will be indicated
     with an `isSplit` property of `true`.
     - Note that the `isSplit` property would evaluate to false on targets where
       it is not supported, reducing the need for `ifdef`s (we can rely on the compiler

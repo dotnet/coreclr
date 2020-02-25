@@ -50,7 +50,7 @@ PVOID DecodeDynamicFunctionTableContext (PVOID pvContext)
 #endif // WIN64EXCEPTIONS
 
 
-#if defined(WIN64EXCEPTIONS) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_PAL)
+#if defined(WIN64EXCEPTIONS) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(TARGET_UNIX)
 
 // Wrapper for RtlInstallFunctionTableCallback.
 VOID InstallEEFunctionTable(
@@ -68,12 +68,12 @@ VOID DeleteEEFunctionTable(
     RtlDeleteFunctionTable((PT_RUNTIME_FUNCTION)((ULONG64)pvTableID | 3));
 }
 
-#else // WIN64EXCEPTIONS && !DACCESS_COMPILE && !CROSSGEN_COMPILE && !FEATURE_PAL
+#else // WIN64EXCEPTIONS && !DACCESS_COMPILE && !CROSSGEN_COMPILE && !TARGET_UNIX
 
 #define InstallEEFunctionTable(pvTableID, pvStartRange, cbRange, pfnGetRuntimeFunctionCallback, pvContext, TableType) do { } while (0)
 #define DeleteEEFunctionTable(pvTableID) do { } while (0)
 
-#endif // WIN64EXCEPTIONS && !DACCESS_COMPILE && !CROSSGEN_COMPILE && !FEATURE_PAL
+#endif // WIN64EXCEPTIONS && !DACCESS_COMPILE && !CROSSGEN_COMPILE && !TARGET_UNIX
 
 
 #endif // !__RTLFUNCTIONS_H__

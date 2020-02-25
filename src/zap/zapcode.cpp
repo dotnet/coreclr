@@ -800,7 +800,7 @@ void ZapImage::AddRelocsForEHClauses(ZapExceptionInfo * pExceptionInfo)
 // ZapMethodHeader
 //
 
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
 
 DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 {
@@ -810,7 +810,7 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 
     dwPos = AlignUp(dwPos, dwAlignment);
 
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     //
     // Padding for straddler relocations.
     //
@@ -839,7 +839,7 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
     SetRVA(dwPaddedPos);
 
     return dwPaddedPos + size;
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 }
 
 template <DWORD alignment>
@@ -1027,9 +1027,9 @@ ZapNode * ZapMethodEntryPointTable::CanDirectCall(ZapMethodEntryPoint * pMethodE
     if (m_pImage->canIntraModuleDirectCall(caller, callee, &reason, pMethodEntryPoint->GetAccessFlags()))
     {
         ZapNode * pCode = m_pImage->GetCompiledMethod(callee)->GetCode();
-#ifdef _TARGET_ARM_
+#ifdef TARGET_ARM
         pCode = m_pImage->GetInnerPtr(pCode, THUMB_CODE);
-#endif // _TARGET_ARM_
+#endif // TARGET_ARM
         return pCode;
     }
     else
@@ -1072,10 +1072,10 @@ ZapGCInfo * ZapGCInfo::NewGCInfo(ZapWriter * pWriter, PVOID pGCInfo, SIZE_T cbGC
     memcpy(pZapGCInfo->GetGCInfo(), pGCInfo, cbGCInfo);
     memcpy(pZapGCInfo->GetUnwindInfo(), pUnwindInfo, cbUnwindInfo);
 
-#if !defined(_TARGET_X86_)
+#if !defined(TARGET_X86)
     // Make sure the personality routine thunk is created
     pZapGCInfo->GetPersonalityRoutine(ZapImage::GetImage(pWriter));
-#endif // !defined(_TARGET_X86_)
+#endif // !defined(TARGET_X86)
     return pZapGCInfo;
 }
 #else
@@ -1102,17 +1102,17 @@ void ZapUnwindInfo::Save(ZapWriter * pZapWriter)
 {
     T_RUNTIME_FUNCTION runtimeFunction;
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#if defined(TARGET_ARM) || defined(TARGET_ARM64)
     RUNTIME_FUNCTION__SetBeginAddress(&runtimeFunction, GetStartAddress());
     runtimeFunction.UnwindData = m_pUnwindData->GetRVA();
-#elif defined(_TARGET_AMD64_)
+#elif defined(TARGET_AMD64)
     runtimeFunction.BeginAddress = GetStartAddress();
     runtimeFunction.EndAddress = GetEndAddress();
     ULONG unwindData = m_pUnwindData->GetRVA();
     if (m_pUnwindData->GetType() == ZapNodeType_UnwindInfo) // Chained unwind info
         unwindData |= RUNTIME_FUNCTION_INDIRECT;
     runtimeFunction.UnwindData = unwindData;
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
     runtimeFunction.BeginAddress = GetStartAddress();
     ULONG unwindData = m_pUnwindData->GetRVA();
     if (m_pUnwindData->GetType() == ZapNodeType_UnwindInfo) // Chained unwind info
@@ -1148,7 +1148,7 @@ int __cdecl ZapUnwindInfo::CompareUnwindInfo(const void* a_, const void* b_)
     return 0;
 }
 
-#if defined(_TARGET_AMD64_)
+#if defined(TARGET_AMD64)
 
 UINT ZapUnwindData::GetAlignment()
 {
@@ -1197,7 +1197,7 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 #endif //REDHAWK
 }
 
-#elif defined(_TARGET_X86_)
+#elif defined(TARGET_X86)
 
 UINT ZapUnwindData::GetAlignment()
 {
@@ -1219,7 +1219,7 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
     pZapWriter->Write(pData, dwSize);
 }
 
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
 
 UINT ZapUnwindData::GetAlignment()
 {
@@ -1303,10 +1303,10 @@ ZapUnwindData * ZapUnwindData::NewUnwindData(ZapWriter * pWriter, PVOID pData, S
 
     memcpy((void*)(pZapUnwindData + 1), pData, cbSize);
 
-#if !defined(_TARGET_X86_)
+#if !defined(TARGET_X86)
     // Make sure the personality routine thunk is created
     pZapUnwindData->GetPersonalityRoutine(ZapImage::GetImage(pWriter));
-#endif // !defined(_TARGET_X86_)
+#endif // !defined(TARGET_X86)
 
     return pZapUnwindData;
 }
@@ -1719,7 +1719,7 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     BYTE buffer[42]; // Buffer big enough to hold any reasonable helper thunk sequence
     BYTE * p = buffer;
 
-#if defined(_TARGET_X86_)
+#if defined(TARGET_X86)
     // mov edx, module
     *p++ = 0xBA;
     if (pImage != NULL)
@@ -1731,7 +1731,7 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     if (pImage != NULL)
         pImage->WriteReloc(buffer, (int)(p - buffer), m_pTarget, 0, IMAGE_REL_BASED_REL32);
     p += 4;
-#elif defined(_TARGET_AMD64_)
+#elif defined(TARGET_AMD64)
     *p++ = 0x48;
     *p++ = 0x8D;
 #ifdef UNIX_AMD64_ABI
@@ -1750,7 +1750,7 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     if (pImage != NULL)
         pImage->WriteReloc(buffer, (int)(p - buffer), m_pTarget, 0, IMAGE_REL_BASED_REL32);
     p += 4;
-#elif defined(_TARGET_ARM_)
+#elif defined(TARGET_ARM)
     // movw r1, module
     *(WORD *)(p + 0) = 0xf240;
     *(WORD *)(p + 2) = 1 << 8;
@@ -1767,7 +1767,7 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     if (pImage != NULL)
         pImage->WriteReloc(buffer, (int)(p - buffer), m_pTarget, 0, IMAGE_REL_BASED_THUMB_BRANCH24);
     p += 4;
-#elif defined(_TARGET_ARM64_)
+#elif defined(TARGET_ARM64)
     // ldr x1, [PC+8]
     *(DWORD *)(p) =0x58000041;
     p += 4;

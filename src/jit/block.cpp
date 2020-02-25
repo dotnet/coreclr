@@ -333,12 +333,12 @@ void BasicBlock::dspFlags()
     {
         printf("newobj ");
     }
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     if (bbFlags & BBF_FINALLY_TARGET)
     {
         printf("ftarget ");
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     if (bbFlags & BBF_BACKWARD_JUMP)
     {
         printf("bwd ");
@@ -1468,10 +1468,10 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
     fprintf(fout, "Offset / size of bbEmitCookie          = %3u / %3u\n", offsetof(BasicBlock, bbEmitCookie),
             sizeof(bbDummy->bbEmitCookie));
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
     fprintf(fout, "Offset / size of bbUnwindNopEmitCookie = %3u / %3u\n", offsetof(BasicBlock, bbUnwindNopEmitCookie),
             sizeof(bbDummy->bbUnwindNopEmitCookie));
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
 
 #ifdef VERIFIER
     fprintf(fout, "Offset / size of bbStackIn             = %3u / %3u\n", offsetof(BasicBlock, bbStackIn),

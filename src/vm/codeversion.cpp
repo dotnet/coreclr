@@ -1437,7 +1437,7 @@ HRESULT MethodDescVersioningState::JumpStampNativeCode(PCODE pCode /* = NULL */)
         Precode * pPrecode = Precode::Allocate(PRECODE_STUB, GetMethodDesc(), GetMethodDesc()->GetLoaderAllocator(), &amt);
         PCODE target = pPrecode->GetEntryPoint();
 
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
 
         // Normal unpatched code never starts with a jump
         _ASSERTE(GetJumpStampState() == JumpStampToActiveVersion ||
@@ -1465,9 +1465,9 @@ HRESULT MethodDescVersioningState::JumpStampNativeCode(PCODE pCode /* = NULL */)
         //
         amt.SuppressRelease();
 
-#else // _X86_ || _AMD64_
+#else // HOST_X86 || HOST_AMD64
 #error "Need to define a way to jump-stamp the prolog in a safe way for this platform"
-#endif // _X86_ || _AMD64_
+#endif // HOST_X86 || HOST_AMD64
 
         SetJumpStampState(JumpStampToPrestub);
     }
@@ -1534,7 +1534,7 @@ HRESULT MethodDescVersioningState::UpdateJumpTarget(BOOL fEESuspended, PCODE pRe
         }
     }
 
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
 
     HRESULT hr = S_OK;
     {
@@ -1579,9 +1579,9 @@ HRESULT MethodDescVersioningState::UpdateJumpTarget(BOOL fEESuspended, PCODE pRe
         return hr;
     }
 
-#else // _X86_ || _AMD64_
+#else // HOST_X86 || HOST_AMD64
 #error "Need to define a way to jump-stamp the prolog in a safe way for this platform"
-#endif // _X86_ || _AMD64_
+#endif // HOST_X86 || HOST_AMD64
 
     // State transition
     SetJumpStampState(JumpStampToActiveVersion);
@@ -1629,12 +1629,12 @@ HRESULT MethodDescVersioningState::UndoJumpStampNativeCode(BOOL fEESuspended)
     BYTE * pbCode = (BYTE*)GetMethodDesc()->GetNativeCode();
     DebuggerController::ControllerLockHolder lockController;
 
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
     _ASSERTE(m_rgSavedCode[0] != X86_INSTR_JMP_REL32);
     _ASSERTE(*FirstCodeByteAddr(pbCode, DebuggerController::GetPatchTable()->GetPatch((CORDB_ADDRESS_TYPE *)pbCode)) == X86_INSTR_JMP_REL32);
 #else
 #error "Need to define a way to jump-stamp the prolog in a safe way for this platform"
-#endif // _X86_ || _AMD64_
+#endif // HOST_X86 || HOST_AMD64
 
     // For the interlocked compare, remember what pbCode is right now
     INT64 i64OldValue = *(INT64 *)pbCode;
@@ -1730,7 +1730,7 @@ HRESULT MethodDescVersioningState::UpdateJumpStampHelper(BYTE* pbCode, INT64 i64
         }
     }
 
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
 
     DWORD oldProt;
     if (!ClrVirtualProtect((LPVOID)pbCode, 8, PAGE_EXECUTE_READWRITE, &oldProt))
@@ -1772,9 +1772,9 @@ HRESULT MethodDescVersioningState::UpdateJumpStampHelper(BYTE* pbCode, INT64 i64
     FlushInstructionCache(GetCurrentProcess(), pbCode, MethodDescVersioningState::JumpStubSize);
     return S_OK;
 
-#else // _X86_ || _AMD64_
+#else // HOST_X86 || HOST_AMD64
 #error "Need to define a way to jump-stamp the prolog in a safe way for this platform"
-#endif // _X86_ || _AMD64_
+#endif // HOST_X86 || HOST_AMD64
 }
 #endif
 #endif // FEATURE_JUMPSTAMP

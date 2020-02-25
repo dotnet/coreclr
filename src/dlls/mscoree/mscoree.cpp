@@ -59,7 +59,7 @@ extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserv
 // will capture hInstance, let the C runtime initialize and then invoke the "classic"
 // DllMain that initializes everything else.
 extern "C"
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
 BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
@@ -70,12 +70,12 @@ BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
     switch (dwReason)
     {
         case DLL_PROCESS_ATTACH:
-#ifndef FEATURE_PAL        
+#ifndef TARGET_UNIX        
             // Make sure the /GS security cookie is initialized before we call anything else.
             // BinScope detects the call to __security_init_cookie in its "Has Non-GS-friendly
             // Initialization" check and makes it pass.
             __security_init_cookie();
-#endif // FEATURE_PAL        
+#endif // TARGET_UNIX        
 
             // It's critical that we invoke InitUtilCode() before the CRT initializes. 
             // We have a lot of global ctors that will break if we let the CRT initialize without
@@ -115,7 +115,7 @@ BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 }
 
 extern "C"
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
 BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)

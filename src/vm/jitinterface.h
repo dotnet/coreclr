@@ -16,11 +16,11 @@
 #include "corcompile.h"
 #endif // FEATURE_PREJIT
 
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((32*1024)-1)   // when generating JIT code
-#else // !FEATURE_PAL
+#else // !TARGET_UNIX
 #define MAX_UNCHECKED_OFFSET_FOR_NULL_OBJECT ((GetOsPageSize() / 2) - 1)
-#endif // !FEATURE_PAL
+#endif // !TARGET_UNIX
 
 
 enum StompWriteBarrierCompletionAction
@@ -90,7 +90,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 //
 // The legacy x86 monitor helpers do not need a state argument
 //
-#if !defined(_TARGET_X86_)
+#if !defined(TARGET_X86)
 
 #define FCDECL_MONHELPER(funcname, arg) FCDECL2(void, funcname, arg, BYTE* pbLockTaken)
 #define HCIMPL_MONHELPER(funcname, arg) HCIMPL2(void, funcname, arg, BYTE* pbLockTaken)
@@ -104,7 +104,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 #define MONHELPER_STATE(x)
 #define MONHELPER_ARG NULL
 
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
 
 //
@@ -286,7 +286,7 @@ extern "C" FCDECL2(Object*, JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, 
 extern "C" FCDECL1(void, JIT_InternalThrow, unsigned exceptNum);
 extern "C" FCDECL1(void*, JIT_InternalThrowFromHelper, unsigned exceptNum);
 
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
 
 
 class WriteBarrierManager
@@ -341,15 +341,15 @@ private:
     PBYTE   m_pUpperBoundImmediate;         //         | POSTGROW |     | WRITE_WATCH |
 };
 
-#endif // _TARGET_AMD64_
+#endif // TARGET_AMD64
 
-#ifdef BIT64
+#ifdef HOST_64BIT
 EXTERN_C FCDECL1(Object*, JIT_TrialAllocSFastMP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_);
 EXTERN_C FCDECL2(Object*, JIT_BoxFastMP_InlineGetThread, CORINFO_CLASS_HANDLE type, void* data);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1VC_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1OBJ_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
-#endif // BIT64
+#endif // HOST_64BIT
 
 EXTERN_C FCDECL2_VV(INT64, JIT_LMul, INT64 val1, INT64 val2);
 
@@ -364,20 +364,20 @@ EXTERN_C FCDECL1_V(INT32, JIT_Dbl2IntOvf, double val);
 EXTERN_C FCDECL2_VV(float, JIT_FltRem, float dividend, float divisor);
 EXTERN_C FCDECL2_VV(double, JIT_DblRem, double dividend, double divisor);
 
-#ifndef BIT64
-#ifdef _TARGET_X86_
+#ifndef HOST_64BIT
+#ifdef TARGET_X86
 // JIThelp.asm
 EXTERN_C void STDCALL JIT_LLsh();
 EXTERN_C void STDCALL JIT_LRsh();
 EXTERN_C void STDCALL JIT_LRsz();
-#else // _TARGET_X86_
+#else // TARGET_X86
 EXTERN_C FCDECL2_VV(UINT64, JIT_LLsh, UINT64 num, int shift);
 EXTERN_C FCDECL2_VV(INT64, JIT_LRsh, INT64 num, int shift);
 EXTERN_C FCDECL2_VV(UINT64, JIT_LRsz, UINT64 num, int shift);
-#endif // !_TARGET_X86_
-#endif // !BIT64
+#endif // !TARGET_X86
+#endif // !HOST_64BIT
 
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
 
 extern "C"
 {
@@ -411,25 +411,25 @@ extern "C"
 
 void ValidateWriteBarrierHelpers();
 
-#endif //_TARGET_X86_
+#endif //TARGET_X86
 
 extern "C"
 {
 #ifndef WIN64EXCEPTIONS
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
     void STDCALL JIT_ByRefWriteBarrier();      // JIThelp.asm/JIThelp.s
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if defined(TARGET_AMD64) || defined(TARGET_ARM)
 
     FCDECL2VA(void, JIT_TailCall, PCODE copyArgs, PCODE target);
 
-#else // _TARGET_AMD64_ || _TARGET_ARM_
+#else // TARGET_AMD64 || TARGET_ARM
 
     void STDCALL JIT_TailCall();                    // JIThelp.asm
 
-#endif // _TARGET_AMD64_ || _TARGET_ARM_
+#endif // TARGET_AMD64 || TARGET_ARM
 
     void STDCALL JIT_MemSet(void *dest, int c, SIZE_T count);
     void STDCALL JIT_MemCpy(void *dest, const void *src, SIZE_T count);
@@ -1370,7 +1370,7 @@ public:
 #endif // WIN64EXCEPTIONS
     }
 
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
     void SetAllowRel32(BOOL fAllowRel32)
     {
         LIMITED_METHOD_CONTRACT;
@@ -1378,7 +1378,7 @@ public:
     }
 #endif
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
     void SetJumpStubOverflow(BOOL fJumpStubOverflow)
     {
         LIMITED_METHOD_CONTRACT;
@@ -1436,10 +1436,10 @@ public:
           m_totalUnwindInfos(0),
           m_usedUnwindInfos(0),
 #endif
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
           m_fAllowRel32(FALSE),
 #endif
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
           m_fJumpStubOverflow(FALSE),
           m_reserveForJumpStubs(0),
 #endif
@@ -1523,10 +1523,10 @@ protected :
     ULONG                   m_usedUnwindInfos;
 #endif
 
-#ifdef _TARGET_AMD64_
+#ifdef TARGET_AMD64
     BOOL                    m_fAllowRel32;      // Use 32-bit PC relative address modes
 #endif
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
     BOOL                    m_fJumpStubOverflow;   // Overflow while trying to alocate jump stub slot within PC relative branch region
                                                    // The code will need to be regenerated (with m_fRel32Allowed == FALSE for AMD64).
     size_t                  m_reserveForJumpStubs; // Space to reserve for jump stubs when allocating code
@@ -1587,7 +1587,7 @@ extern "C" const VMHELPDEF hlpFuncTable[CORINFO_HELP_COUNT];
 
 #endif
 
-#if defined(_DEBUG) && (defined(_TARGET_AMD64_) || defined(_TARGET_X86_)) && !defined(FEATURE_PAL)
+#if defined(_DEBUG) && (defined(TARGET_AMD64) || defined(TARGET_X86)) && !defined(TARGET_UNIX)
 typedef struct {
     void*       pfnRealHelper;
     const char* helperName;
@@ -1630,7 +1630,7 @@ void    DisableJitGCPoll();
 #endif
 
 // Helper for RtlVirtualUnwind-based tail calls
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if defined(TARGET_AMD64) || defined(TARGET_ARM)
 
 // The Stub-linker generated assembly routine to copy arguments from the va_list
 // into the CONTEXT and the stack.
@@ -1643,7 +1643,7 @@ class TailCallFrame;
 // The shared stub return location
 EXTERN_C void JIT_TailCallHelperStub_ReturnAddress();
 
-#endif // _TARGET_AMD64_ || _TARGET_ARM_
+#endif // TARGET_AMD64 || TARGET_ARM
 
 void *GenFastGetSharedStaticBase(bool bCheckCCtor);
 
@@ -1667,7 +1667,7 @@ EXTERN_C FCDECL0(VOID, JIT_PollGC_Nop);
 BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
 EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd);
 
-#ifdef BIT64
+#ifdef HOST_64BIT
 class InlinedCallFrame;
 Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
 #endif

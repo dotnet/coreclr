@@ -89,12 +89,12 @@ HELPER(READYTORUN_HELPER_DblRem,                    CORINFO_HELP_DBLREM,        
 HELPER(READYTORUN_HELPER_FltRound,                  CORINFO_HELP_FLTROUND,                          )
 HELPER(READYTORUN_HELPER_DblRound,                  CORINFO_HELP_DBLROUND,                          )
 
-#ifndef _TARGET_X86_
+#ifndef TARGET_X86
 HELPER(READYTORUN_HELPER_PersonalityRoutine,        CORINFO_HELP_EE_PERSONALITY_ROUTINE,            OPTIMIZEFORSIZE)
 HELPER(READYTORUN_HELPER_PersonalityRoutineFilterFunclet, CORINFO_HELP_EE_PERSONALITY_ROUTINE_FILTER_FUNCLET, OPTIMIZEFORSIZE)
 #endif
 
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
 HELPER(READYTORUN_HELPER_WriteBarrier_EAX,          CORINFO_HELP_ASSIGN_REF_EAX,                    )
 HELPER(READYTORUN_HELPER_WriteBarrier_EBX,          CORINFO_HELP_ASSIGN_REF_EBX,                    )
 HELPER(READYTORUN_HELPER_WriteBarrier_ECX,          CORINFO_HELP_ASSIGN_REF_ECX,                    )

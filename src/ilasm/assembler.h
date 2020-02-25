@@ -51,7 +51,7 @@
 
 #define dwUniBuf 16384
 
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
 #include "coreclrloader.h"
 extern CoreCLRLoader *g_loader;
 extern char *g_pszExeFile;

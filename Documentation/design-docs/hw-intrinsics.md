@@ -73,7 +73,7 @@ There is some room for improvement here. For example, it may be that an argument
 
 ### Hardware Intrinsics Table
 
-There is a hardware intrinsics table for each platform that supports hardware intrinsics: currently `_TARGET_XARCH_` and `TARGET_ARM64_`. They live in hwintrinsiclistxarch.h and hwintrinsiclistarm64.h respectively.
+There is a hardware intrinsics table for each platform that supports hardware intrinsics: currently `TARGET_XARCH` and `TARGET_ARM64_`. They live in hwintrinsiclistxarch.h and hwintrinsiclistarm64.h respectively.
 
 These tables are intended to capture information that can assist in making the implementation as data-driven as possible.
 

@@ -284,11 +284,11 @@ HRESULT EEConfig::Init()
 
     pZapSet = DEFAULT_ZAP_SET;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
     dwDisableStackwalkCache = 0;
-#else // _TARGET_X86_
+#else // TARGET_X86
     dwDisableStackwalkCache = 1;
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
     szZapBBInstr     = NULL;
     szZapBBInstrDir  = NULL;
@@ -323,7 +323,7 @@ HRESULT EEConfig::Init()
     fSuppressLockViolationsOnReentryFromOS = false;
 #endif
 
-#if defined(_DEBUG) && defined(_TARGET_AMD64_)
+#if defined(_DEBUG) && defined(TARGET_AMD64)
     // For determining if we should force generation of long jump dispatch stubs.
     m_cGenerateLongJumpDispatchStubRatio = (size_t)(-1);
     m_cDispatchStubsGenerated = 0;
@@ -805,7 +805,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
 #endif //STRESS_HEAP
 
-#ifdef BIT64
+#ifdef HOST_64BIT
     iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
@@ -819,7 +819,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
     iGCHeapHardLimit = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimit, iGCHeapHardLimit);
     if (!iGCHeapHardLimit) iGCHeapHardLimit = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimit"), 0);
-#endif //BIT64
+#endif //HOST_64BIT
 
     iGCHeapHardLimitPercent = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimitPercent, iGCHeapHardLimitPercent);
     if (!iGCHeapHardLimitPercent)
@@ -849,7 +849,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iGCConservative =  (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConservative) != 0);
 #endif // FEATURE_CONSERVATIVE_GC
 
-#ifdef BIT64
+#ifdef HOST_64BIT
     iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
@@ -1005,7 +1005,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     fAddRejitNops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_AddRejitNops, fAddRejitNops) != 0);
 #endif
 
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     fPInvokeRestoreEsp = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Jit_NetFx40PInvokeStackResilience);
 #endif
 
@@ -1183,7 +1183,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     }
 
 
-#if defined(_DEBUG) && defined(_TARGET_AMD64_)
+#if defined(_DEBUG) && defined(TARGET_AMD64)
     m_cGenerateLongJumpDispatchStubRatio = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_GenerateLongJumpDispatchStubRatio,
                                                           static_cast<DWORD>(m_cGenerateLongJumpDispatchStubRatio));
 #endif
@@ -1224,11 +1224,11 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
         tieredCompilation_CallCountingDelayMs = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCountingDelayMs);
 
-#ifndef FEATURE_PAL
+#ifndef TARGET_UNIX
         bool hadSingleProcessorAtStartup = CPUGroupInfo::HadSingleProcessorAtStartup();
-#else // !FEATURE_PAL
+#else // !TARGET_UNIX
         bool hadSingleProcessorAtStartup = g_SystemInfo.dwNumberOfProcessors == 1;
-#endif // !FEATURE_PAL
+#endif // !TARGET_UNIX
         if (hadSingleProcessorAtStartup)
         {
             DWORD delayMultiplier = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_DelaySingleProcMultiplier);

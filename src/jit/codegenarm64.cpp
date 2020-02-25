@@ -15,7 +15,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef _TARGET_ARM64_
+#ifdef TARGET_ARM64
 #include "emit.h"
 #include "codegen.h"
 #include "lower.h"
@@ -8588,4 +8588,4 @@ void CodeGen::genArm64EmitterUnitTests()
 }
 #endif // defined(DEBUG)
 
-#endif // _TARGET_ARM64_
+#endif // TARGET_ARM64

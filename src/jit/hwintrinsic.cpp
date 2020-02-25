@@ -80,7 +80,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, va
                 assert(!"Didn't find a class handle for simdType");
         }
     }
-#ifdef _TARGET_XARCH_
+#ifdef TARGET_XARCH
     else if (simdType == TYP_SIMD32)
     {
         switch (simdBaseType)
@@ -109,8 +109,8 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, va
                 assert(!"Didn't find a class handle for simdType");
         }
     }
-#endif // _TARGET_XARCH_
-#ifdef _TARGET_ARM64_
+#endif // TARGET_XARCH
+#ifdef TARGET_ARM64
     else if (simdType == TYP_SIMD8)
     {
         switch (simdBaseType)
@@ -133,7 +133,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, va
                 assert(!"Didn't find a class handle for simdType");
         }
     }
-#endif // _TARGET_ARM64_
+#endif // TARGET_ARM64
 
     return NO_CLASS_HANDLE;
 }

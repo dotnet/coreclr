@@ -13,7 +13,7 @@
 #ifndef _ARRAYHELPERS_H_
 #define _ARRAYHELPERS_H_
 
-#if defined(_MSC_VER) && defined(_TARGET_X86_) && !defined(FPO_ON)
+#if defined(_MSC_VER) && defined(TARGET_X86) && !defined(FPO_ON)
 #pragma optimize("y", on)		// Small critical routines, don't put in EBP frame 
 #define FPO_ON 1
 #define COMARRAYHELPERS_TURNED_FPO_ON 1

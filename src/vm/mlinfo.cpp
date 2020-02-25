@@ -1638,7 +1638,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
     // System primitive types (System.Int32, et.al.) will be marshaled as expected
     // because the mtype CorElementType is normalized (e.g. ELEMENT_TYPE_I4).
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
     // We however need to detect if such a normalization occurred for non-system
     // trivial value types, because we hold CorNativeType belonging to the original
     // "un-normalized" signature type. It has to be verified that all the value types
@@ -1665,7 +1665,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
         }
 
     }
-#endif // _TARGET_X86_
+#endif // TARGET_X86
 
 
     if (nativeType == NATIVE_TYPE_CUSTOMMARSHALER)
@@ -2741,7 +2741,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                             m_type = MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR;
                         }
                         else
-#ifdef _TARGET_X86_
+#ifdef TARGET_X86
                         // JIT64 is not aware of normalized value types and this optimization
                         // (returning small value types by value in registers) is already done in JIT64.
                         if (        !m_byref   // Permit register-sized structs as return values
@@ -2756,7 +2756,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                             m_args.m_pMT = m_pMT;
                         }
                         else
-#endif // _TARGET_X86_
+#endif // TARGET_X86
                         {
                             m_args.m_pMT = m_pMT;
                             m_type = MARSHAL_TYPE_BLITTABLEVALUECLASS;

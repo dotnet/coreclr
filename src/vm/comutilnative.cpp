@@ -774,7 +774,7 @@ void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
 {
     QCALL_CONTRACT;
 
-#if defined(_X86_) || defined(_AMD64_)
+#if defined(HOST_X86) || defined(HOST_AMD64)
     if (length > 0x100)
     {
         // memset ends up calling rep stosb if the hardware claims to support it efficiently. rep stosb is up to 2x slower
@@ -1263,7 +1263,7 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
 
     if (!precise)
     {
-#ifdef _TARGET_64BIT_
+#ifdef TARGET_64BIT
         uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
 #else
         // As it could be noticed we read 64bit values that may be concurrently updated.
@@ -1533,11 +1533,11 @@ void GCInterface::AddMemoryPressure(UINT64 bytesAllocated)
     }
 }
 
-#ifdef BIT64
+#ifdef HOST_64BIT
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 4 * 1024 * 1024;        // 4 MB
-#else // BIT64
+#else // HOST_64BIT
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 3 * 1024 * 1024;        // 3 MB
-#endif // BIT64
+#endif // HOST_64BIT
 
 const unsigned MAX_MEMORYPRESSURE_RATIO = 10;                      // 40 MB or 30 MB
 

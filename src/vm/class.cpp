@@ -991,9 +991,9 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
 
     if (pMT->GetNumInstanceFields() == 1 && (!pMT->HasLayout()
         || pMT->GetNumInstanceFieldBytes() == 4
-#ifdef _TARGET_64BIT_
+#ifdef TARGET_64BIT
         || pMT->GetNumInstanceFieldBytes() == 8
-#endif // _TARGET_64BIT_
+#endif // TARGET_64BIT
         )) // Don't do the optimization if we're getting specified anything but the trivial layout.
     {
         FieldDesc * pFD = pMT->GetApproxFieldDescListRaw();
@@ -1025,10 +1025,10 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
             case ELEMENT_TYPE_U:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-#ifdef _TARGET_64BIT_
+#ifdef TARGET_64BIT
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
-#endif // _TARGET_64BIT_
+#endif // TARGET_64BIT
             
             {
                 return type;
@@ -1184,7 +1184,7 @@ int MethodTable::GetVectorSize()
 {
     // This is supported for finding HVA types for Arm64. In order to support the altjit,
     // we support this on 64-bit platforms (i.e. Arm64 and X64).
-#ifdef _TARGET_64BIT_
+#ifdef TARGET_64BIT
     if (IsIntrinsicType())
     {
         LPCUTF8 namespaceName;
@@ -1227,7 +1227,7 @@ int MethodTable::GetVectorSize()
             }
         }
     }
-#endif // _TARGET_64BIT_
+#endif // TARGET_64BIT
     return 0;
 }
 
@@ -1343,7 +1343,7 @@ EEClass::CheckForHFA()
         {
         case ELEMENT_TYPE_VALUETYPE:
             {
-#ifdef _TARGET_ARM64_
+#ifdef TARGET_ARM64
             // hfa/hva types are unique by size, except for Vector64 which we can conveniently
                 // treat as if it were a double for ABI purposes. However, it only qualifies as
                 // an HVA if all fields are the same type. This will ensure that we only
@@ -1368,7 +1368,7 @@ EEClass::CheckForHFA()
                     }
                 }
                 else
-#endif // _TARGET_ARM64_
+#endif // TARGET_ARM64
                 {
 #if defined(FEATURE_HFA)
                     fieldType = pByValueClassCache[i]->GetHFAType();
@@ -1428,7 +1428,7 @@ EEClass::CheckForHFA()
     case ELEMENT_TYPE_R8:
         elemSize = 8;
         break;
-#ifdef _TARGET_ARM64_
+#ifdef TARGET_ARM64
     case ELEMENT_TYPE_VALUETYPE:
         // Should already have set elemSize, but be conservative
         if (elemSize == 0)
@@ -1537,7 +1537,7 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
     {
     case ELEMENT_TYPE_R4: elemSize = sizeof(float); break;
     case ELEMENT_TYPE_R8: elemSize = sizeof(double); break;
-#ifdef _TARGET_ARM64_
+#ifdef TARGET_ARM64
     case ELEMENT_TYPE_VALUETYPE: elemSize = 16; break;
 #endif
     default: _ASSERTE(!"Invalid HFA Type");

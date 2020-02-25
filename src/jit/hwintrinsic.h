@@ -5,9 +5,9 @@
 #ifndef _HW_INTRINSIC_H_
 #define _HW_INTRINSIC_H_
 
-#if defined(_TARGET_XARCH_)
+#if defined(TARGET_XARCH)
 #include "hwintrinsicxarch.h"
-#elif defined(_TARGET_ARM64_)
+#elif defined(TARGET_ARM64)
 #include "hwintrinsicArm64.h"
 #endif
 
