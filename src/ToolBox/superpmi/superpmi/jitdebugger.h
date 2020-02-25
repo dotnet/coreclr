@@ -18,7 +18,7 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,              // Parent key.
 
 HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __inout DWORD* pcchBuffer);
 
-#ifndef _WIN64
+#ifndef BIT64
 BOOL RunningInWow64();
 #endif
 

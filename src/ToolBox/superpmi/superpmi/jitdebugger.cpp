@@ -47,7 +47,7 @@ int DbgBreakCheck(const char* szFile, int iLine, const char* szExpr)
 #define WszRegOpenKeyEx RegOpenKeyExW
 #endif
 
-#ifndef _WIN64
+#ifndef BIT64
 //------------------------------------------------------------------------------
 // Returns TRUE if we are running on a 64-bit OS in WoW, FALSE otherwise.
 BOOL RunningInWow64()

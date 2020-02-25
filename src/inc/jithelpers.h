@@ -246,7 +246,7 @@
 
     JITHELPER(CORINFO_HELP_GETCURRENTMANAGEDTHREADID,  JIT_GetCurrentManagedThreadId, CORINFO_HELP_SIG_REG_ONLY)
 
-#ifdef _WIN64
+#ifdef BIT64
     // On Windows X64, the last argument is ignored.
     JITHELPER(CORINFO_HELP_INIT_PINVOKE_FRAME,  JIT_InitPInvokeFrame,  CORINFO_HELP_SIG_REG_ONLY)
 #else

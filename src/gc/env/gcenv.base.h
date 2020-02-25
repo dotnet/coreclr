@@ -232,7 +232,7 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #ifdef _MSC_VER
 #pragma intrinsic(_BitScanForward)
 #pragma intrinsic(_BitScanReverse)
-#if _WIN64
+#if BIT64
  #pragma intrinsic(_BitScanForward64)
  #pragma intrinsic(_BitScanReverse64)
 #endif
@@ -264,7 +264,7 @@ inline uint8_t BitScanForward(uint32_t *bitIndex, uint32_t mask)
 inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
 {
 #ifdef _MSC_VER
- #if _WIN64
+ #if BIT64
     return _BitScanForward64((unsigned long*)bitIndex, mask);
  #else
     // MSVC targeting a 32-bit target does not support this intrinsic.
@@ -284,7 +284,7 @@ inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
     }
 
     return result;
- #endif // _WIN64
+ #endif // BIT64
 #else
     int iIndex = __builtin_ffsll(mask);
     *bitIndex = static_cast<uint32_t>(iIndex - 1);
@@ -315,7 +315,7 @@ inline uint8_t BitScanReverse(uint32_t *bitIndex, uint32_t mask)
 inline uint8_t BitScanReverse64(uint32_t *bitIndex, uint64_t mask)
 {
 #ifdef _MSC_VER
- #if _WIN64
+ #if BIT64
     return _BitScanReverse64((unsigned long*)bitIndex, mask);
  #else
     // MSVC targeting a 32-bit target does not support this intrinsic.
@@ -331,7 +331,7 @@ inline uint8_t BitScanReverse64(uint32_t *bitIndex, uint64_t mask)
     }
 
     return _BitScanReverse((unsigned long*)bitIndex, static_cast<uint32_t>(mask));
- #endif // _WIN64
+ #endif // BIT64
 #else
     // The result of __builtin_clzll is undefined when mask is zero,
     // but it's still OK to call the intrinsic in that case (just don't use the output).

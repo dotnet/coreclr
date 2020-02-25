@@ -489,12 +489,12 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 /********************************************************************************/
 /* portability helpers */
-#ifdef _WIN64
-#define IN_WIN64(x)     x
-#define IN_WIN32(x)
+#ifdef BIT64
+#define IN_TARGET_64BIT(x)     x
+#define IN_TARGET_32BIT(x)
 #else
-#define IN_WIN64(x)
-#define IN_WIN32(x)     x
+#define IN_TARGET_64BIT(x)
+#define IN_TARGET_32BIT(x)     x
 #endif
 
 #ifdef _TARGET_64BIT_

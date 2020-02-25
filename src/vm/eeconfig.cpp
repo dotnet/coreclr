@@ -805,7 +805,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
 #endif //STRESS_HEAP
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
@@ -819,7 +819,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
     iGCHeapHardLimit = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimit, iGCHeapHardLimit);
     if (!iGCHeapHardLimit) iGCHeapHardLimit = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimit"), 0);
-#endif //_WIN64
+#endif //BIT64
 
     iGCHeapHardLimitPercent = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimitPercent, iGCHeapHardLimitPercent);
     if (!iGCHeapHardLimitPercent)
@@ -849,7 +849,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iGCConservative =  (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConservative) != 0);
 #endif // FEATURE_CONSERVATIVE_GC
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
