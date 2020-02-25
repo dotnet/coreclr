@@ -19,3 +19,6 @@ PAL_UnregisterModule
 CoreDllMain
 DllMain
 GetCLRRuntimeHost
+; DAC table export
+g_dacTable
+

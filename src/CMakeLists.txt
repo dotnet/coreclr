@@ -14,6 +14,7 @@ if(WIN32 AND FEATURE_EVENT_TRACE)
     include_directories("${GENERATED_INCLUDE_DIR}/etw")
 endif(WIN32 AND FEATURE_EVENT_TRACE)
 
+add_subdirectory(debug/dbgutil)
 
 if(CLR_CMAKE_HOST_UNIX)
   if(CLR_CMAKE_HOST_LINUX AND NOT CLR_CMAKE_HOST_UNIX_X86)

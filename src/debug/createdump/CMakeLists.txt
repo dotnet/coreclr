@@ -43,6 +43,7 @@ add_dependencies(createdump pal_redefines_file)
 
 target_link_libraries(createdump
     createdump_lib
+    dbgutil
     # share the PAL/corguids in the dac module
     mscordaccore
 )
