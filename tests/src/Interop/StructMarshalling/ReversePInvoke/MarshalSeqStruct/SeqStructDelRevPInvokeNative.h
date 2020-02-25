@@ -180,7 +180,7 @@ bool IsCorrectInnerArraySequential(InnerArraySequential* p)
 }
 
 #ifdef WINDOWS
-#ifdef BIT64
+#ifdef _WIN64
 union OUTER3 // size = 32 bytes
 {
     struct InnerSequential arr[2];

@@ -954,7 +954,7 @@ HRESULT PEWriter::Init(PESectionMan *pFrom, DWORD createFlags, LPCWSTR seedFileN
         m_hSeedFileMap = hMapFile;
         m_pSeedFileDecoder = pPEDecoder;
 
-#ifdef  BIT64       
+#ifdef BIT64
         m_pSeedFileNTHeaders = pPEDecoder->GetNTHeaders64();
 #else
         m_pSeedFileNTHeaders = pPEDecoder->GetNTHeaders32();
