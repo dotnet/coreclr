@@ -205,8 +205,6 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
     ULONGLONG rtn;
     ULONGLONG ret = 0;
     DWORD type = 0;
-    HKEY userKey;
-    HKEY machineKey;
     DWORD size = 4;
 
     FAULT_NOT_FATAL(); // We don't report OOM errors here, we return a default value.
@@ -254,7 +252,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
         {
             LONG retVal = ERROR_SUCCESS;
             BOOL bCloseHandle = FALSE;
-            userKey = s_hUserFrameworkKey;
+            HKEY userKey = s_hUserFrameworkKey;
             
             if (userKey == INVALID_HANDLE_VALUE)
             {
@@ -285,7 +283,7 @@ HRESULT REGUTIL::GetConfigInteger(LPCWSTR name, ULONGLONG defValue, __out ULONGL
         {
             LONG retVal = ERROR_SUCCESS;
             BOOL bCloseHandle = FALSE;
-            machineKey = s_hMachineFrameworkKey;
+            HKEY machineKey = s_hMachineFrameworkKey;
             
             if (machineKey == INVALID_HANDLE_VALUE)
             {

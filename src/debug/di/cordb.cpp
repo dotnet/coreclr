@@ -201,7 +201,7 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
         case DLL_PROCESS_ATTACH:
         {
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
             g_hInst = hInstance;
 #else
             int err = PAL_InitializeDLL();

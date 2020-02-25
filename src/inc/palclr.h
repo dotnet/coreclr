@@ -10,7 +10,7 @@
 // ===========================================================================
 
 
-#if !defined(FEATURE_PAL)
+#if defined(HOST_WINDOWS)
 
 #ifndef __PALCLR_H__
 #define __PALCLR_H__
@@ -19,11 +19,7 @@
 // Unix L"" is UTF32, and on windows it's UTF16.  Because of built-in assumptions on the size
 // of string literals, it's important to match behaviour between Unix and Windows.  Unix will be defined
 // as u"" (char16_t)
-#ifdef PLATFORM_UNIX
-#define W(str)  u##str
-#else // PLATFORM_UNIX
 #define W(str)  L##str
-#endif // PLATFORM_UNIX
 
 #include <windef.h>
 
@@ -54,6 +50,12 @@
 #endif // !NOINLINE
 
 #define ANALYZER_NORETURN
+
+#ifdef _MSC_VER
+#define EMPTY_BASES_DECL __declspec(empty_bases)
+#else
+#define EMPTY_BASES_DECL
+#endif // !_MSC_VER
 
 //
 // CPP_ASSERT() can be used within a class definition, to perform a
@@ -628,4 +630,4 @@
 
 #include "palclr_win.h"
 
-#endif // !defined(FEATURE_PAL)
+#endif // defined(HOST_WINDOWS)

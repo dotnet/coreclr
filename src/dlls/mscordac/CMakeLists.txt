@@ -139,6 +139,12 @@ set(COREDAC_LIBRARIES
     ${END_LIBRARY_GROUP} # End group of libraries that have circular references
 )
 
+if(CLR_CMAKE_TARGET_WIN32)
+    list(APPEND COREDAC_LIBRARIES
+        mdwinmd_dac
+    )
+endif(CLR_CMAKE_TARGET_WIN32)
+
 if(WIN32)
     # mscordac.def should be generated before mscordaccore.dll is built
     add_dependencies(mscordaccore mscordaccore_def)
@@ -164,7 +170,6 @@ if(WIN32)
     set(COREDAC_LIBRARIES
         ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp # export file
         ${COREDAC_LIBRARIES}
-        mdwinmd_dac
         kernel32.lib
         advapi32.lib
         ole32.lib
