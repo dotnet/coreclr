@@ -622,6 +622,8 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_TARGET_UNIX)
   add_definitions(-DTARGET_UNIX)
+  add_definitions(-DFEATURE_PAL)
+  add_definitions(-DPLATFORM_UNIX)
   # Contracts are disabled on UNIX.
   add_definitions(-DDISABLE_CONTRACTS)
   if(CLR_CMAKE_TARGET_DARWIN)
@@ -638,6 +640,7 @@ if(CLR_CMAKE_TARGET_UNIX)
   endif(CLR_CMAKE_TARGET_NETBSD)
 else(CLR_CMAKE_TARGET_UNIX)
   add_definitions(-DTARGET_WINDOWS)
+  add_definitions(-DPLATFORM_WINDOWS)
 endif(CLR_CMAKE_TARGET_UNIX)
 
 if(CLR_CMAKE_PLATFORM_UNIX_ARM)
