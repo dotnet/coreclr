@@ -26,7 +26,7 @@ target_link_libraries(corerun
 )
 
 # Android implements pthread natively
-if(NOT CLR_CMAKE_HOST_ANDROID)
+if(NOT CLR_CMAKE_PLATFORM_ANDROID)
   target_link_libraries(corerun
     pthread
   )

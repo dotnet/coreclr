@@ -11,6 +11,6 @@ _add_library(unixcoreruncommon
     coreruncommon.cpp
 )
 
-if(CLR_CMAKE_HOST_LINUX)
+if(CLR_CMAKE_PLATFORM_LINUX)
   target_link_libraries(unixcoreruncommon dl)
-endif(CLR_CMAKE_HOST_LINUX)
+endif(CLR_CMAKE_PLATFORM_LINUX)

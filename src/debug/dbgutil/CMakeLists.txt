@@ -23,8 +23,8 @@ if(CLR_CMAKE_TARGET_LINUX)
     )
 endif(CLR_CMAKE_TARGET_LINUX)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_library_clr(dbgutil STATIC ${DBGUTIL_SOURCES})

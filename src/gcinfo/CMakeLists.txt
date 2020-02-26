@@ -16,24 +16,24 @@ endif(CLR_CMAKE_TARGET_ARCH_I386)
 
 convert_to_absolute_path(GCINFO_SOURCES ${GCINFO_SOURCES})
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(lib)
 add_subdirectory(crossgen)
 
-if (CLR_CMAKE_HOST_ARCH_I386)
+if (CLR_CMAKE_PLATFORM_ARCH_I386)
     # On x86, build RyuJIT/ARM32 cross-compiling altjit.
     add_subdirectory(gcinfo_arm)
 endif ()
 
-if (CLR_CMAKE_HOST_ARCH_I386 AND WIN32)
+if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
     # On x86, build Linux x86 cross-compiling altjit.
     add_subdirectory(gcinfo_linuxx86)
 endif ()
 
-if (CLR_CMAKE_HOST_ARCH_AMD64)
+if (CLR_CMAKE_PLATFORM_ARCH_AMD64)
     # On amd64, build RyuJIT/ARM64 cross-compiling altjit.
     add_subdirectory(gcinfo_arm64)
 endif ()

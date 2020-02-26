@@ -5,7 +5,7 @@ if (WIN32)
   set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-") 
 
   # asm files require preprocessing using cl.exe on arm32 and arm64
-  if(CLR_CMAKE_HOST_ARCH_ARM OR CLR_CMAKE_HOST_ARCH_ARM64)
+  if(CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
       get_include_directories_asm(ASM_INCLUDE_DIRECTORIES)
 
@@ -50,7 +50,7 @@ add_dependencies(cee_wks eventing_headers)
 
 if (WIN32)
 
-  if(NOT CLR_CMAKE_HOST_ARCH_ARM AND NOT CLR_CMAKE_HOST_ARCH_ARM64)
+  if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
     # Get the current list of definitions
     get_compile_definitions(DEFINITIONS)
 
@@ -77,9 +77,9 @@ if (WIN32)
         set_property(SOURCE ${VM_SOURCES_WKS_ARCH_ASM} PROPERTY COMPILE_DEFINITIONS_${CONFIG} ${ASM_DEFINITIONS_${CONFIG}})
     endforeach()
 
-    if (CLR_CMAKE_HOST_ARCH_I386)
+    if (CLR_CMAKE_PLATFORM_ARCH_I386)
         set_source_files_properties(${VM_SOURCES_WKS_ARCH_ASM} PROPERTIES COMPILE_FLAGS "/Zm /safeseh")
-    endif (CLR_CMAKE_HOST_ARCH_I386)
+    endif (CLR_CMAKE_PLATFORM_ARCH_I386)
 
     # Convert AsmConstants.h into AsmConstants.inc
     find_program(POWERSHELL powershell)
@@ -103,6 +103,6 @@ if (WIN32)
 
     add_dependencies(cee_wks asmconstants_inc)
 
-  endif(NOT CLR_CMAKE_HOST_ARCH_ARM AND NOT CLR_CMAKE_HOST_ARCH_ARM64)
+  endif(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
 endif (WIN32)

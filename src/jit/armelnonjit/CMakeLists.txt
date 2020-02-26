@@ -12,13 +12,13 @@ if(FEATURE_READYTORUN)
   add_definitions(-DFEATURE_READYTORUN_COMPILER)
 endif(FEATURE_READYTORUN)
 
-if (CLR_CMAKE_HOST_ARCH_I386)
+if (CLR_CMAKE_PLATFORM_ARCH_I386)
     remove_definitions(-D_TARGET_X86_)
     add_definitions(-D_TARGET_ARM_)
     add_definitions(-DARM_SOFTFP)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm)
-elseif(CLR_CMAKE_HOST_ARCH_AMD64)
+elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     remove_definitions(-D_TARGET_AMD64_)
     add_definitions(-D_TARGET_ARM64_)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM64_SOURCES})
@@ -28,9 +28,9 @@ else()
 endif()
 
 if (NOT WIN32)
-    if (CLR_CMAKE_HOST_ARCH_I386)
+    if (CLR_CMAKE_PLATFORM_ARCH_I386)
         remove_definitions(-DUNIX_X86_ABI)
-    elseif(CLR_CMAKE_HOST_ARCH_AMD64)
+    elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
         remove_definitions(-DUNIX_AMD64_ABI)
     else()
         clr_unknown_arch()
@@ -59,7 +59,7 @@ set(RYUJIT_LINK_LIBRARIES
    ${JIT_ARCH_LINK_LIBRARIES}
 )
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     list(APPEND RYUJIT_LINK_LIBRARIES
        mscorrc_debug
        coreclrpal
@@ -81,7 +81,7 @@ else()
        crypt32.lib
        RuntimeObject.lib
     )
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 target_link_libraries(armelnonjit
    ${RYUJIT_LINK_LIBRARIES}

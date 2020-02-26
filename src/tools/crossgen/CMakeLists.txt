@@ -13,10 +13,10 @@ if(WIN32)
     add_definitions(-D_CRT_NON_CONFORMING_WCSTOK)
 endif()
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-fPIE)
   add_definitions(-DNO_NGENPDB)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_definitions(-DFX_VER_INTERNALNAME_STR=crossgen.exe)
 
@@ -45,7 +45,7 @@ target_link_libraries(crossgen
     v3binder_crossgen
 )
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     target_link_libraries(crossgen
         mscorrc_debug
         coreclrpal
@@ -66,7 +66,7 @@ else()
         ${STATIC_MT_VCRT_LIB}
     )
 
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(../../zap/crossgen ../../zap/crossgen)
 add_subdirectory(../../vm/crossgen ../../vm/crossgen)

@@ -21,9 +21,9 @@ else()
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(FEATURE_GDBJIT)
     set(VM_SOURCES_GDBJIT
@@ -857,18 +857,18 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         exceptionhandling.h
     )
 
-    if(CLR_CMAKE_HOST_UNIX)
+    if(CLR_CMAKE_PLATFORM_UNIX)
         list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
             ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
         )
-    endif(CLR_CMAKE_HOST_UNIX)
+    endif(CLR_CMAKE_PLATFORM_UNIX)
 endif()
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     list(APPEND VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/unixstubs.cpp
     )
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(VM_SOURCES_DAC_ARCH
     exceptionhandling.cpp

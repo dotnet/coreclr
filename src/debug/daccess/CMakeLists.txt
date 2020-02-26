@@ -9,10 +9,10 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CLR_DIR}/src/debug/ee)
 include_directories(${CLR_DIR}/src/gcdump)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
   include_directories(${GENERATED_INCLUDE_DIR})
   add_compile_options(-fPIC)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(DACCESS_SOURCES
   dacdbiimpl.cpp
@@ -45,7 +45,7 @@ add_library_clr(daccess ${DACCESS_SOURCES})
 
 add_dependencies(daccess eventing_headers)
 
-if(CLR_CMAKE_HOST_DARWIN OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
+if(CLR_CMAKE_PLATFORM_DARWIN OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
   add_definitions(-DUSE_DAC_TABLE_RVA)
 
   add_custom_command(
@@ -67,4 +67,4 @@ if(CLR_CMAKE_HOST_DARWIN OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
   )
 
   add_dependencies(daccess dactablerva_header)
-endif(CLR_CMAKE_HOST_DARWIN OR CLR_CMAKE_HOST_FREEBSD OR CLR_CMAKE_HOST_NETBSD)
+endif(CLR_CMAKE_PLATFORM_DARWIN OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)

@@ -16,10 +16,10 @@ endif(WIN32 AND FEATURE_EVENT_TRACE)
 
 add_subdirectory(debug/dbgutil)
 
-if(CLR_CMAKE_HOST_UNIX)
-  if(CLR_CMAKE_HOST_LINUX AND NOT CLR_CMAKE_HOST_UNIX_X86)
+if(CLR_CMAKE_PLATFORM_UNIX)
+  if(CLR_CMAKE_PLATFORM_LINUX AND NOT CLR_CMAKE_PLATFORM_UNIX_X86)
     add_subdirectory(debug/createdump)
-  endif(CLR_CMAKE_HOST_LINUX AND NOT CLR_CMAKE_HOST_UNIX_X86)
+  endif(CLR_CMAKE_PLATFORM_LINUX AND NOT CLR_CMAKE_PLATFORM_UNIX_X86)
 
   # Include the dummy c++ include files
   include_directories("pal/inc/rt/cpp")
@@ -60,7 +60,7 @@ if(CLR_CMAKE_HOST_UNIX)
   endfunction()
 
   add_subdirectory(nativeresources)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(utilcode)
 add_subdirectory(gcinfo)
@@ -80,6 +80,6 @@ add_subdirectory(unwinder)
 add_subdirectory(ildasm)
 add_subdirectory(ilasm)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_subdirectory(palrt)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)

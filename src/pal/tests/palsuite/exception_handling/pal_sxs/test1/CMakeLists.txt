@@ -2,18 +2,18 @@ cmake_minimum_required(VERSION 2.8.12.2)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
     add_definitions(-DFEATURE_ENABLE_HARDWARE_EXCEPTIONS)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Set the RPATH of paltest_pal_sxs_test1 so that it can find dependencies without needing to set LD_LIBRARY
 # For more information: http://www.cmake.org/Wiki/CMake_RPATH_handling.
 if(CORECLR_SET_RPATH)
-  if(CLR_CMAKE_HOST_LINUX)
+  if(CLR_CMAKE_PLATFORM_LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH "\$ORIGIN")
-  endif(CLR_CMAKE_HOST_LINUX)
+  endif(CLR_CMAKE_PLATFORM_LINUX)
 endif(CORECLR_SET_RPATH)
 
 # Test DLL1

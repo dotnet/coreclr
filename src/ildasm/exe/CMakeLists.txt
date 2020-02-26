@@ -9,7 +9,7 @@ add_definitions(-DFEATURE_CORECLR)
 
 include_directories(..)
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIE)
     include_directories(../unixcoreclrloader)
     build_resources(${CMAKE_CURRENT_SOURCE_DIR}/../dasm.rc dasm_rc TARGET_CPP_FILE)
@@ -20,7 +20,7 @@ if(CLR_CMAKE_HOST_UNIX)
 else()
     set(ILDASM_RESOURCES ../dasm.rc)
     add_definitions(-DFX_VER_INTERNALNAME_STR=ildasm.exe)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(ILDASM_SOURCES
     ../ceeload.cpp
@@ -60,7 +60,7 @@ set(ILDASM_LINK_LIBRARIES
     corguids
 )
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
     target_link_libraries(ildasm
         ${ILDASM_LINK_LIBRARIES}
         unixcoreclrloader
@@ -83,6 +83,6 @@ else()
         oleaut32
         shell32
     )
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 install_clr(ildasm)

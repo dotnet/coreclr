@@ -31,11 +31,11 @@ function(get_include_directories IncludeDirectories)
     get_directory_property(dirs INCLUDE_DIRECTORIES)
     foreach(dir IN LISTS dirs)
 
-      if (CLR_CMAKE_HOST_ARCH_ARM AND WIN32)
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
         list(APPEND INC_DIRECTORIES /I${dir})
       else()
         list(APPEND INC_DIRECTORIES -I${dir})
-      endif(CLR_CMAKE_HOST_ARCH_ARM AND WIN32)
+      endif(CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
 
     endforeach()
     set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
@@ -45,12 +45,12 @@ endfunction(get_include_directories)
 function(get_include_directories_asm IncludeDirectories)
     get_directory_property(dirs INCLUDE_DIRECTORIES)
 
-    if (CLR_CMAKE_HOST_ARCH_ARM AND WIN32)
+    if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
         list(APPEND INC_DIRECTORIES "-I ")
     endif()
 
     foreach(dir IN LISTS dirs)
-      if (CLR_CMAKE_HOST_ARCH_ARM AND WIN32)
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
         list(APPEND INC_DIRECTORIES ${dir};)
       else()
         list(APPEND INC_DIRECTORIES -I${dir})
@@ -144,7 +144,7 @@ function(add_precompiled_header header cppFile targetSources)
 endfunction()
 
 function(strip_symbols targetName outputFilename)
-  if (CLR_CMAKE_HOST_UNIX)
+  if (CLR_CMAKE_PLATFORM_UNIX)
     if (STRIP_SYMBOLS)
 
       # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
@@ -183,7 +183,7 @@ function(strip_symbols targetName outputFilename)
 
       set(${outputFilename} ${strip_destination_file} PARENT_SCOPE)
     endif (STRIP_SYMBOLS)
-  endif(CLR_CMAKE_HOST_UNIX)
+  endif(CLR_CMAKE_PLATFORM_UNIX)
 endfunction()
 
 function(install_clr targetName)
@@ -265,7 +265,7 @@ endfunction()
 function(verify_dependencies targetName errorMessage)
     set(SANITIZER_BUILD OFF)
 
-    if (CLR_CMAKE_HOST_UNIX)
+    if (CLR_CMAKE_PLATFORM_UNIX)
         if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
             string(FIND "$ENV{DEBUG_SANITIZERS}" "asan" __ASAN_POS)
             string(FIND "$ENV{DEBUG_SANITIZERS}" "ubsan" __UBSAN_POS)
@@ -279,7 +279,7 @@ function(verify_dependencies targetName errorMessage)
     # result in link error over there.
     # Also don't verify dependencies for Asan build because in this case shared
     # libraries can contain undefined symbols
-    if (NOT CLR_CMAKE_HOST_DARWIN AND NOT CLR_CMAKE_HOST_ANDROID AND NOT SANITIZER_BUILD)
+    if (NOT CLR_CMAKE_PLATFORM_DARWIN AND NOT CLR_CMAKE_PLATFORM_ANDROID AND NOT SANITIZER_BUILD)
         add_custom_command(
             TARGET ${targetName}
             POST_BUILD

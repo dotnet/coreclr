@@ -88,7 +88,7 @@ if(WIN32)
         # Add the generated OBJ in the dependency list so that it gets consumed during linkage
         set(CORDBDI_SOURCES_ASM_FILE ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj)
     endif()
-elseif(CLR_CMAKE_HOST_UNIX)
+elseif(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 
     if(CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR CLR_CMAKE_TARGET_ARCH_ARM)

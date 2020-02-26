@@ -9,6 +9,6 @@
 # assemblies) or System.Diagnostics.Process.Native (a native interop library for
 # System.Diagnostics.Process.dll).
 
-if(CLR_CMAKE_HOST_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX)
   add_subdirectory(System.Globalization.Native)
-endif(CLR_CMAKE_HOST_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX)
