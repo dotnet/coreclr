@@ -7,6 +7,10 @@
 #include "pal/dbgmsg.h"
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
+#if defined(_ARM64_)
+#define _TARGET_ARM64_
+#endif
+
 #include "../../../inc/corjitflags.h"
 
 #if HAVE_AUXV_HWCAP_H

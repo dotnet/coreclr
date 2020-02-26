@@ -308,7 +308,12 @@ class EMPTY_BASES_DECL SHash : public TRAITS
   public:
 
     class EMPTY_BASES_DECL Index
+#ifdef _DEBUG
+        // CheckedIteratorBase is a no-op in RET builds. having it as an empty base-class
+        // causes differences in the sizeof(SHash::Iterator) in DAC vs. non-DAC builds.
+        // avoid the issue by not specifying it as a base class in RET builds
         : public CheckedIteratorBase< SHash<TRAITS> >
+#endif
     {
         friend class SHash;
         friend class Iterator;

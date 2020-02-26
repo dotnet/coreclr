@@ -57,10 +57,10 @@
 #define GC_STATS
 #endif
 
-#if defined(TARGET_X86) || defined(TARGET_ARM)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     #define USE_UPPER_ADDRESS       0
 
-#elif defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     #define UPPER_ADDRESS_MAPPING_FACTOR 2
     #define CLR_UPPER_ADDRESS_MIN   0x64400000000
     #define CODEHEAP_START_ADDRESS  0x64480000000
@@ -76,7 +76,7 @@
     #error Please add a new #elif clause and define all portability macros for the new platform
 #endif
 
-#if defined(HOST_64BIT)
+#if defined(_WIN64)
 #define JIT_IS_ALIGNED
 #endif
 

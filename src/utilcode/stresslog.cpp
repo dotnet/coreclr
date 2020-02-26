@@ -49,9 +49,9 @@ unsigned __int64 getTimeStamp() {
     return ret.QuadPart;
 }
 
-#endif // TARGET_X86 
+#endif // _TARGET_X86_ 
 
-#if defined(TARGET_X86) && !defined(HOST_UNIX)
+#if defined(_TARGET_X86_) && !defined(HOST_UNIX)
 
 /*********************************************************************************/
 /* Get the the frequency cooresponding to 'getTimeStamp'.  For x86, this is the

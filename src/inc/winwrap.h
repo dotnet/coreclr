@@ -358,9 +358,9 @@ InterlockedCompareExchangePointer (
     return((PVOID)(LONG_PTR)_InterlockedCompareExchange((LONG volatile *)Destination, (LONG)(LONG_PTR)ExChange, (LONG)(LONG_PTR)Comperand));
 }
 
-#endif // HOST_X86 && _MSC_VER
+#endif // _X86_ && _MSC_VER
 
-#if defined(HOST_ARM) & !defined(HOST_UNIX)
+#if defined(_ARM_) & !defined(HOST_UNIX)
 //
 // InterlockedCompareExchangeAcquire/InterlockedCompareExchangeRelease is not mapped in SDK to the correct intrinsics. Remove once
 // the SDK definition is fixed (OS Bug #516255)

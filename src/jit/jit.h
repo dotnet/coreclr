@@ -52,161 +52,184 @@
 #define CHECK_STRUCT_PADDING 0 // Never enable it for non-MSFT compilers
 #endif
 
-#if defined(HOST_X86)
-#if defined(HOST_ARM)
-#error Cannot define both HOST_X86 and HOST_ARM
+#if defined(_X86_)
+#if defined(_ARM_)
+#error Cannot define both _X86_ and _ARM_
 #endif
-#if defined(HOST_AMD64)
-#error Cannot define both HOST_X86 and HOST_AMD64
+#if defined(_AMD64_)
+#error Cannot define both _X86_ and _AMD64_
 #endif
-#if defined(HOST_ARM64)
-#error Cannot define both HOST_X86 and HOST_ARM64
+#if defined(_ARM64_)
+#error Cannot define both _X86_ and _ARM64_
 #endif
-#elif defined(HOST_AMD64)
-#if defined(HOST_X86)
-#error Cannot define both HOST_AMD64 and HOST_X86
+#define _HOST_X86_
+#elif defined(_AMD64_)
+#if defined(_X86_)
+#error Cannot define both _AMD64_ and _X86_
 #endif
-#if defined(HOST_ARM)
-#error Cannot define both HOST_AMD64 and HOST_ARM
+#if defined(_ARM_)
+#error Cannot define both _AMD64_ and _ARM_
 #endif
-#if defined(HOST_ARM64)
-#error Cannot define both HOST_AMD64 and HOST_ARM64
+#if defined(_ARM64_)
+#error Cannot define both _AMD64_ and _ARM64_
 #endif
-#elif defined(HOST_ARM)
-#if defined(HOST_X86)
-#error Cannot define both HOST_ARM and HOST_X86
+#define _HOST_AMD64_
+#elif defined(_ARM_)
+#if defined(_X86_)
+#error Cannot define both _ARM_ and _X86_
 #endif
-#if defined(HOST_AMD64)
-#error Cannot define both HOST_ARM and HOST_AMD64
+#if defined(_AMD64_)
+#error Cannot define both _ARM_ and _AMD64_
 #endif
-#if defined(HOST_ARM64)
-#error Cannot define both HOST_ARM and HOST_ARM64
+#if defined(_ARM64_)
+#error Cannot define both _ARM_ and _ARM64_
 #endif
-#elif defined(HOST_ARM64)
-#if defined(HOST_X86)
-#error Cannot define both HOST_ARM64 and HOST_X86
+#define _HOST_ARM_
+#elif defined(_ARM64_)
+#if defined(_X86_)
+#error Cannot define both _ARM64_ and _X86_
 #endif
-#if defined(HOST_AMD64)
-#error Cannot define both HOST_ARM64 and HOST_AMD64
+#if defined(_AMD64_)
+#error Cannot define both _ARM64_ and _AMD64_
 #endif
-#if defined(HOST_ARM)
-#error Cannot define both HOST_ARM64 and HOST_ARM
+#if defined(_ARM_)
+#error Cannot define both _ARM64_ and _ARM_
 #endif
+#define _HOST_ARM64_
 #else
 #error Unsupported or unset host architecture
 #endif
 
-#if defined(TARGET_X86)
-#if defined(TARGET_ARM)
-#error Cannot define both TARGET_X86 and TARGET_ARM
+#if defined(_HOST_AMD64_) || defined(_HOST_ARM64_)
+#define _HOST_64BIT_
 #endif
-#if defined(TARGET_AMD64)
-#error Cannot define both TARGET_X86 and TARGET_AMD64
+
+#if defined(_TARGET_X86_)
+#if defined(_TARGET_ARM_)
+#error Cannot define both _TARGET_X86_ and _TARGET_ARM_
 #endif
-#if defined(TARGET_ARM64)
-#error Cannot define both TARGET_X86 and TARGET_ARM64
+#if defined(_TARGET_AMD64_)
+#error Cannot define both _TARGET_X86_ and _TARGET_AMD64_
 #endif
-#if !defined(HOST_X86)
+#if defined(_TARGET_ARM64_)
+#error Cannot define both _TARGET_X86_ and _TARGET_ARM64_
+#endif
+#if !defined(_HOST_X86_)
 #define _CROSS_COMPILER_
 #endif
-#elif defined(TARGET_AMD64)
-#if defined(TARGET_X86)
-#error Cannot define both TARGET_AMD64 and TARGET_X86
+#elif defined(_TARGET_AMD64_)
+#if defined(_TARGET_X86_)
+#error Cannot define both _TARGET_AMD64_ and _TARGET_X86_
 #endif
-#if defined(TARGET_ARM)
-#error Cannot define both TARGET_AMD64 and TARGET_ARM
+#if defined(_TARGET_ARM_)
+#error Cannot define both _TARGET_AMD64_ and _TARGET_ARM_
 #endif
-#if defined(TARGET_ARM64)
-#error Cannot define both TARGET_AMD64 and TARGET_ARM64
+#if defined(_TARGET_ARM64_)
+#error Cannot define both _TARGET_AMD64_ and _TARGET_ARM64_
 #endif
-#if !defined(HOST_AMD64)
+#if !defined(_HOST_AMD64_)
 #define _CROSS_COMPILER_
 #endif
-#elif defined(TARGET_ARM)
-#if defined(TARGET_X86)
-#error Cannot define both TARGET_ARM and TARGET_X86
+#elif defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_)
+#error Cannot define both _TARGET_ARM_ and _TARGET_X86_
 #endif
-#if defined(TARGET_AMD64)
-#error Cannot define both TARGET_ARM and TARGET_AMD64
+#if defined(_TARGET_AMD64_)
+#error Cannot define both _TARGET_ARM_ and _TARGET_AMD64_
 #endif
-#if defined(TARGET_ARM64)
-#error Cannot define both TARGET_ARM and TARGET_ARM64
+#if defined(_TARGET_ARM64_)
+#error Cannot define both _TARGET_ARM_ and _TARGET_ARM64_
 #endif
-#if !defined(HOST_ARM)
+#if !defined(_HOST_ARM_)
 #define _CROSS_COMPILER_
 #endif
-#elif defined(TARGET_ARM64)
-#if defined(TARGET_X86)
-#error Cannot define both TARGET_ARM64 and TARGET_X86
+#elif defined(_TARGET_ARM64_)
+#if defined(_TARGET_X86_)
+#error Cannot define both _TARGET_ARM64_ and _TARGET_X86_
 #endif
-#if defined(TARGET_AMD64)
-#error Cannot define both TARGET_ARM64 and TARGET_AMD64
+#if defined(_TARGET_AMD64_)
+#error Cannot define both _TARGET_ARM64_ and _TARGET_AMD64_
 #endif
-#if defined(TARGET_ARM)
-#error Cannot define both TARGET_ARM64 and TARGET_ARM
+#if defined(_TARGET_ARM_)
+#error Cannot define both _TARGET_ARM64_ and _TARGET_ARM_
 #endif
-#if !defined(HOST_ARM64)
+#if !defined(_HOST_ARM64_)
 #define _CROSS_COMPILER_
 #endif
 #else
 #error Unsupported or unset target architecture
 #endif
 
-#ifdef TARGET_64BIT
-#ifdef TARGET_X86
-#error Cannot define both TARGET_X86 and TARGET_64BIT
-#endif // TARGET_X86
-#ifdef TARGET_ARM
-#error Cannot define both TARGET_ARM and TARGET_64BIT
-#endif // TARGET_ARM
-#endif // TARGET_64BIT
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#ifndef _TARGET_64BIT_
+#define _TARGET_64BIT_
+#endif // _TARGET_64BIT_
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
-#define TARGET_XARCH
+#ifdef _TARGET_64BIT_
+#ifdef _TARGET_X86_
+#error Cannot define both _TARGET_X86_ and _TARGET_64BIT_
+#endif // _TARGET_X86_
+#ifdef _TARGET_ARM_
+#error Cannot define both _TARGET_ARM_ and _TARGET_64BIT_
+#endif // _TARGET_ARM_
+#endif // _TARGET_64BIT_
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#define _TARGET_XARCH_
 #endif
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
-#define TARGET_ARMARCH
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#define _TARGET_ARMARCH_
 #endif
 
-// If the UNIX_AMD64_ABI is defined make sure that TARGET_AMD64 is also defined.
+// If the UNIX_AMD64_ABI is defined make sure that _TARGET_AMD64_ is also defined.
 #if defined(UNIX_AMD64_ABI)
-#if !defined(TARGET_AMD64)
-#error When UNIX_AMD64_ABI is defined you must define TARGET_AMD64 defined as well.
+#if !defined(_TARGET_AMD64_)
+#error When UNIX_AMD64_ABI is defined you must define _TARGET_AMD64_ defined as well.
 #endif
 #endif
 
-// If the UNIX_X86_ABI is defined make sure that TARGET_X86 is also defined.
+// If the UNIX_X86_ABI is defined make sure that _TARGET_X86_ is also defined.
 #if defined(UNIX_X86_ABI)
-#if !defined(TARGET_X86)
-#error When UNIX_X86_ABI is defined you must define TARGET_X86 defined as well.
+#if !defined(_TARGET_X86_)
+#error When UNIX_X86_ABI is defined you must define _TARGET_X86_ defined as well.
 #endif
 #endif
 
-#if (defined(ALT_JIT) && (defined(UNIX_AMD64_ABI) || defined(UNIX_X86_ABI)) && !defined(TARGET_UNIX))
-// If we are building an ALT_JIT targeting Unix, override the TARGET_<os> to TARGET_UNIX
-#undef TARGET_WINDOWS
-#define TARGET_UNIX
+#if defined(HOST_UNIX)
+#define _HOST_UNIX_
 #endif
+
+// Are we generating code to target Unix? This is true if we will run on Unix (_HOST_UNIX_ is defined).
+// It's also true if we are building an altjit targetting Unix, which we determine by checking if either
+// UNIX_AMD64_ABI or UNIX_X86_ABI is defined.
+#if defined(_HOST_UNIX_) || ((defined(UNIX_AMD64_ABI) || defined(UNIX_X86_ABI)) && defined(ALT_JIT))
+#define _TARGET_UNIX_
+#endif
+
+#ifndef _TARGET_UNIX_
+#define _TARGET_WINDOWS_
+#endif // !_TARGET_UNIX_
 
 // --------------------------------------------------------------------------------
 // IMAGE_FILE_MACHINE_TARGET
 // --------------------------------------------------------------------------------
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 #define IMAGE_FILE_MACHINE_TARGET IMAGE_FILE_MACHINE_I386
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 #define IMAGE_FILE_MACHINE_TARGET IMAGE_FILE_MACHINE_AMD64
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 #define IMAGE_FILE_MACHINE_TARGET IMAGE_FILE_MACHINE_ARMNT
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 #define IMAGE_FILE_MACHINE_TARGET IMAGE_FILE_MACHINE_ARM64 // 0xAA64
 #else
 #error Unsupported or unset target architecture
 #endif
 
 // Include the AMD64 unwind codes when appropriate.
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 #include "win64unwind.h"
 #endif
 

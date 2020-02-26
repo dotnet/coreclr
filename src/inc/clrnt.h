@@ -750,7 +750,7 @@ typedef VM_COUNTERS *PVM_COUNTERS;
 
 #endif // !defined(HOST_UNIX)
 
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
 
 typedef enum _FUNCTION_TABLE_TYPE {
     RF_SORTED,
@@ -827,14 +827,14 @@ RtlVirtualUnwind_Unsafe(
     );
 #endif // !HOST_UNIX
 
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 //
 //  X86
 //
 
-#ifdef TARGET_X86
-#ifndef TARGET_UNIX
+#ifdef _TARGET_X86_
+#ifndef FEATURE_PAL
 //
 // x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
 //
@@ -944,7 +944,7 @@ RtlUnwindEx (
     __in_opt PEXCEPTION_RECORD ExceptionRecord,
     __in PVOID ReturnValue,
     __in PT_CONTEXT ContextRecord,
-    __in_opt PVOID HistoryTable
+    __in_opt PUNWIND_HISTORY_TABLE HistoryTable
     );
 
 EXTERN_C
@@ -955,7 +955,7 @@ RtlVirtualUnwind (
     __in DWORD HandlerType,
     __in DWORD ImageBase,
     __in DWORD ControlPc,
-    __in PT_RUNTIME_FUNCTION FunctionEntry,
+    __in PRUNTIME_FUNCTION FunctionEntry,
     __inout PT_CONTEXT ContextRecord,
     __out PVOID *HandlerData,
     __out PDWORD EstablisherFrame,

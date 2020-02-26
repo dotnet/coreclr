@@ -229,7 +229,7 @@ extern "C"
         return frame;
     }
 }
-#endif //TARGET_X86
+#endif //_TARGET_X86_
 
 /*************************************/
 /* Function to append a frame to an existing stack */
