@@ -456,7 +456,7 @@ HeapList* HostCodeHeap::InitializeHeapList(CodeHeapRequestInfo *pInfo)
     pHp->maxCodeHeapSize = m_TotalBytesAvailable - pTracker->size;
     pHp->reserveForJumpStubs = 0;
 
-#ifdef BIT64
+#ifdef _WIN64
     emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
 #endif
 

@@ -510,11 +510,11 @@ DEFAULT_LABEL:
                     va_copy(arglistsave, arglist);
 
                     /* Get the next argument - size of the array in characters */
-#ifdef BIT64
+#ifdef _WIN64
                     original_array_width = array_width = (size_t)(va_arg(arglist, unsigned int));
-#else  /* BIT64 */
+#else  /* _WIN64 */
                     original_array_width = array_width = va_arg(arglist, size_t);
-#endif  /* BIT64 */
+#endif  /* _WIN64 */
 
                     if(array_width < 1) {
                         if (widechar > 0)
@@ -862,11 +862,11 @@ x_incwidth:
                     case _T('p') :
                         /* force %hp to be treated as %p */
                         longone = 1;
-#ifdef BIT64
+#ifdef _WIN64
                         /* force %p to be 64 bit in WIN64 */
                         ++integer64;
                         num64 = 0;
-#endif  /* BIT64 */
+#endif  /* _WIN64 */
                     case _T('o') :
                     case _T('u') :
                     case _T('d') :

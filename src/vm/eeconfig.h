@@ -625,7 +625,7 @@ public:
 #ifdef FEATURE_CONSERVATIVE_GC
     bool    GetGCConservative()             const {LIMITED_METHOD_CONTRACT; return iGCConservative;}
 #endif
-#ifdef BIT64
+#ifdef _WIN64
     bool    GetGCAllowVeryLargeObjects()    const {LIMITED_METHOD_CONTRACT; return iGCAllowVeryLargeObjects;}
 #endif
 #ifdef _DEBUG
@@ -932,9 +932,9 @@ private: //----------------------------------------------------------------
 #ifdef FEATURE_CONSERVATIVE_GC
     bool iGCConservative;
 #endif // FEATURE_CONSERVATIVE_GC
-#ifdef BIT64
+#ifdef _WIN64
     bool iGCAllowVeryLargeObjects;
-#endif // BIT64
+#endif // _WIN64
 
     bool fGCBreakOnOOM;
 

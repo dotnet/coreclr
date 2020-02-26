@@ -564,10 +564,10 @@ Stub *GenerateUMThunkPrestub();
 //-------------------------------------------------------------------------
 // NExport stub
 //-------------------------------------------------------------------------
-#if  !defined(BIT64) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
+#if  !defined(_WIN64) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
 EXCEPTION_HANDLER_DECL(FastNExportExceptHandler);
 EXCEPTION_HANDLER_DECL(UMThunkPrestubHandler);
-#endif // BIT64
+#endif // _WIN64
 
 extern "C" void TheUMEntryPrestub(void);
 extern "C" PCODE TheUMEntryPrestubWorker(UMEntryThunk * pUMEntryThunk);

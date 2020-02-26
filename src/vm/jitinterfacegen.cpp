@@ -19,7 +19,7 @@
 #include "field.h"
 #include "ecall.h"
 
-#ifdef BIT64
+#ifdef _WIN64
 
 // These are the fastest(?) versions of JIT helpers as they have the code to GetThread patched into them
 // that does not make a call.
@@ -47,7 +47,7 @@ EXTERN_C Object* JIT_NewArr1VC_UP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 extern WriteBarrierManager g_WriteBarrierManager;
 #endif // _TARGET_AMD64_
 
-#endif // BIT64
+#endif // _WIN64
 
 /*********************************************************************/ 
 // Initialize the part of the JIT helpers that require very little of

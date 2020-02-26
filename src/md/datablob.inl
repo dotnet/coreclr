@@ -56,11 +56,11 @@ DataBlob::DataBlob(
     m_cbSize = source.m_cbSize;
 } // DataBlob::DataBlob
 
-#ifdef BIT64
+#ifdef _WIN64
     #define const_pbBadFood (((BYTE *)NULL) + 0xbaadf00dbaadf00d)
-#else //!BIT64
+#else //!_WIN64
     #define const_pbBadFood (((BYTE *)NULL) + 0xbaadf00d)
-#endif //!BIT64
+#endif //!_WIN64
 
 // --------------------------------------------------------------------------------------
 // 

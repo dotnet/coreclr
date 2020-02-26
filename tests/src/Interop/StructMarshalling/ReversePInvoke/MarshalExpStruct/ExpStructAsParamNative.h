@@ -195,7 +195,7 @@ union InnerArrayExplicit // size = 32 bytes
 
 };
 
-#ifdef BIT64
+#ifdef _WIN64
 union OUTER3 // size = 32 bytes
 {
     struct InnerSequential arr[2];

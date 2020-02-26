@@ -314,7 +314,7 @@ VARTYPE OleVariant::GetVarTypeForTypeHandle(TypeHandle type)
         if(MscorlibBinder::IsClass(pMT, CLASS__DECIMAL))
             return VT_DECIMAL;
 
-#ifdef BIT64
+#ifdef _WIN64
         if (MscorlibBinder::IsClass(pMT, CLASS__INTPTR))
             return VT_I8;
         if (MscorlibBinder::IsClass(pMT, CLASS__UINTPTR))
@@ -3458,11 +3458,11 @@ void OleVariant::MarshalComVariantForOleVariant(VARIANT *pOle, VariantData *pCom
             if (V_ISBYREF(pOle))
             {
                 // Must set ObjectRef field of Variant to a specific instance.
-#ifdef BIT64
+#ifdef _WIN64
                 VariantData::NewVariant(pCom, CV_U8, (INT64)(size_t)V_BYREF(pOle));
-#else // BIT64
+#else // _WIN64
                 VariantData::NewVariant(pCom, CV_U4, (INT32)(size_t)V_BYREF(pOle));
-#endif // BIT64
+#endif // _WIN64
             }
             else
             {

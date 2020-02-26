@@ -2221,7 +2221,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     // alloc wrapper, aligned to cache line
     NewCCWHolder pStartWrapper(pWrapperCache);
     pStartWrapper = (ComCallWrapper*)pWrapperCache->GetCacheLineAllocator()->
-#ifdef BIT64
+#ifdef _WIN64
                                     GetCacheLine64();
     _ASSERTE(sizeof(ComCallWrapper) <= 64);
 #else
@@ -2262,7 +2262,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
         {
             // alloc wrapper, aligned 32 bytes
             ComCallWrapper* pNewWrapper = (ComCallWrapper*)pWrapperCache->GetCacheLineAllocator()->
-#ifdef BIT64
+#ifdef _WIN64
                                           GetCacheLine64();
             _ASSERTE(sizeof(ComCallWrapper) <= 64);
 #else
@@ -2541,18 +2541,18 @@ void ComCallWrapper::FreeWrapper(ComCallWrapperCache *pWrapperCache)
         while (pWrap2 != NULL)
         {           
             ComCallWrapper* pTempWrap = GetNext(pWrap2);
-    #ifdef BIT64
+    #ifdef _WIN64
             pWrapperCache->GetCacheLineAllocator()->FreeCacheLine64(pWrap2);
-    #else //BIT64
+    #else //_WIN64
             pWrapperCache->GetCacheLineAllocator()->FreeCacheLine32(pWrap2);
-    #endif //BIT64
+    #endif //_WIN64
             pWrap2 = pTempWrap;
         }
-    #ifdef BIT64
+    #ifdef _WIN64
         pWrapperCache->GetCacheLineAllocator()->FreeCacheLine64(this);
-    #else //BIT64
+    #else //_WIN64
         pWrapperCache->GetCacheLineAllocator()->FreeCacheLine32(this);
-    #endif //BIT64
+    #endif //_WIN64
     }
 
     // release ccw mgr

@@ -5094,7 +5094,7 @@ void DacDbiInterfaceImpl::AlignStackPointer(CORDB_ADDRESS * pEsp)
     SUPPORTS_DAC;
 
     // Nop on x86.
-#if defined(BIT64)
+#if defined(_WIN64)
     // on 64-bit, stack pointer must be 16-byte aligned. 
     // Stacks grown down, so round down to nearest 0xF bits.
     *pEsp &= ~((CORDB_ADDRESS) 0xF);

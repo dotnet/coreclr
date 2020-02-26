@@ -140,11 +140,11 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 
 // The GC is highly dependent on SIZE_OF_OBJHEADER being exactly the sizeof(ObjHeader)
 // We define this macro so that the preprocessor can calculate padding structures.
-#ifdef BIT64
+#ifdef _WIN64
 #define SIZEOF_OBJHEADER    8
-#else // !BIT64
+#else // !_WIN64
 #define SIZEOF_OBJHEADER    4
-#endif // !BIT64
+#endif // !_WIN64
  
 
 inline void InitializeSpinConstants()
@@ -1282,15 +1282,15 @@ class ObjHeader
 
   private:
     // !!! Notice: m_SyncBlockValue *MUST* be the last field in ObjHeader.
-#ifdef BIT64
+#ifdef _WIN64
     DWORD    m_alignpad;
-#endif // BIT64
+#endif // _WIN64
 
     Volatile<DWORD> m_SyncBlockValue;      // the Index and the Bits
 
-#if defined(BIT64) && defined(_DEBUG)
+#if defined(_WIN64) && defined(_DEBUG)
     void IllegalAlignPad();
-#endif // BIT64 && _DEBUG
+#endif // _WIN64 && _DEBUG
 
     INCONTRACT(void * GetPtrForLockContract());
 
@@ -1300,11 +1300,11 @@ class ObjHeader
     FORCEINLINE DWORD GetHeaderSyncBlockIndex()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(_WIN64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
+#endif // _WIN64 && _DEBUG && !DACCESS_COMPILE
 
         // pull the value out before checking it to avoid race condition
         DWORD value = m_SyncBlockValue.LoadWithoutBarrier();
@@ -1405,11 +1405,11 @@ class ObjHeader
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
 
-#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(_WIN64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
+#endif // _WIN64 && _DEBUG && !DACCESS_COMPILE
 
         return m_SyncBlockValue.LoadWithoutBarrier();
     }

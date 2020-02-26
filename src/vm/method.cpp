@@ -1328,11 +1328,11 @@ ReturnKind MethodDesc::ParseReturnKindFromSig(INDEBUG(bool supportStringConstruc
 
 ReturnKind MethodDesc::GetReturnKind(INDEBUG(bool supportStringConstructors))
 {
-#ifdef BIT64
+#ifdef _WIN64
     // For simplicity, we don't hijack in funclets, but if you ever change that, 
     // be sure to choose the OnHijack... callback type to match that of the FUNCLET
     // not the main method (it would probably be Scalar).
-#endif // BIT64
+#endif // _WIN64
 
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
     // Mark that we are performing a stackwalker like operation on the current thread.

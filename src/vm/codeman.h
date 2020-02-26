@@ -533,7 +533,7 @@ public:
 #endif
 };
 
-#if defined(BIT64)
+#if defined(_WIN64)
 // On non X86 platforms, the OS defined UnwindInfo (accessed from RUNTIME_FUNCTION
 // structures) to  support the ability unwind the stack.   Unfortunatey the pre-Win8 
 // APIs defined a callback API for publishing this data dynamically that ETW does 
@@ -594,7 +594,7 @@ private:
     int                 cDeletedEntries;    // Number of slots we removed. 
 };
 
-#endif // defined(BIT64)
+#endif // defined(_WIN64)
 
 //-----------------------------------------------------------------------------
 // The ExecutionManager uses RangeSection as the abstraction of a contiguous
@@ -636,9 +636,9 @@ struct RangeSection
     //    PTR_Module      pZapModule;   // valid if RANGE_SECTION_HEAP is not set
     // };
     TADDR           pHeapListOrZapModule;
-#if defined(BIT64)
+#if defined(_WIN64)
     PTR_UnwindInfoTable pUnwindInfoTable; // Points to unwind information for this memory range. 
-#endif // defined(BIT64)
+#endif // defined(_WIN64)
 };
 
 /*****************************************************************************/
@@ -1463,7 +1463,7 @@ private:
         static count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
-#ifdef BIT64
+#ifdef _WIN64
             return (count_t) ((size_t) k ^ ((size_t) k >> 32));
 #else
             return (count_t)(size_t)k;

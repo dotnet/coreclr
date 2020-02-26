@@ -106,11 +106,11 @@ struct FakeStub
 #ifdef _DEBUG
     UINT32  m_signature;
 #else 
-#ifdef BIT64
+#ifdef _WIN64
     //README ALIGNEMENT: in retail mode UINT m_numCodeBytes does not align to 16byte for the code
     //                   after the Stub struct. This is to pad properly
     UINT    m_pad_code_bytes; 
-#endif // BIT64
+#endif // _WIN64
 #endif // _DEBUG
 };
 

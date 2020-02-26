@@ -29,7 +29,7 @@ typedef struct
 {
     I4Array * largeResult;
     int length;
-#ifdef BIT64
+#ifdef _WIN64
     int padding;
 #endif
     int smallResult[16];

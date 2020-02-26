@@ -5977,7 +5977,7 @@ void Interpreter::NewArr()
             COMPlusThrow(kOverflowException);
         }
 
-#ifdef BIT64
+#ifdef _WIN64
         // Even though ECMA allows using a native int as the argument to newarr instruction
         // (therefore size is INT_PTR), ArrayBase::m_NumComponents is 32-bit, so even on 64-bit
         // platforms we can't create an array whose size exceeds 32 bits.

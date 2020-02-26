@@ -21,7 +21,7 @@
 #define FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework")
 
 // keys for HKCU
-#ifdef BIT64    
+#ifdef _WIN64    
 #define USER_FRAMEWORK_REGISTRY_KEY             "Software\\Microsoft\\.NETFramework64"
 #define USER_FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework64")
 #else
@@ -1176,9 +1176,9 @@ typedef struct IMAGE_COR_ILMETHOD_SECT_EH_FAT
 /***********************************/
 typedef struct IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_SMALL
 {
-#ifdef BIT64
+#ifdef _WIN64
     unsigned            Flags         : 16;
-#else // !BIT64
+#else // !_WIN64
     CorExceptionFlag    Flags         : 16;
 #endif
     unsigned            TryOffset     : 16;

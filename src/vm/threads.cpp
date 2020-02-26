@@ -6544,7 +6544,7 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         // <TODO> Tune this as needed </TODO>
         ULONG uGuardSize = SIZEOF_DEFAULT_STACK_GUARANTEE;
         int   EXTRA_PAGES = 0;
-#if defined(BIT64)
+#if defined(_WIN64)
         // Free Build EH Stack Stats:
         // --------------------------------
         // currently the maximum stack usage we'll face while handling a SO includes:
@@ -6572,11 +6572,11 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
             uGuardSize += (ThreadGuardPages * GetOsPageSize());
         }
 
-#else // BIT64
+#else // _WIN64
 #ifdef _DEBUG
         uGuardSize += (1 * GetOsPageSize());    // one extra page for debug infrastructure
 #endif // _DEBUG
-#endif // BIT64
+#endif // _WIN64
 
         LOG((LF_EH, LL_INFO10000, "STACKOVERFLOW: setting thread stack guarantee to 0x%x\n", uGuardSize));
 

@@ -121,8 +121,8 @@ void *__DEBUG__g_StubHeapSegments = &g_StubHeapSegments;
 //
 T_RUNTIME_FUNCTION*
 FindStubFunctionEntry (
-   BIT64_ONLY(IN ULONG64    ControlPc)
-    NOT_BIT64(IN ULONG      ControlPc),
+   WIN64_ONLY(IN ULONG64    ControlPc)
+    NOT_WIN64(IN ULONG      ControlPc),
               IN PVOID      Context
     )
 {
@@ -2224,7 +2224,7 @@ void Stub::SetupStub(int numCodeBytes, DWORD flags
 #ifdef _DEBUG
     m_signature = kUsedStub;
 #else
-#ifdef BIT64
+#ifdef _WIN64
     m_pad_code_bytes = 0;
 #endif
 #endif

@@ -418,9 +418,9 @@ void MarshalDCBTransportToDCB(DebuggerIPCControlBlockTransport* pIn, DebuggerIPC
     pOut->m_errorHR =                         pIn->m_errorHR;
     pOut->m_errorCode =                       pIn->m_errorCode;
 
-#if defined(DBG_TARGET_64BIT)
+#if defined(DBG_TARGET_WIN64)
     pOut->padding4 =                          pIn->padding4;
-#endif // DBG_TARGET_64BIT
+#endif // DBG_TARGET_WIN64
 
 
     // 
@@ -472,9 +472,9 @@ void MarshalDCBToDCBTransport(DebuggerIPCControlBlock* pIn, DebuggerIPCControlBl
     pOut->m_errorHR =                         pIn->m_errorHR;
     pOut->m_errorCode =                       pIn->m_errorCode;
 
-#if defined(DBG_TARGET_64BIT)
+#if defined(DBG_TARGET_WIN64)
     pOut->padding4 =                          pIn->padding4;
-#endif // DBG_TARGET_64BIT
+#endif // DBG_TARGET_WIN64
     
     pOut->m_realHelperThreadId =             pIn->m_realHelperThreadId;
     pOut->m_helperThreadId =                 pIn->m_helperThreadId;

@@ -94,7 +94,7 @@ inline BOOL WinRTSupported()
 
 #endif // FEATURE_COMINTEROP
 
-#ifdef BIT64
+#ifdef _WIN64
 inline BOOL RunningInWow64()
 {
     return FALSE;

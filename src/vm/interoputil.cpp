@@ -2094,11 +2094,11 @@ HRESULT LoadRegTypeLib(_In_ REFGUID guid,
         hr = QueryPathOfRegTypeLib(guid, wVerMajor, wVerMinor, LOCALE_USER_DEFAULT, &wzPath);
         if (SUCCEEDED(hr))
         {
-#ifdef BIT64
+#ifdef _WIN64
             REGKIND rk = (REGKIND)(REGKIND_NONE | LOAD_TLB_AS_64BIT);
 #else
             REGKIND rk = (REGKIND)(REGKIND_NONE | LOAD_TLB_AS_32BIT);
-#endif // BIT64
+#endif // _WIN64
             hr = LoadTypeLibEx(wzPath, rk, pptlib);
         }
     }

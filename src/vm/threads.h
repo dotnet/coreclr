@@ -4240,11 +4240,11 @@ public:
    this fast, the table is not perfect (there can be collisions), but this should
    not cause false positives, but it may allow errors to go undetected  */
 
-#ifdef BIT64
+#ifdef _WIN64
 #define OBJREF_HASH_SHIFT_AMOUNT 3
-#else // BIT64
+#else // _WIN64
 #define OBJREF_HASH_SHIFT_AMOUNT 2
-#endif // BIT64
+#endif // _WIN64
 
         // For debugging, you may want to make this number very large, (8K)
         // should basically insure that no collisions happen

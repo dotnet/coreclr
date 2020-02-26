@@ -206,12 +206,12 @@ enum {
     kLookupMapIndexStride   = 0x10,                         // The range of table entries covered by one index entry (power of two for faster hash lookup)
     kBitsPerRVA             = sizeof(DWORD) * 8,            // Bits in an (uncompressed) table value RVA (RVAs
                                                             // currently still 32-bit even on 64-bit platforms)
-#ifdef BIT64
+#ifdef _WIN64
     kFlagBits               = 3,                            // Number of bits at the bottom of a value
                                                             // pointer that may be used for flags
-#else // BIT64
+#else // _WIN64
     kFlagBits               = 2,
-#endif // BIT64
+#endif // _WIN64
 
 };
 

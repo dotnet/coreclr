@@ -98,11 +98,11 @@ struct StackwalkCacheUnwindInfo
 
 //************************************************************************
 
-#if defined(BIT64)
+#if defined(_WIN64)
     #define STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY 0x10
-#else  // !BIT64
+#else  // !_WIN64
     #define STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY 0x8
-#endif // !BIT64
+#endif // !_WIN64
 
 struct 
 DECLSPEC_ALIGN(STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY)

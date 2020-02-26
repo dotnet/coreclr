@@ -445,11 +445,11 @@ struct StressMsg {
     friend class ThreadStressLog;
     friend class StressLog;
 };
-#ifdef BIT64
+#ifdef _WIN64
 #define STRESSLOG_CHUNK_SIZE (32 * 1024)
-#else //BIT64
+#else //_WIN64
 #define STRESSLOG_CHUNK_SIZE (16 * 1024)
-#endif //BIT64
+#endif //_WIN64
 #define GC_STRESSLOG_MULTIPLY 5
 
 // a chunk of memory for stress log

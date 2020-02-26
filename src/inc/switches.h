@@ -178,7 +178,7 @@
 
 // Prefer double alignment for structs and arrays with doubles. Put arrays of doubles more agressively 
 // into large object heap for performance because large object heap is 8 byte aligned 
-#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(BIT64)
+#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(_WIN64)
 #define FEATURE_DOUBLE_ALIGNMENT_HINT
 #endif
 
