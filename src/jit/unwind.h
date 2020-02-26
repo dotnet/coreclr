@@ -11,7 +11,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
 
 // Windows no longer imposes a maximum prolog size. However, we still have an
 // assert here just to inform us if we increase the size of the prolog
@@ -19,7 +19,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // OS unwinder to having as few unwind codes as possible.
 // You can increase this "max" number if necessary.
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 const unsigned MAX_PROLOG_SIZE_BYTES = 44;
 const unsigned MAX_EPILOG_SIZE_BYTES = 44;
 #define UWC_END 0xFF // "end" unwind code
@@ -27,7 +27,7 @@ const unsigned MAX_EPILOG_SIZE_BYTES = 44;
 #define UW_MAX_CODE_WORDS_COUNT 15      // Max number that can be encoded in the "Code Words" field of the .pdata record
 #define UW_MAX_EPILOG_START_INDEX 0xFFU // Max number that can be encoded in the "Epilog Start Index" field
                                         // of the .pdata record
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 const unsigned MAX_PROLOG_SIZE_BYTES = 100;
 const unsigned MAX_EPILOG_SIZE_BYTES = 100;
 #define UWC_END 0xE4   // "end" unwind code
@@ -35,7 +35,7 @@ const unsigned MAX_EPILOG_SIZE_BYTES = 100;
 #define UW_MAX_FRAGMENT_SIZE_BYTES (1U << 20)
 #define UW_MAX_CODE_WORDS_COUNT 31
 #define UW_MAX_EPILOG_START_INDEX 0x3FFU
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
 #define UW_MAX_EPILOG_COUNT 31                 // Max number that can be encoded in the "Epilog count" field
                                                // of the .pdata record
@@ -128,11 +128,11 @@ public:
 
     bool IsEndCode(BYTE b)
     {
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         return b >= 0xFD;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         return (b == UWC_END); // TODO-ARM64-Bug?: what about the "end_c" code?
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
     }
 
 #ifdef DEBUG
@@ -795,9 +795,9 @@ public:
         return uwiCurLoc;
     }
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     unsigned GetInstructionSize();
-#endif // defined(TARGET_ARM)
+#endif // defined(_TARGET_ARM_)
 
     void CaptureLocation();
 
@@ -810,15 +810,15 @@ public:
 
 #ifdef DEBUG
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     // Given the first byte of the unwind code, check that its opsize matches
     // the last instruction added in the emitter.
     void CheckOpsize(BYTE b1);
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     void CheckOpsize(BYTE b1)
     {
     } // nothing to do; all instructions are 4 bytes
-#endif // defined(TARGET_ARM64)
+#endif // defined(_TARGET_ARM64_)
 
     void Dump(bool isHotCode, int indent = 0);
 
@@ -865,4 +865,4 @@ void DumpUnwindInfo(Compiler*         comp,
 
 #endif // DEBUG
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_

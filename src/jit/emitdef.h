@@ -7,11 +7,11 @@
 #define _EMITDEF_H_
 /*****************************************************************************/
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 #include "emitxarch.h"
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 #include "emitarm.h"
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 #include "emitarm64.h"
 #else
 #error Unsupported or unset target architecture

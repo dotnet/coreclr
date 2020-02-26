@@ -41,7 +41,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
     LclVarDsc*   varDsc = compiler->lvaTable + lclNum;
 
 #ifdef DEBUG
-#if !defined(TARGET_AMD64)
+#if !defined(_TARGET_AMD64_)
     // There are no addr nodes on ARM and we are experimenting with encountering vars in 'random' order.
     // Struct fields are not traversed in a consistent order, so ignore them when
     // verifying that we see the var nodes in execution order
@@ -59,7 +59,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             // dereferenced, so we can't say that this is not a use or def.
         }
     }
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 #endif // DEBUG
 
     compiler->compCurLifeTree = tree;

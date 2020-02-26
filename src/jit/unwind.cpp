@@ -118,7 +118,7 @@ void Compiler::unwindGetFuncLocations(FuncInfoDsc*             func,
 
 #endif // FEATURE_EH_FUNCLETS
 
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
 
 void Compiler::createCfiCode(FuncInfoDsc* func, UNATIVE_OFFSET codeOffset, UCHAR cfiOpcode, short dwarfReg, INT offset)
 {
@@ -142,14 +142,14 @@ void Compiler::unwindPushPopCFI(regNumber reg)
                               // since it is pushed as a frame register.
                               | RBM_FPBASE
 #endif
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
                               | RBM_R11 | RBM_LR | RBM_PC
 #endif
         ;
 
     if (relOffsetMask & genRegMask(reg))
     {
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
         createCfiCode(func, cbProlog, CFI_ADJUST_CFA_OFFSET, DWARF_REG_ILLEGAL, REGSIZE_BYTES);
 #endif
         createCfiCode(func, cbProlog, CFI_REL_OFFSET, mapRegNumToDwarfReg(reg));
@@ -377,7 +377,7 @@ void Compiler::DumpCfiInfo(bool                  isHotCode,
 }
 #endif // DEBUG
 
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
 
 //------------------------------------------------------------------------
 // Compiler::unwindGetCurrentOffset: Calculate the current byte offset of the
@@ -399,7 +399,7 @@ UNATIVE_OFFSET Compiler::unwindGetCurrentOffset(FuncInfoDsc* func)
     }
     else
     {
-#if defined(TARGET_AMD64) || (defined(TARGET_UNIX) && (defined(TARGET_ARMARCH) || defined(TARGET_X86)))
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_UNIX_) && (defined(_TARGET_ARMARCH_) || defined(_TARGET_X86_)))
         assert(func->startLoc != nullptr);
         offset = func->startLoc->GetFuncletPrologOffset(genEmitter);
 #else
@@ -410,19 +410,19 @@ UNATIVE_OFFSET Compiler::unwindGetCurrentOffset(FuncInfoDsc* func)
     return offset;
 }
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
 // See unwindAmd64.cpp
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
 // See unwindArm64.cpp
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
 // See unwindArm.cpp
 
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
 
 // See unwindX86.cpp
 

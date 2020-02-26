@@ -15,10 +15,10 @@
 #include <xclrdata.h>
 #include <sospriv.h>
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // It is unfortunate having to include this header just to get the definition of GenericModeBlock
 #include <msodw.h>
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 //
 // Whenever a structure is marshalled between different platforms, we need to ensure the

@@ -144,7 +144,7 @@ void CodeGen::genCodeForBBlist()
     compiler->fgSafeBasicBlockCreation = false;
 #endif // DEBUG
 
-#if defined(DEBUG) && defined(TARGET_X86)
+#if defined(DEBUG) && defined(_TARGET_X86_)
 
     // Check stack pointer on call stress mode is not compatible with fully interruptible GC. REVIEW: why?
     //
@@ -153,9 +153,9 @@ void CodeGen::genCodeForBBlist()
         compiler->opts.compStackCheckOnCall = false;
     }
 
-#endif // defined(DEBUG) && defined(TARGET_X86)
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
-#if defined(DEBUG) && defined(TARGET_XARCH)
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
 
     // Check stack pointer on return stress mode is not compatible with fully interruptible GC. REVIEW: why?
     // It is also not compatible with any function that makes a tailcall: we aren't smart enough to only
@@ -166,7 +166,7 @@ void CodeGen::genCodeForBBlist()
         compiler->opts.compStackCheckOnRet = false;
     }
 
-#endif // defined(DEBUG) && defined(TARGET_XARCH)
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
     // Prepare the blocks for exception handling codegen: mark the blocks that needs labels.
     genPrepForEHCodegen();
@@ -300,7 +300,7 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
         genInsertNopForUnwinder(block);
 #endif
 
@@ -308,7 +308,7 @@ void CodeGen::genCodeForBBlist()
 
         genUpdateCurrentFunclet(block);
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         if (genAlignLoops && block->bbFlags & BBF_LOOP_HEAD)
         {
             getEmitter()->emitLoopAlign();
@@ -494,11 +494,11 @@ void CodeGen::genCodeForBBlist()
 // (it's as good as any, but better than the prologue, which can only be a single instruction
 // group) then use COMPlus_JitLateDisasm=* to see if the late disassembler
 // thinks the instructions are the same as we do.
-#if defined(TARGET_AMD64) && defined(LATE_DISASM)
+#if defined(_TARGET_AMD64_) && defined(LATE_DISASM)
             genAmd64EmitterUnitTests();
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
             genArm64EmitterUnitTests();
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
         }
 #endif // defined(DEBUG)
 
@@ -585,7 +585,7 @@ void CodeGen::genCodeForBBlist()
         /* Both stacks should always be empty on exit from a basic block */
         noway_assert(genStackLevel == 0);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // On AMD64, we need to generate a NOP after a call that is the last instruction of the block, in several
         // situations, to support proper exception handling semantics. This is mostly to ensure that when the stack
         // walker computes an instruction pointer for a frame, that instruction pointer is in the correct EH region.
@@ -643,7 +643,7 @@ void CodeGen::genCodeForBBlist()
                 }
             }
         }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         /* Do we need to generate a jump or return? */
 
@@ -931,7 +931,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             LclVarDsc*           varDsc = &compiler->lvaTable[lcl->gtLclNum];
 
 // TODO-Cleanup: The following code could probably be further merged and cleaned up.
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             // Load local variable from its home location.
             // In most cases the tree type will indicate the correct type to use for the load.
             // However, if it is NOT a normalizeOnLoad lclVar (i.e. NOT a small int that always gets
@@ -957,7 +957,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             {
                 inst_RV_TT(ins_Load(treeType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum)), dstReg, unspillTree);
             }
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
             var_types targetType = unspillTree->gtType;
             if (targetType != genActualType(varDsc->lvType) && !varTypeIsGC(targetType) && !varDsc->lvNormalizeOnLoad())
             {
@@ -970,7 +970,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             // Load local variable from its home location.
             inst_RV_TT(ins, dstReg, unspillTree, 0, attr);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
             var_types   targetType = unspillTree->gtType;
             instruction ins        = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
             emitAttr    attr       = emitTypeSize(targetType);
@@ -1107,7 +1107,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         else if (unspillTree->OperIsMultiRegOp())
         {
             GenTreeMultiRegOp* multiReg = unspillTree->AsMultiRegOp();
@@ -1134,7 +1134,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#endif //TARGET_ARM
+#endif //_TARGET_ARM_
 #endif // FEATURE_ARG_SPLIT
         else
         {
@@ -1337,14 +1337,14 @@ void CodeGen::genConsumeAddrMode(GenTreeAddrMode* addr)
 
 void CodeGen::genConsumeRegs(GenTree* tree)
 {
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (tree->OperGet() == GT_LONG)
     {
         genConsumeRegs(tree->gtGetOp1());
         genConsumeRegs(tree->gtGetOp2());
         return;
     }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
 
     if (tree->isUsedFromSpillTemp())
     {
@@ -1360,7 +1360,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
         {
             genConsumeAddress(tree);
         }
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         else if (tree->OperIsLocalRead())
         {
             // A contained lcl var must be living on stack and marked as reg optional, or not be a
@@ -1393,7 +1393,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             }
         }
 #endif // FEATURE_HW_INTRINSICS
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
         else if (tree->OperIsInitVal())
         {
             genConsumeReg(tree->gtGetOp1());
@@ -1541,10 +1541,10 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
     // Otherwise load the op1 (GT_ADDR) into the dstReg to copy the struct on the stack by value.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     assert(dstReg != REG_SPBASE);
     inst_RV_RV(INS_mov, dstReg, REG_SPBASE);
-#else  // !TARGET_X86
+#else  // !_TARGET_X86_
     GenTree* dstAddr = putArgNode;
     if (dstAddr->gtRegNum != dstReg)
     {
@@ -1554,7 +1554,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
         assert(m_stkArgVarNum != BAD_VAR_NUM);
         getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, dstReg, m_stkArgVarNum, putArgNode->getArgOffset());
     }
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     if (srcAddr->gtRegNum != srcReg)
     {
@@ -1624,7 +1624,7 @@ void CodeGen::genConsumeArgSplitStruct(GenTreePutArgSplit* putArgNode)
 //    The x86 version of this is in codegenxarch.cpp, and doesn't take an
 //    outArgVarNum, as it pushes its args onto the stack.
 //
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
 void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArgVarNum)
 {
     assert(putArgStk->gtOp1->OperIs(GT_FIELD_LIST));
@@ -1651,7 +1651,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
         assert((thisFieldOffset + EA_SIZE_IN_BYTES(attr)) <= compiler->lvaLclSize(outArgVarNum));
     }
 }
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
 //------------------------------------------------------------------------
 // genSetBlockSize: Ensure that the block size is in the given register
@@ -1870,7 +1870,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             else if (tree->OperIsMultiRegOp())
             {
                 GenTreeMultiRegOp* multiReg = tree->AsMultiRegOp();
@@ -1887,7 +1887,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 #endif // FEATURE_ARG_SPLIT
             else
             {
@@ -2000,9 +2000,9 @@ void CodeGen::genEmitCall(int                   callType,
                           regNumber             base,
                           bool                  isJump)
 {
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
     int argSize = 0;
-#endif // !defined(TARGET_X86)
+#endif // !defined(_TARGET_X86_)
     getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
                                methHnd,
                                INDEBUG_LDISASM_COMMA(sigInfo)
@@ -2031,9 +2031,9 @@ void CodeGen::genEmitCall(int                   callType,
                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
                           IL_OFFSETX            ilOffset)
 {
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
     int argSize = 0;
-#endif // !defined(TARGET_X86)
+#endif // !defined(_TARGET_X86_)
     genConsumeAddress(indir->Addr());
 
     getEmitter()->emitIns_Call(emitter::EmitCallType(callType),
@@ -2081,12 +2081,12 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
         // Casts int32/uint32/int64/uint64 --> float/double
         genIntToFloatCast(tree);
     }
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     else if (varTypeIsLong(tree->gtOp1))
     {
         genLongToIntCast(tree);
     }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
     else
     {
         // Casts int <--> int
@@ -2136,7 +2136,7 @@ CodeGen::GenIntCastDesc::GenIntCastDesc(GenTreeCast* cast)
             m_extendSrcSize = castSize;
         }
     }
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     // castType cannot be (U)LONG on 32 bit targets, such casts should have been decomposed.
     // srcType cannot be a small int type since it's the "actual type" of the cast operand.
     // This means that widening casts do not occur on 32 bit targets.
@@ -2213,7 +2213,7 @@ CodeGen::GenIntCastDesc::GenIntCastDesc(GenTreeCast* cast)
     }
 }
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
 //------------------------------------------------------------------------
 // genStoreLongLclVar: Generate code to store a non-enregistered long lclVar
 //
@@ -2265,7 +2265,7 @@ void CodeGen::genStoreLongLclVar(GenTree* treeNode)
                           genTypeSize(TYP_INT));
     }
 }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
 
 //------------------------------------------------------------------------
 // genCodeForJumpTrue: Generate code for a GT_JTRUE node.

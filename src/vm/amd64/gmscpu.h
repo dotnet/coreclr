@@ -71,7 +71,7 @@ protected:
 
     PTR_TADDR _pRetAddr;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // On PAL, we don't always have the context pointers available due to
     // a limitation of an unwinding library. In such case, preserve
     // the unwound values.
@@ -132,7 +132,7 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
     this->m_Rip = copy->m_Rip;
     this->m_Rsp = copy->m_Rsp;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     this->m_Unwound = copy->m_Unwound;
 #endif
 

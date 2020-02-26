@@ -113,24 +113,24 @@ public:
 #ifdef OFFSETOF_PRECODE_TYPE
 
         BYTE type = m_data[OFFSETOF_PRECODE_TYPE];
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         if (type == X86_INSTR_MOV_RM_R)
             type = m_data[OFFSETOF_PRECODE_TYPE_MOV_RM_R];
-#endif //  TARGET_X86
+#endif //  _TARGET_X86_
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         if (type == (X86_INSTR_MOV_R10_IMM64 & 0xFF))
             type = m_data[OFFSETOF_PRECODE_TYPE_MOV_R10];
         else if ((type == (X86_INSTR_CALL_REL32 & 0xFF)) || (type == (X86_INSTR_JMP_REL32  & 0xFF)))
             type = m_data[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP];
 #endif // _AMD64
 
-#if defined(HAS_FIXUP_PRECODE) && (defined(TARGET_X86) || defined(TARGET_AMD64))
+#if defined(HAS_FIXUP_PRECODE) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
         if (type == FixupPrecode::TypePrestub)
             type = FixupPrecode::Type;
 #endif
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         static_assert_no_msg(offsetof(StubPrecode, m_pTarget) == offsetof(NDirectImportPrecode, m_pMethodDesc));
         // If the precode does not have thumb bit on target, it must be NDirectImportPrecode.
         if (type == StubPrecode::Type && ((AsStubPrecode()->m_pTarget & THUMB_CODE) == 0))
@@ -151,16 +151,16 @@ public:
         SUPPORTS_DAC;
         int align = PRECODE_ALIGNMENT;
 
-#if defined(TARGET_X86) && defined(HAS_FIXUP_PRECODE)
+#if defined(_TARGET_X86_) && defined(HAS_FIXUP_PRECODE)
         // Fixup precodes has to be aligned to allow atomic patching
         if (t == PRECODE_FIXUP)
             align = 8;
-#endif // TARGET_X86 && HAS_FIXUP_PRECODE
+#endif // _TARGET_X86_ && HAS_FIXUP_PRECODE
 
-#if defined(TARGET_ARM) && defined(HAS_COMPACT_ENTRYPOINTS)
+#if defined(_TARGET_ARM_) && defined(HAS_COMPACT_ENTRYPOINTS)
         // Precodes have to be aligned to allow fast compact entry points check
         _ASSERTE (align >= sizeof(void*));
-#endif // TARGET_ARM && HAS_COMPACT_ENTRYPOINTS
+#endif // _TARGET_ARM_ && HAS_COMPACT_ENTRYPOINTS
 
         return align;
     }
@@ -189,14 +189,14 @@ public:
         if (target == addr)
             return TRUE;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // Handle jump stubs
         if (isJumpRel64(target)) {
             target = decodeJump64(target);
             if (target == addr)
                 return TRUE;
         }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         return FALSE;
 #endif // CROSSGEN_COMPILE
@@ -227,7 +227,7 @@ public:
     static SIZE_T GetEntryPointOffset()
     {
         LIMITED_METHOD_CONTRACT;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         return THUMB_CODE;
 #else
         return 0;

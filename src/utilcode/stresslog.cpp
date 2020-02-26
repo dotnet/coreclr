@@ -22,7 +22,7 @@ HANDLE StressLogChunk::s_LogChunkHeap = NULL;
 #endif // !STRESS_LOG_READONLY
 
 /*********************************************************************************/
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
 /* This is like QueryPerformanceCounter but a lot faster.  On machines with 
    variable-speed CPUs (for power management), this is not accurate, but may
@@ -37,7 +37,7 @@ __forceinline __declspec(naked) unsigned __int64 getTimeStamp() {
     };
 }
 
-#else // TARGET_X86 
+#else // _TARGET_X86_ 
 unsigned __int64 getTimeStamp() {
     STATIC_CONTRACT_LEAF;
     
@@ -98,7 +98,7 @@ unsigned __int64 getTickFrequency()
     return hz;
 }
 
-#else // TARGET_X86 
+#else // _TARGET_X86_ 
 
 
 /*********************************************************************************/
@@ -113,7 +113,7 @@ unsigned __int64 getTickFrequency()
     return ret.QuadPart;
 }
 
-#endif // TARGET_X86 
+#endif // _TARGET_X86_ 
 
 #ifdef STRESS_LOG
 

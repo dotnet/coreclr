@@ -10,7 +10,7 @@
 #define LOCAL_LABEL(name) L##name
 #else
 #define C_FUNC(name) name
-#if defined(HOST_AMD64) || defined(HOST_X86)
+#if defined(_AMD64_) || defined(_X86_)
 #define EXTERNAL_C_FUNC(name) C_FUNC(name)@plt
 #else
 #define EXTERNAL_C_FUNC(name) C_FUNC(name)
@@ -32,12 +32,12 @@
         .equiv \New, \Old
 .endm
 
-#if defined(HOST_X86)
+#if defined(_X86_)
 #include "unixasmmacrosx86.inc"
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
 #include "unixasmmacrosamd64.inc"
-#elif defined(HOST_ARM)
+#elif defined(_ARM_)
 #include "unixasmmacrosarm.inc"
-#elif defined(HOST_ARM64)
+#elif defined(_ARM64_)
 #include "unixasmmacrosarm64.inc"
 #endif

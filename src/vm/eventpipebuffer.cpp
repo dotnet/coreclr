@@ -93,7 +93,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             event,
             procNumber,
             (pThread == NULL) ?
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
                 ::PAL_GetCurrentOSThreadId()
 #else
                 ::GetCurrentThreadId()

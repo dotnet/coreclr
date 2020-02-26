@@ -43,12 +43,12 @@ private:
 public:
     RegSet(Compiler* compiler, GCInfo& gcInfo);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     regMaskTP rsMaskPreSpillRegs(bool includeAlignment) const
     {
         return includeAlignment ? (rsMaskPreSpillRegArg | rsMaskPreSpillAlign) : rsMaskPreSpillRegArg;
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 private:
     // The same descriptor is also used for 'multi-use' register tracking, BTW.
@@ -127,21 +127,21 @@ public: // TODO-Cleanup: Should be private, but GCInfo uses them
 private:
     regMaskTP _rsMaskVars; // backing store for rsMaskVars property
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     regMaskTP rsMaskCalleeSaved; // mask of the registers pushed/popped in the prolog/epilog
-#endif                           // TARGET_ARM
+#endif                           // _TARGET_ARM_
 
 public:                    // TODO-Cleanup: Should be private, but Compiler uses it
     regMaskTP rsMaskResvd; // mask of the registers that are reserved for special purposes (typically empty)
 
 public: // The PreSpill masks are used in LclVars.cpp
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     regMaskTP rsMaskPreSpillAlign;  // Mask of alignment padding added to prespill to keep double aligned args
                                     // at aligned stack addresses.
     regMaskTP rsMaskPreSpillRegArg; // mask of incoming registers that are spilled at the start of the prolog
                                     // This includes registers used to pass a struct (or part of a struct)
                                     // and all enregistered user arguments in a varargs call
-#endif                              // TARGET_ARM
+#endif                              // _TARGET_ARM_
 
 private:
     //-------------------------------------------------------------------------
@@ -161,9 +161,9 @@ private:
 
     void rsSpillTree(regNumber reg, GenTree* tree, unsigned regIdx = 0);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     void rsSpillFPStack(GenTreeCall* call);
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 
     SpillDsc* rsGetSpillInfo(GenTree* tree, regNumber reg, SpillDsc** pPrevDsc = nullptr);
 
@@ -215,11 +215,11 @@ private:
     enum TEMP_CONSTANTS : unsigned
     {
 #if defined(FEATURE_SIMD)
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         TEMP_MAX_SIZE = YMM_REGSIZE_BYTES,
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         TEMP_MAX_SIZE = FP_REGSIZE_BYTES,
-#endif // defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
 #else  // !FEATURE_SIMD
         TEMP_MAX_SIZE = sizeof(double),
 #endif // !FEATURE_SIMD

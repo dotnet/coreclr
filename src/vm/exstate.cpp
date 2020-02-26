@@ -39,10 +39,10 @@ ThreadExceptionState::ThreadExceptionState()
 
     m_flag = TEF_None;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Init the UE Watson BucketTracker
     m_UEWatsonBucketTracker.Init();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     // Initialize the default exception severity to NotCorrupting
@@ -54,10 +54,10 @@ ThreadExceptionState::ThreadExceptionState()
 
 ThreadExceptionState::~ThreadExceptionState()
 {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Init the UE Watson BucketTracker
     m_UEWatsonBucketTracker.ClearWatsonBucketDetails();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 
 #if defined(_DEBUG)
@@ -426,9 +426,9 @@ BOOL ThreadExceptionState::IsDebuggerInterceptable()
                   !GetFlags()->DebuggerInterceptNotPossible());
 }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 PEXCEPTION_REGISTRATION_RECORD GetClrSEHRecordServicingStackPointer(Thread *pThread, void *pStackPointer);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 //---------------------------------------------------------------------------------------
 //

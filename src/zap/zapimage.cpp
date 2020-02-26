@@ -436,7 +436,7 @@ void ZapImage::AllocateVirtualSections()
         //
         // .text section
         //
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         // for ARM, put the resource section at the end if it's very large - this
         // is because b and bl instructions have a limited distance range of +-16MB
         // which we should not exceed if we can avoid it.
@@ -527,7 +527,7 @@ void ZapImage::AllocateVirtualSections()
         //
         m_pHotGCSection = NewVirtualSection(pTextSection, IBCProfiledSection | WarmRange | GCInfoSection, sizeof(DWORD));
 
-#if !defined(TARGET_ARM)
+#if !defined(_TARGET_ARM_)
         // For ARM, put these sections more towards the end because bl/b instructions have limited diplacement
 
         // IL
@@ -535,9 +535,9 @@ void ZapImage::AllocateVirtualSections()
 
         //ILMetadata/Resources sections are reported as a statically known warm ranges for now.
         m_pILMetaDataSection = NewVirtualSection(pTextSection, IBCProfiledSection | HotColdSortedRange | ILMetadataSection, sizeof(DWORD));
-#endif  // TARGET_ARM
+#endif  // _TARGET_ARM_
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         if (!bigResourceSection) // for ARM, put the resource section at the end if it's very large - see comment above
 #endif
             m_pResourcesSection = NewVirtualSection(pTextSection, IBCUnProfiledSection | WarmRange | ResourcesSection);
@@ -589,7 +589,7 @@ void ZapImage::AllocateVirtualSections()
         m_pColdCodeSection = NewVirtualSection(pTextSection, IBCProfiledSection | IBCUnProfiledSection | ColdRange | CodeSection, codeSectionAlign);
         m_pColdCodeSection->SetDefaultFill(DEFAULT_CODE_BUFFER_INIT);
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         // For ARM, put these sections more towards the end because bl/b instructions have limited diplacement
 
         // IL
@@ -600,7 +600,7 @@ void ZapImage::AllocateVirtualSections()
 
         if (bigResourceSection) // for ARM, put the resource section at the end if it's very large - see comment above
             m_pResourcesSection = NewVirtualSection(pTextSection, IBCUnProfiledSection | WarmRange | ResourcesSection);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
         m_pColdCodeMapSection = NewVirtualSection(pTextSection, IBCProfiledSection | IBCUnProfiledSection | ColdRange | CodeManagerSection, sizeof(DWORD));
 
 #if !defined(WIN64EXCEPTIONS)
@@ -1238,10 +1238,10 @@ void ZapImage::CalculateZapBaseAddress()
         
             if (!m_ModuleDecoder.IsDll())
             {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
                 // We use 30000000 for an exe
                 baseAddress = 0x30000000;
-#elif defined(TARGET_64BIT)
+#elif defined(_TARGET_64BIT_)
                 // We use 04000000 for an exe
                 // which is remapped to 0x642`88000000 on x64
                 baseAddress = 0x04000000;
@@ -1249,10 +1249,10 @@ void ZapImage::CalculateZapBaseAddress()
             }
             else
             {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
                 // We start a 31000000 for the main assembly with the manifest
                 baseAddress = 0x31000000;
-#elif defined(TARGET_64BIT)
+#elif defined(_TARGET_64BIT_)
                 // We start a 05000000 for the main assembly with the manifest
                 // which is remapped to 0x642`8A000000 on x64
                 baseAddress = 0x05000000;
@@ -1310,7 +1310,7 @@ void ZapImage::CalculateZapBaseAddress()
     // upper address range used on 64-bit platforms
     //
 #if USE_UPPER_ADDRESS
-#if defined(TARGET_64BIT)
+#if defined(_TARGET_64BIT_)
     if (baseAddress < 0x80000000)
     {
         if (baseAddress < 0x40000000)
@@ -1524,11 +1524,11 @@ void ZapImage::OutputTables()
     {
         USHORT dllCharacteristics = 0;
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
         dllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NO_SEH;
 #endif
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         // Images without NX compat bit set fail to load on ARM
         dllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT;
 #endif
@@ -1542,7 +1542,7 @@ void ZapImage::OutputTables()
 #endif // _DEBUG
         {
             dllCharacteristics |= IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE;
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
             // Large address aware, required for High Entry VA, is always enabled for 64bit native images.
             dllCharacteristics |= IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA;
 #endif
@@ -1558,10 +1558,10 @@ void ZapImage::OutputTables()
         SetSizeOfStackCommit(m_ModuleDecoder.GetSizeOfStackCommit());
     }
 
-#if defined(TARGET_UNIX) && !defined(TARGET_64BIT)
+#if defined(FEATURE_PAL) && !defined(_TARGET_64BIT_)
     // To minimize wasted VA space on 32 bit systems align file to page bounaries (presumed to be 4K).
     SetFileAlignment(0x1000);
-#elif defined(TARGET_ARM) && defined(FEATURE_CORESYSTEM)
+#elif defined(_TARGET_ARM_) && defined(FEATURE_CORESYSTEM)
     if (!IsReadyToRunCompilation())
     {
         // On ARM CoreSys builds, crossgen will use 4k file alignment, as requested by Phone perf team
@@ -3633,7 +3633,7 @@ ZapNode * ZapImage::GetHelperThunk(CorInfoHelpFunc ftnNum)
     if (pHelperThunk == NULL)
     {
         pHelperThunk = new (GetHeap()) ZapHelperThunk(ftnNum);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         pHelperThunk = GetInnerPtr(pHelperThunk, THUMB_CODE);
 #endif
         m_pHelperThunks[ftnNum] = pHelperThunk;

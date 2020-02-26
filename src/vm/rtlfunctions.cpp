@@ -17,7 +17,7 @@
 #include "rtlfunctions.h"
 
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 
 RtlVirtualUnwindFn*                 RtlVirtualUnwind_Unsafe         = NULL;
 
@@ -46,7 +46,7 @@ HRESULT EnsureRtlFunctions()
     return S_OK;
 }
 
-#else // TARGET_AMD64
+#else // _TARGET_AMD64_
 
 HRESULT EnsureRtlFunctions()
 {
@@ -54,7 +54,7 @@ HRESULT EnsureRtlFunctions()
     return S_OK;
 }
 
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #if defined(WIN64EXCEPTIONS)
 

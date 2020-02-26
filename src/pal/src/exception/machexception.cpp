@@ -439,17 +439,17 @@ BOOL SEHDisableMachExceptions()
 
 #endif // FEATURE_PAL_SXS
 
-#if !defined(HOST_AMD64)
+#if !defined(_AMD64_)
 extern "C"
 void PAL_DispatchException(PCONTEXT pContext, PEXCEPTION_RECORD pExRecord, MachExceptionInfo *pMachExceptionInfo)
-#else // defined(HOST_AMD64)
+#else // defined(_AMD64_)
 
 // Since HijackFaultingThread pushed the context, exception record and info on the stack, we need to adjust the 
 // signature of PAL_DispatchException such that the corresponding arguments are considered to be on the stack 
 // per GCC64 calling convention rules. Hence, the first 6 dummy arguments (corresponding to RDI, RSI, RDX,RCX, R8, R9).
 extern "C"
 void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 dwRCX, DWORD64 dwR8, DWORD64 dwR9, PCONTEXT pContext, PEXCEPTION_RECORD pExRecord, MachExceptionInfo *pMachExceptionInfo)
-#endif // !defined(HOST_AMD64)
+#endif // !defined(_AMD64_)
 {
     CPalThread *pThread = InternalGetCurrentThread();
 
@@ -506,10 +506,10 @@ void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 
     }
 }
 
-#if defined(HOST_X86) || defined(HOST_AMD64)
+#if defined(_X86_) || defined(_AMD64_)
 extern "C" void PAL_DispatchExceptionWrapper();
 extern "C" int PAL_DispatchExceptionReturnOffset;
-#endif // HOST_X86 || HOST_AMD64
+#endif // _X86_ || _AMD64_
 
 /*++
 Function :
@@ -569,7 +569,7 @@ BuildExceptionRecord(
         {
             switch (exceptionInfo.Subcodes[0])
             {
-#if defined(HOST_X86) || defined(HOST_AMD64)
+#if defined(_X86_) || defined(_AMD64_)
                 case EXC_I386_DIV:
                     exceptionCode = EXCEPTION_INT_DIVIDE_BY_ZERO;
                     break;
@@ -593,7 +593,7 @@ BuildExceptionRecord(
         break;
 
     case EXC_SOFTWARE:
-#if defined(HOST_X86) || defined(HOST_AMD64)
+#if defined(_X86_) || defined(_AMD64_)
         exceptionCode = EXCEPTION_ILLEGAL_INSTRUCTION;
         break;
 #else
@@ -602,7 +602,7 @@ BuildExceptionRecord(
 
     // Trace, breakpoint, etc. Details in subcode field. 
     case EXC_BREAKPOINT:
-#if defined(HOST_X86) || defined(HOST_AMD64)
+#if defined(_X86_) || defined(_AMD64_)
         if (exceptionInfo.Subcodes[0] == EXC_I386_SGL)
         {
             exceptionCode = EXCEPTION_SINGLE_STEP;
@@ -707,7 +707,7 @@ HijackFaultingThread(
     // Fill in the exception record from the exception info
     BuildExceptionRecord(exceptionInfo, &exceptionRecord);
     
-#ifdef HOST_X86
+#ifdef _X86_
     threadContext.ContextFlags = CONTEXT_FLOATING_POINT | CONTEXT_EXTENDED_REGISTERS;
 #else
     threadContext.ContextFlags = CONTEXT_FLOATING_POINT;
@@ -717,7 +717,7 @@ HijackFaultingThread(
     threadContext.ContextFlags |= CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS;
     CONTEXT_GetThreadContextFromThreadState(x86_THREAD_STATE, (thread_state_t)&exceptionInfo.ThreadState, &threadContext);
 
-#if defined(CORECLR) && (defined(HOST_X86) || defined(HOST_AMD64))
+#if defined(CORECLR) && (defined(_X86_) || defined(_AMD64_))
     // For CoreCLR we look more deeply at access violations to determine whether they're the result of a stack
     // overflow. If so we'll terminate the process immediately (the current default policy of the CoreCLR EE).
     // Otherwise we'll either A/V ourselves trying to set up the SEH exception record and context on the
@@ -763,7 +763,7 @@ HijackFaultingThread(
     //          corrupted). Our managed jits always generate code which does this as does MSVC. GCC, however,
     //          does not do this by default. We have to explicitly provide the -fstack-check compiler option
     //          to enable the behavior.
-#if (defined(HOST_X86) || defined(HOST_AMD64)) && defined(__APPLE__)
+#if (defined(_X86_) || defined(_AMD64_)) && defined(__APPLE__)
     if (exceptionRecord.ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
     {
         // Assume this AV isn't an SO to begin with.
@@ -772,9 +772,9 @@ HijackFaultingThread(
         // Calculate the page base addresses for the fault and the faulting thread's SP.
         int cbPage = getpagesize();
         char *pFaultPage = (char*)(exceptionRecord.ExceptionInformation[1] & ~(cbPage - 1));
-#ifdef HOST_X86
+#ifdef _X86_
         char *pStackTopPage = (char*)(threadContext.Esp & ~(cbPage - 1));
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
         char *pStackTopPage = (char*)(threadContext.Rsp & ~(cbPage - 1));
 #endif
 
@@ -791,7 +791,7 @@ HijackFaultingThread(
             vm_size_t vm_size;
             vm_region_flavor_t vm_flavor;
             mach_msg_type_number_t infoCnt;
-#ifdef HOST_64BIT
+#ifdef BIT64
             vm_region_basic_info_data_64_t info;
             infoCnt = VM_REGION_BASIC_INFO_COUNT_64;
             vm_flavor = VM_REGION_BASIC_INFO_64;
@@ -804,7 +804,7 @@ HijackFaultingThread(
 
             vm_address = (vm_address_t)(pFaultPage + cbPage);
 
-#ifdef HOST_64BIT
+#ifdef BIT64
             machret = vm_region_64(
 #else
             machret = vm_region(
@@ -816,9 +816,9 @@ HijackFaultingThread(
                 (vm_region_info_t)&info,
                 &infoCnt,
                 &object_name);
-#ifdef HOST_X86
+#ifdef _X86_
             CHECK_MACH("vm_region", machret);
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
             CHECK_MACH("vm_region_64", machret);
 #endif
 
@@ -830,7 +830,7 @@ HijackFaultingThread(
                 fIsStackOverflow = true;
         }
 
-#if defined(HOST_AMD64)
+#if defined(_AMD64_)
         if (!fIsStackOverflow)
         {
             // Check if we can read pointer sizeD bytes below the target thread's stack pointer.
@@ -847,7 +847,7 @@ HijackFaultingThread(
                 fIsStackOverflow = true;
             }
         }
-#endif // HOST_AMD64
+#endif // _AMD64_
 
         if (fIsStackOverflow)
         {
@@ -867,12 +867,12 @@ HijackFaultingThread(
             abort();
         }
     }
-#else // (HOST_X86 || HOST_AMD64) && __APPLE__
+#else // (_X86_ || _AMD64_) && __APPLE__
 #error Platform not supported for correct stack overflow handling
-#endif // (HOST_X86 || HOST_AMD64) && __APPLE__
-#endif // CORECLR && HOST_X86
+#endif // (_X86_ || _AMD64_) && __APPLE__
+#endif // CORECLR && _X86_
 
-#if defined(HOST_X86)
+#if defined(_X86_)
     NONPAL_ASSERTE(exceptionInfo.ThreadState.tsh.flavor == x86_THREAD_STATE32);
 
     // Make a copy of the thread state because the one in exceptionInfo needs to be preserved to restore
@@ -937,7 +937,7 @@ HijackFaultingThread(
     // Now set the thread state for the faulting thread so that PAL_DispatchException executes next
     machret = thread_set_state(thread, x86_THREAD_STATE32, (thread_state_t)&ts32, x86_THREAD_STATE32_COUNT);
     CHECK_MACH("thread_set_state(thread)", machret);
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
     NONPAL_ASSERTE(exceptionInfo.ThreadState.tsh.flavor == x86_THREAD_STATE64);
 
     // Make a copy of the thread state because the one in exceptionInfo needs to be preserved to restore
@@ -1319,9 +1319,9 @@ void MachExceptionInfo::RestoreState(mach_port_t thread)
     {
         if (Subcodes[0] == EXC_I386_BPT)
         {
-#ifdef HOST_X86
+#ifdef _X86_
             ThreadState.uts.ts32.eip--;
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
             ThreadState.uts.ts64.__rip--;
 #else
 #error Platform not supported

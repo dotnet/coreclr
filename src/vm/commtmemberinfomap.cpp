@@ -176,7 +176,7 @@ DWORD EEModuleTokenHashTableHelper::Hash(EEModuleTokenPair *pKey)
     CONTRACTL_END;
     
     size_t val = (size_t) ((DWORD_PTR)pKey->m_tk + (DWORD_PTR)pKey->m_pModule);
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     return (DWORD)val;
 #else
     // @TODO IA64: Is this a good hashing mechanism on IA64?

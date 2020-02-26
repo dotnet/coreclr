@@ -600,7 +600,7 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#if defined(TARGET_WINDOWS)
+#if defined(PLATFORM_WINDOWS)
             // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
@@ -611,7 +611,7 @@ public:
             // and use byrefNativeReturn for all other structs.
             if (nativeMethodIsMemberFunction)
             {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
                 byrefNativeReturn = !nativeType.InternalToken.GetMethodTable()->IsNativeHFA();
 #else
                 byrefNativeReturn = true;
@@ -619,7 +619,7 @@ public:
             }
             else
             {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                 switch (nativeSize)
                 {
                     case 1: typ = ELEMENT_TYPE_U1; break;
@@ -628,9 +628,9 @@ public:
                     case 8: typ = ELEMENT_TYPE_U8; break;
                     default: byrefNativeReturn = true; break;
                 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
             }
-#endif // defined(TARGET_WINDOWS)
+#endif // defined(PLATFORM_WINDOWS)
 
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
 #ifdef UNIX_X86_ABI
@@ -1591,11 +1591,11 @@ public:
         //
         
         return (ELEMENT_TYPE == 
-#ifdef HOST_64BIT        
+#ifdef BIT64        
                     ELEMENT_TYPE_I8
-#else // HOST_64BIT
+#else // BIT64
                     ELEMENT_TYPE_I4
-#endif // HOST_64BIT
+#endif // BIT64
                     ) && (NULL != m_pargs->m_pMT);
     }
     
@@ -1603,7 +1603,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         // If the argument is passed by value, 
         if (!IsByref(m_dwMarshalFlags) && !IsRetval(m_dwMarshalFlags))
         {
@@ -1619,7 +1619,7 @@ public:
                 }
             }
         }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         return false;
     }

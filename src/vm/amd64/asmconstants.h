@@ -8,9 +8,9 @@
 // Allow multiple inclusion.
 
 
-#ifndef TARGET_AMD64
+#ifndef _TARGET_AMD64_
 #error this file should only be used on an AMD64 platform
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #include "../../inc/switches.h"
 
@@ -496,7 +496,7 @@ ASMCONSTANTS_C_ASSERT(MethodDescClassification__mdcClassification == mdcClassifi
 #define MethodDescClassification__mcInstantiated 0x5
 ASMCONSTANTS_C_ASSERT(MethodDescClassification__mcInstantiated == mcInstantiated);
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #define OFFSET__TEB__ThreadLocalStoragePointer 0x58
 ASMCONSTANTS_C_ASSERT(OFFSET__TEB__ThreadLocalStoragePointer == offsetof(TEB, ThreadLocalStoragePointer));
 #endif

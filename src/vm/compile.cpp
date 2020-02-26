@@ -273,17 +273,17 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         // by LoadAssembly then we can blame it on bitness mismatch.  We do the check here
         // and not in the CATCH to distinguish between the COR_IMAGE_ERROR that can be thrown by
         // VerifyIsAssembly (not necessarily a bitness mismatch) and that from LoadAssembly
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         if (pImage->Has32BitNTHeaders())
         {
             hrProcessLibraryBitnessMismatch = PEFMT_E_32BIT;
         }
-#else // !TARGET_64BIT
+#else // !_TARGET_64BIT_
         if (!pImage->Has32BitNTHeaders())
         {
             hrProcessLibraryBitnessMismatch = PEFMT_E_64BIT;
         }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
         
         AssemblySpec spec;
         spec.InitializeSpec(TokenFromRid(1, mdtAssembly), pImage->GetMDImport(), NULL);
@@ -970,7 +970,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
 
     UINT nStackSlots;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     UINT cbStackPop = argit.CbStackPop();
     pBuilder->WriteStackPop(cbStackPop / sizeof(TADDR));
 
@@ -983,7 +983,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
     {
         int ofs;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         ofs = (pos < NUM_ARGUMENT_REGISTERS) ?
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
@@ -1015,7 +1015,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
 
     GCRefMapDecoder decoder((BYTE *)pBlob + dwInitialLength);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     _ASSERTE(decoder.ReadStackPop() * sizeof(TADDR) == cbStackPop);
 #endif
 
@@ -1026,7 +1026,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
 
         int ofs;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         ofs = (pos < NUM_ARGUMENT_REGISTERS) ?
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
@@ -6202,11 +6202,11 @@ void CEEPreloader::GenerateMethodStubs(
     if (IsReadyToRunCompilation() && (!GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem() || !pMD->IsNDirect()))
         return;
 
-#if defined(TARGET_ARM) && defined(TARGET_UNIX)
+#if defined(_TARGET_ARM_) && defined(FEATURE_PAL)
     // Cross-bitness compilation of il stubs does not work. Disable here.
     if (IsReadyToRunCompilation())
         return;
-#endif // defined(TARGET_ARM) && defined(TARGET_UNIX)
+#endif // defined(_TARGET_ARM_) && defined(FEATURE_PAL)
 
     DWORD dwNGenStubFlags = NDIRECTSTUB_FL_NGENEDSTUB;
 
@@ -6327,10 +6327,10 @@ void CEEPreloader::GenerateMethodStubs(
         {
             EX_TRY
             {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                 // on x86, we call the target directly if Invoke has a no-marshal signature
                 if (NDirect::MarshalingRequired(pMD))
-#endif // TARGET_X86
+#endif // _TARGET_X86_
                 {
                     PInvokeStaticSigInfo sigInfo(pMD);
                     pStubMD = UMThunkMarshInfo::GetILStubMethodDesc(pMD, &sigInfo, NDIRECTSTUB_FL_DELEGATE | dwNGenStubFlags);

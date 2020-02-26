@@ -123,7 +123,7 @@ FOR_ALL_NUMA_FUNCTIONS
 
 #endif // HAVE_NUMA_H
 
-#if defined(HOST_ARM) || defined(HOST_ARM64)
+#if defined(_ARM_) || defined(_ARM64_)
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_CONF
 #else
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_ONLN
@@ -845,7 +845,7 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
 //  non zero if it has succeeded, 0 if it has failed
 size_t GCToOSInterface::GetVirtualMemoryLimit()
 {
-#ifdef HOST_64BIT
+#ifdef BIT64
     // There is no API to get the total virtual address space size on
     // Unix, so we use a constant value representing 128TB, which is
     // the approximate size of total user virtual address space on

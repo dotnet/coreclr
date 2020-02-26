@@ -16,7 +16,7 @@ struct GCSystemInfo
 
 typedef void * HANDLE;
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 
 typedef char TCHAR;
 #define _T(s) s
@@ -30,7 +30,7 @@ typedef wchar_t TCHAR;
 
 #endif
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 
 class EEThreadId
 {
@@ -57,7 +57,7 @@ public:
     }
 };
 
-#else // TARGET_UNIX
+#else // PLATFORM_UNIX
 
 #ifndef _INC_WINDOWS
 extern "C" uint32_t __stdcall GetCurrentThreadId();
@@ -84,11 +84,11 @@ public:
     }
 };
 
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
 
 #ifndef _INC_WINDOWS
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 
 typedef struct _RTL_CRITICAL_SECTION {
     pthread_mutex_t mutex;

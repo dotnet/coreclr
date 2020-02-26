@@ -44,7 +44,7 @@ extern PCODE GetPreStubEntryPoint();
 #define X86_INSTR_MOVUPS_RM_R   0x110F      // movups xmm1/mem128, xmm2
 #define X86_INSTR_XORPS         0x570F      // xorps xmm1, xmm2/mem128
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 #define X86_INSTR_MOV_R10_IMM64 0xBA49      // mov r10, imm64
 #endif
 
@@ -63,9 +63,9 @@ enum X86Reg
     kESI = 6,
     kEDI = 7,
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     NumX86Regs = 8,
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     kXMM0 = 0,
     kXMM1 = 1,
@@ -73,7 +73,7 @@ enum X86Reg
     kXMM3 = 3,
     kXMM4 = 4,
     kXMM5 = 5,
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     kXMM6 = 6,
     kXMM7 = 7,
     kXMM8 = 8,
@@ -103,7 +103,7 @@ enum X86Reg
     kR15 = 15,
     NumX86Regs = 16,
 
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     // We use "push ecx" instead of "sub esp, sizeof(LPVOID)"
     kDummyPushReg = kECX
@@ -162,7 +162,7 @@ class StubLinkerCPU : public StubLinker
 {
     public:
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         enum X86OperandSize
         {
             k32BitOp,
@@ -190,7 +190,7 @@ class StubLinkerCPU : public StubLinker
 
         VOID X86EmitCmpRegImm32(X86Reg reg, INT32 imm32); // cmp reg, imm32
         VOID X86EmitCmpRegIndexImm32(X86Reg reg, INT32 offs, INT32 imm32); // cmp [reg+offs], imm32
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         VOID X64EmitCmp32RegIndexImm32(X86Reg reg, INT32 offs, INT32 imm32); // cmp dword ptr [reg+offs], imm32
 
         VOID X64EmitMovXmmXmm(X86Reg destXmmreg, X86Reg srcXmmReg);
@@ -217,7 +217,7 @@ class StubLinkerCPU : public StubLinker
         VOID X86EmitCondJump(CodeLabel *pTarget, X86CondCode::cc condcode);
         VOID X86EmitCall(CodeLabel *target, int iArgBytes);
         VOID X86EmitReturn(WORD wArgBytes);
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         VOID X86EmitLeaRIP(CodeLabel *target, X86Reg reg);
 #endif
 
@@ -225,18 +225,18 @@ class StubLinkerCPU : public StubLinker
         
         VOID X86EmitIndexRegLoad(X86Reg dstreg, X86Reg srcreg, __int32 ofs = 0);
         VOID X86EmitIndexRegStore(X86Reg dstreg, __int32 ofs, X86Reg srcreg);
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         VOID X86EmitIndexRegStoreRSP(__int32 ofs, X86Reg srcreg);
         VOID X86EmitIndexRegStoreR12(__int32 ofs, X86Reg srcreg);
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
         VOID X86EmitIndexPush(X86Reg srcreg, __int32 ofs);
         VOID X86EmitBaseIndexPush(X86Reg baseReg, X86Reg indexReg, __int32 scale, __int32 ofs);
         VOID X86EmitIndexPop(X86Reg srcreg, __int32 ofs);
         VOID X86EmitIndexLea(X86Reg dstreg, X86Reg srcreg, __int32 ofs);
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         VOID X86EmitIndexLeaRSP(X86Reg dstreg, X86Reg srcreg, __int32 ofs);
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
         VOID X86EmitSPIndexPush(__int32 ofs);
         VOID X86EmitSubEsp(INT32 imm32);
@@ -248,14 +248,14 @@ class StubLinkerCPU : public StubLinker
                               );
         VOID X86EmitPushEBPframe();
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 #if defined(PROFILING_SUPPORTED) && !defined(FEATURE_STUBS_AS_IL)
         // These are used to emit calls to notify the profiler of transitions in and out of
         // managed code through COM->COM+ interop or N/Direct
         VOID EmitProfilerComCallProlog(TADDR pFrameVptr, X86Reg regFrame);
         VOID EmitProfilerComCallEpilog(TADDR pFrameVptr, X86Reg regFrame);
 #endif // PROFILING_SUPPORTED && !FEATURE_STUBS_AS_IL
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 
 
@@ -288,7 +288,7 @@ class StubLinkerCPU : public StubLinker
              AMD64_ARG(X86OperandSize OperandSize = k32BitOp)
                        );
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         FORCEINLINE
         VOID X86EmitOp(WORD    opcode,
                        X86Reg  altreg,
@@ -299,7 +299,7 @@ class StubLinkerCPU : public StubLinker
         {
             X86EmitOp(opcode, altreg, basereg, ofs, (X86Reg)0, 0, OperandSize);
         }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         // Emits
         //
@@ -333,7 +333,7 @@ class StubLinkerCPU : public StubLinker
         VOID X86_64BitOperands ()
         {
             WRAPPER_NO_CONTRACT;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             Emit8(0x48);
 #endif
         }
@@ -354,13 +354,13 @@ class StubLinkerCPU : public StubLinker
 
         VOID EmitCheckGSCookie(X86Reg frameReg, int gsCookieOffset);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         void EmitComMethodStubProlog(TADDR pFrameVptr, CodeLabel** rgRareLabels,
                                      CodeLabel** rgRejoinLabels, BOOL bShouldProfile);
 
         void EmitComMethodStubEpilog(TADDR pFrameVptr, CodeLabel** rgRareLabels, 
                                      CodeLabel** rgRejoinLabels, BOOL bShouldProfile);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 #endif // !FEATURE_STUBS_AS_IL
 
         VOID EmitUnboxMethodStub(MethodDesc* pRealMD);
@@ -368,7 +368,7 @@ class StubLinkerCPU : public StubLinker
         VOID EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* extra);
 #endif // FEATURE_SHARE_GENERIC_CODE
 
-#if defined(FEATURE_COMINTEROP) && defined(TARGET_X86)
+#if defined(FEATURE_COMINTEROP) && defined(_TARGET_X86_)
         //========================================================================
         //  shared Epilog for stubs that enter managed code from COM
         //  uses a return thunk within the method desc
@@ -377,18 +377,18 @@ class StubLinkerCPU : public StubLinker
                                            CodeLabel** rgRejoinLabels,
                                            unsigned offsetReturnThunk,
                                            BOOL bShouldProfile);
-#endif // FEATURE_COMINTEROP && TARGET_X86
+#endif // FEATURE_COMINTEROP && _TARGET_X86_
 
 #ifndef FEATURE_STUBS_AS_IL
         //===========================================================================
         // Computes hash code for MulticastDelegate.Invoke()
         static UINT_PTR HashMulticastInvoke(MetaSig* pSig);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         //===========================================================================
         // Emits code for Delegate.Invoke() any delegate type
         VOID EmitDelegateInvoke();
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         //===========================================================================
         // Emits code for MulticastDelegate.Invoke() - sig specific
@@ -419,7 +419,7 @@ class StubLinkerCPU : public StubLinker
         VOID EmitDebugBreak();
 #endif // !FEATURE_STUBS_AS_IL
 
-#if defined(_DEBUG) && !defined(TARGET_UNIX)
+#if defined(_DEBUG) && !defined(FEATURE_PAL)
         //===========================================================================
         // Emits code to log JITHelper access
         void EmitJITHelperLoggingThunk(PCODE pJitHelper, LPVOID helperFuncCount);
@@ -434,13 +434,13 @@ class StubLinkerCPU : public StubLinker
         virtual VOID EmitUnwindInfoCheckSubfunction();
 #endif
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 
         static Stub * CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
                                                   MethodDesc* pMD,
                                                   CorInfoHelperTailCallSpecialHandling flags);
 
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     private:
         VOID X86EmitSubEspWorker(INT32 imm32);
@@ -468,7 +468,7 @@ BOOL rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, TADDR expected, 
 
 EXTERN_C VOID STDCALL PrecodeFixupThunk();
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 
 #define OFFSETOF_PRECODE_TYPE              0
 #define OFFSETOF_PRECODE_TYPE_CALL_OR_JMP  5
@@ -486,7 +486,7 @@ EXTERN_C VOID STDCALL PrecodeRemotingThunk();
 
 #define SIZEOF_PRECODE_BASE                8
 
-#endif // HOST_64BIT
+#endif // BIT64
 
 
 #include <pshpack1.h>
@@ -501,7 +501,7 @@ struct InvalidPrecode {
 // Regular precode
 struct StubPrecode {
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     static const BYTE Type = 0x40;
     // mov r10,pMethodDesc
     // inc eax
@@ -511,7 +511,7 @@ struct StubPrecode {
     // mov eax,pMethodDesc
     // mov ebp,ebp
     // jmp Stub
-#endif // HOST_64BIT
+#endif // BIT64
 
     IN_TARGET_64BIT(USHORT m_movR10;)
     IN_TARGET_32BIT(BYTE   m_movEAX;)
@@ -576,7 +576,7 @@ typedef DPTR(StubPrecode) PTR_StubPrecode;
 // (This is fake precode. VTable slot does not point to it.)
 struct NDirectImportPrecode : StubPrecode {
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     static const int Type = 0x48;
     // mov r10,pMethodDesc
     // dec eax
@@ -586,7 +586,7 @@ struct NDirectImportPrecode : StubPrecode {
     // mov eax,pMethodDesc
     // mov eax,eax
     // jmp NDirectImportThunk
-#endif // HOST_64BIT
+#endif // BIT64
 
     void Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator);
 
@@ -701,11 +701,11 @@ typedef DPTR(FixupPrecode) PTR_FixupPrecode;
 // Precode to stuffle this and retbuf for closed delegates over static methods with return buffer
 struct ThisPtrRetBufPrecode {
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     static const int Type = 0x90;
 #else
     static const int Type = 0xC2;
-#endif // HOST_64BIT
+#endif // BIT64
 
     // mov regScratch,regArg0
     // mov regArg0,regArg1

@@ -246,15 +246,15 @@
 #define UNIX_AMD64_ABI_ONLY(x)
 #endif // defined(UNIX_AMD64_ABI)
 
-#if defined(UNIX_AMD64_ABI) || !defined(TARGET_64BIT) || (defined(TARGET_WINDOWS) && defined(TARGET_ARM64))
+#if defined(UNIX_AMD64_ABI) || !defined(_TARGET_64BIT_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(UNIX_AMD64_ABI) && defined(TARGET_64BIT) && !(defined(TARGET_WINDOWS) && defined(TARGET_ARM64))
+#else // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(UNIX_AMD64_ABI) && defined(TARGET_64BIT) && !(defined(TARGET_WINDOWS) &&
-       // defined(TARGET_ARM64))
+#endif // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) &&
+       // defined(_TARGET_ARM64_))
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -264,7 +264,7 @@
 #define UNIX_AMD64_ABI_ONLY(x)
 #endif // defined(UNIX_AMD64_ABI)
 
-#if defined(UNIX_AMD64_ABI) || defined(TARGET_ARM64)
+#if defined(UNIX_AMD64_ABI) || defined(_TARGET_ARM64_)
 #define MULTIREG_HAS_SECOND_GC_RET 1
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(x) , x
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY(x) x
@@ -277,11 +277,11 @@
 // Arm64 Windows supports FEATURE_ARG_SPLIT, note this is different from
 // the official Arm64 ABI.
 // Case: splitting 16 byte struct between x7 and stack
-#if (defined(TARGET_ARM) || (defined(TARGET_WINDOWS) && defined(TARGET_ARM64)))
+#if (defined(_TARGET_ARM_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)))
 #define FEATURE_ARG_SPLIT 1
 #else
 #define FEATURE_ARG_SPLIT 0
-#endif // (defined(TARGET_ARM) || (defined(TARGET_WINDOWS) && defined(TARGET_ARM64)))
+#endif // (defined(_TARGET_ARM_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)))
 
 // To get rid of warning 4701 : local variable may be used without being initialized
 #define DUMMY_INIT(x) (x)
@@ -470,7 +470,7 @@ typedef ptrdiff_t ssize_t;
 #ifdef DEBUG
 #define MEASURE_CLRAPI_CALLS 0 // No point in measuring DEBUG code.
 #endif
-#if !defined(HOST_X86) && !defined(HOST_AMD64)
+#if !defined(_HOST_X86_) && !defined(_HOST_AMD64_)
 #define MEASURE_CLRAPI_CALLS 0 // Cycle counters only hooked up on x86/x64.
 #endif
 #if !defined(_MSC_VER) && !defined(__GNUC__)
@@ -485,7 +485,7 @@ typedef ptrdiff_t ssize_t;
 /*****************************************************************************/
 /* Portability Defines */
 /*****************************************************************************/
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 #define JIT32_GCENCODER
 #endif
 
@@ -557,7 +557,7 @@ const bool dspGCtbls = true;
  * (frameless method support is now always on)
  */
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 #define DOUBLE_ALIGN 1 // permit the double alignment of ESP in prolog,
                        //  and permit the double alignment of local offsets
 #else
@@ -638,7 +638,7 @@ inline size_t roundDn(size_t size, size_t mult = sizeof(size_t))
     return (size) & ~(mult - 1);
 }
 
-#ifdef HOST_64BIT
+#ifdef _HOST_64BIT_
 inline unsigned int roundUp(unsigned size, unsigned mult)
 {
     return (unsigned int)roundUp((size_t)size, (size_t)mult);
@@ -648,19 +648,19 @@ inline unsigned int roundDn(unsigned size, unsigned mult)
 {
     return (unsigned int)roundDn((size_t)size, (size_t)mult);
 }
-#endif // HOST_64BIT
+#endif // _HOST_64BIT_
 
 inline unsigned int unsigned_abs(int x)
 {
     return ((unsigned int)abs(x));
 }
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 inline size_t unsigned_abs(ssize_t x)
 {
     return ((size_t)abs(x));
 }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
 /*****************************************************************************/
 
@@ -769,7 +769,7 @@ extern int jitNativeCode(CORINFO_METHOD_HANDLE methodHnd,
                          JitFlags*             compileFlags,
                          void*                 inlineInfoPtr);
 
-#ifdef HOST_64BIT
+#ifdef _HOST_64BIT_
 const size_t INVALID_POINTER_VALUE = 0xFEEDFACEABADF00D;
 #else
 const size_t INVALID_POINTER_VALUE = 0xFEEDFACE;

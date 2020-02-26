@@ -16,7 +16,7 @@ unsigned InitVarDscInfo::allocRegArg(var_types type, unsigned numRegs /* = 1 */)
     unsigned resultArgNum = regArgNum(type);
     bool     isBackFilled = false;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Check for back-filling
     if (varTypeIsFloating(type) &&          // We only back-fill the float registers
         !anyFloatStackArgs &&               // Is it legal to back-fill? (We haven't put any FP args on the stack yet)
@@ -35,11 +35,11 @@ unsigned InitVarDscInfo::allocRegArg(var_types type, unsigned numRegs /* = 1 */)
         assert(resultArgNum < MAX_FLOAT_REG_ARG);
         isBackFilled = true;
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     if (!isBackFilled)
     {
-#if defined(TARGET_AMD64) && !defined(UNIX_AMD64_ABI)
+#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
         // For System V the reg type counters should be independent.
         nextReg(TYP_INT, numRegs);
         nextReg(TYP_FLOAT, numRegs);
@@ -58,7 +58,7 @@ bool InitVarDscInfo::enoughAvailRegs(var_types type, unsigned numRegs /* = 1 */)
 
     unsigned backFillCount = 0;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Check for back-filling
     if (varTypeIsFloating(type) &&          // We only back-fill the float registers
         !anyFloatStackArgs &&               // Is it legal to back-fill? (We haven't put any FP args on the stack yet)
@@ -67,12 +67,12 @@ bool InitVarDscInfo::enoughAvailRegs(var_types type, unsigned numRegs /* = 1 */)
     {
         backFillCount = 1;
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     return regArgNum(type) + numRegs - backFillCount <= maxRegArgNum(type);
 }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 unsigned InitVarDscInfo::alignReg(var_types type, unsigned requiredRegAlignment)
 {
     assert(requiredRegAlignment > 0);
@@ -103,7 +103,7 @@ unsigned InitVarDscInfo::alignReg(var_types type, unsigned requiredRegAlignment)
 
     return cAlignSkipped;
 }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 bool InitVarDscInfo::canEnreg(var_types type, unsigned numRegs /* = 1 */)
 {

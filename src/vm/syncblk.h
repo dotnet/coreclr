@@ -59,9 +59,9 @@
 //
 // Incidentally, there's a better write-up of all this stuff in the archives.
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 #include <pshpack4.h>
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 // forwards:
 class SyncBlock;
@@ -140,11 +140,11 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 
 // The GC is highly dependent on SIZE_OF_OBJHEADER being exactly the sizeof(ObjHeader)
 // We define this macro so that the preprocessor can calculate padding structures.
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define SIZEOF_OBJHEADER    8
-#else // !HOST_64BIT
+#else // !BIT64
 #define SIZEOF_OBJHEADER    4
-#endif // !HOST_64BIT
+#endif // !BIT64
  
 
 inline void InitializeSpinConstants()
@@ -618,10 +618,10 @@ class InteropSyncBlockInfo
     friend class RCWHolder;
     
 public:
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // List of InteropSyncBlockInfo instances that have been freed since the last syncblock cleanup.
     static SLIST_HEADER s_InteropInfoStandbyList;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     InteropSyncBlockInfo()
     {
@@ -632,10 +632,10 @@ public:
     ~InteropSyncBlockInfo();
 #endif
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Deletes all items in code:s_InteropInfoStandbyList.
     static void FlushStandbyList();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_COMINTEROP
 
@@ -922,7 +922,7 @@ class SyncBlock
         if (!m_pInteropInfo)
         {
             NewHolder<InteropSyncBlockInfo> pInteropInfo;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
             pInteropInfo = (InteropSyncBlockInfo *)InterlockedPopEntrySList(&InteropSyncBlockInfo::s_InteropInfoStandbyList);
 
             if (pInteropInfo != NULL)
@@ -931,7 +931,7 @@ class SyncBlock
                 new (pInteropInfo) InteropSyncBlockInfo();
             }
             else
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
             {
                 pInteropInfo = new InteropSyncBlockInfo();
             }
@@ -1282,15 +1282,15 @@ class ObjHeader
 
   private:
     // !!! Notice: m_SyncBlockValue *MUST* be the last field in ObjHeader.
-#ifdef HOST_64BIT
+#ifdef BIT64
     DWORD    m_alignpad;
-#endif // HOST_64BIT
+#endif // BIT64
 
     Volatile<DWORD> m_SyncBlockValue;      // the Index and the Bits
 
-#if defined(HOST_64BIT) && defined(_DEBUG)
+#if defined(BIT64) && defined(_DEBUG)
     void IllegalAlignPad();
-#endif // HOST_64BIT && _DEBUG
+#endif // BIT64 && _DEBUG
 
     INCONTRACT(void * GetPtrForLockContract());
 
@@ -1300,11 +1300,11 @@ class ObjHeader
     FORCEINLINE DWORD GetHeaderSyncBlockIndex()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-#if defined(HOST_64BIT) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // HOST_64BIT && _DEBUG && !DACCESS_COMPILE
+#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
 
         // pull the value out before checking it to avoid race condition
         DWORD value = m_SyncBlockValue.LoadWithoutBarrier();
@@ -1405,11 +1405,11 @@ class ObjHeader
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
 
-#if defined(HOST_64BIT) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // HOST_64BIT && _DEBUG && !DACCESS_COMPILE
+#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
 
         return m_SyncBlockValue.LoadWithoutBarrier();
     }
@@ -1569,9 +1569,9 @@ inline DWORD AwareLock::GetSyncBlockIndex()
     return (m_dwSyncIndex & ~SyncBlock::SyncBlockPrecious);
 }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 #include <poppack.h>
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #endif // _SYNCBLK_H_
 

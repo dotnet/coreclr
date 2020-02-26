@@ -450,7 +450,7 @@ PCODE ECall::GetFCallImpl(MethodDesc * pMD, BOOL * pfSharedOrDynamicFCallImpl /*
 
     // Use the ECFunc address as a unique fake entrypoint to make the entrypoint<->MethodDesc mapping work
     PCODE pImplementation = (PCODE)ret;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     pImplementation |= THUMB_CODE;
 #endif
 

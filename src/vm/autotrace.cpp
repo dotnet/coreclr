@@ -22,9 +22,9 @@
 #include "common.h" // Required for pre-compiled header
 
 #ifdef FEATURE_AUTO_TRACE
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #include "pal.h"
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 HANDLE auto_trace_event;
 static size_t g_n_tracers = 1;
@@ -69,7 +69,7 @@ void auto_trace_launch_internal()
     STARTUPINFO si;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(STARTUPINFO);
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
 #endif

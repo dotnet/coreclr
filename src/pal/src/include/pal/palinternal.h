@@ -349,7 +349,7 @@ function_name() to call the system's implementation
 #undef va_arg
 #endif
 
-#if !defined(_MSC_VER) && defined(HOST_64BIT)
+#if !defined(_MSC_VER) && defined(BIT64)
 #undef _BitScanForward64
 #undef _BitScanReverse64
 #endif 
@@ -564,10 +564,10 @@ function_name() to call the system's implementation
 #undef towupper
 #undef wvsnprintf
 
-#ifdef HOST_AMD64 
+#ifdef _AMD64_ 
 #undef _mm_getcsr
 #undef _mm_setcsr
-#endif // HOST_AMD64
+#endif // _AMD64_
 
 #undef ctime
 

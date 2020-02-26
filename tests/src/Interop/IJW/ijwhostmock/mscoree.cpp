@@ -8,7 +8,7 @@
 
 std::set<HINSTANCE> g_modulesQueried = {};
 
-#if defined HOST_X86
+#if defined _X86_
 // We need to use a double-underscore here because the VC linker drops the first underscore
 // to help people who are exporting cdecl functions to easily export the right thing.
 #pragma comment(linker, "/export:__CorDllMain=__CorDllMain@12")

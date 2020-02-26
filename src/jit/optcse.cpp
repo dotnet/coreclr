@@ -1296,7 +1296,7 @@ public:
         sortTab          = nullptr;
         sortSiz          = 0;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         if (m_pCompiler->compLongUsed)
         {
             enregCount++;
@@ -1335,7 +1335,7 @@ public:
                 onStack = true;
             }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             // Treat floating point and 64 bit integers as always on the stack
             if (varTypeIsFloating(varDsc->TypeGet()) || varTypeIsLong(varDsc->TypeGet()))
                 onStack = true;
@@ -1370,7 +1370,7 @@ public:
                     }
                 }
             }
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             if (frameSize > 0x080)
             {
                 // We likely have a large stack frame.
@@ -1379,7 +1379,7 @@ public:
                 largeFrame = true;
                 break; // early out,  we don't need to keep increasing frameSize
             }
-#else // TARGET_ARM
+#else // _TARGET_ARM_
             if (frameSize > 0x0400)
             {
                 largeFrame = true;
@@ -1800,11 +1800,11 @@ public:
                     printf("Codesize CSE Promotion (large frame)\n");
                 }
 #endif
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
                 /* The following formula is good choice when optimizing CSE for SMALL_CODE */
                 cse_def_cost = 6; // mov [EBP-0x00001FC],reg
                 cse_use_cost = 5; //     [EBP-0x00001FC]
-#else                             // TARGET_ARM
+#else                             // _TARGET_ARM_
                 if (hugeFrame)
                 {
                     cse_def_cost = 10 + (2 * slotCount); // movw/movt r10 and str reg,[sp+r10]
@@ -1825,11 +1825,11 @@ public:
                     printf("Codesize CSE Promotion (small frame)\n");
                 }
 #endif
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
                 /* The following formula is good choice when optimizing CSE for SMALL_CODE */
                 cse_def_cost = 3 * slotCount; // mov [EBP-1C],reg
                 cse_use_cost = 2 * slotCount; //     [EBP-1C]
-#else                                         // TARGET_ARM
+#else                                         // _TARGET_ARM_
                 cse_def_cost = 2 * slotCount; // str reg,[sp+0x9c]
                 cse_use_cost = 2 * slotCount; // ldr reg,[sp+0x9c]
 #endif
@@ -2587,7 +2587,7 @@ bool Compiler::optIsCSEcandidate(GenTree* tree)
         return false;
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     if (type == TYP_FLOAT)
     {
         // TODO-X86-CQ: Revisit this

@@ -102,7 +102,7 @@ UNATIVE_OFFSET emitDataSize();
 /*                   Instruction information                            */
 /************************************************************************/
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 static bool instrIs3opImul(instruction ins);
 static bool instrIsExtendedReg3opImul(instruction ins);
 static bool instrHasImplicitRegPairDest(instruction ins);
@@ -137,7 +137,7 @@ static void InitTranslator(PDBRewriter* pPDB, int* rgSecMap, IMAGE_SECTION_HEADE
 /*                   Interface for generating unwind information        */
 /************************************************************************/
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
 
 bool emitIsFuncEnd(emitLocation* emitLoc, emitLocation* emitLocNextFragment = NULL);
 
@@ -149,10 +149,10 @@ void emitSplit(emitLocation*         startLoc,
 
 void emitUnwindNopPadding(emitLocation* locFrom, Compiler* comp);
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
 unsigned emitGetInstructionSize(emitLocation* emitLoc);
 
-#endif // defined(TARGET_ARM)
+#endif // defined(_TARGET_ARM_)

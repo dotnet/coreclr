@@ -23,9 +23,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "lower.h"
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
 #include "decomposelongs.h"
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
 
 //------------------------------------------------------------------------
 // MakeSrcContained: Make "childNode" a contained node
@@ -128,7 +128,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             __fallthrough;
         }
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         case GT_ADD_LO:
         case GT_ADD_HI:
         case GT_SUB_LO:
@@ -143,7 +143,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_MUL:
         case GT_MULHI:
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         case GT_MUL_LONG:
 #endif
             ContainCheckMul(node->AsOp());
@@ -198,7 +198,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             LowerCast(node);
             break;
 
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         case GT_ARR_BOUNDS_CHECK:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
@@ -208,7 +208,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 #endif // FEATURE_HW_INTRINSICS
             ContainCheckBoundsChk(node->AsBoundsChk());
             break;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
         case GT_ARR_ELEM:
             return LowerArrElem(node);
 
@@ -221,17 +221,17 @@ GenTree* Lowering::LowerNode(GenTree* node)
             LowerRotate(node);
             break;
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
         case GT_LSH_HI:
         case GT_RSH_LO:
             ContainCheckShiftRotate(node->AsOp());
             break;
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
 
         case GT_LSH:
         case GT_RSH:
         case GT_RSZ:
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
             LowerShift(node->AsOp());
 #else
             ContainCheckShiftRotate(node->AsOp());
@@ -252,11 +252,11 @@ GenTree* Lowering::LowerNode(GenTree* node)
             ContainCheckLclHeap(node->AsOp());
             break;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         case GT_INTRINSIC:
             ContainCheckIntrinsic(node->AsOp());
             break;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
 #ifdef FEATURE_SIMD
         case GT_SIMD:
@@ -287,7 +287,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_STORE_LCL_FLD:
         {
-#if defined(TARGET_AMD64) && defined(FEATURE_SIMD)
+#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
             GenTreeLclVarCommon* const store = node->AsLclVarCommon();
             if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
             {
@@ -296,7 +296,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 store->gtOp1 = bitcast;
                 BlockRange().InsertBefore(store, bitcast);
             }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
             // TODO-1stClassStructs: Once we remove the requirement that all struct stores
             // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
             // store under a block store if codegen will require it.
@@ -313,7 +313,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
         }
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
         case GT_CMPXCHG:
             CheckImmedAndMakeContained(node, node->AsCmpXchg()->gtOpComparand);
             break;
@@ -321,7 +321,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_XADD:
             CheckImmedAndMakeContained(node, node->gtOp.gtOp2);
             break;
-#elif defined(TARGET_XARCH)
+#elif defined(_TARGET_XARCH_)
         case GT_XADD:
             if (node->IsUnusedValue())
             {
@@ -337,7 +337,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 #endif
 
-#ifndef TARGET_ARMARCH
+#ifndef _TARGET_ARMARCH_
         // TODO-ARMARCH-CQ: We should contain this as long as the offset fits.
         case GT_OBJ:
             if (node->AsObj()->Addr()->OperIsLocalAddr())
@@ -345,7 +345,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 node->AsObj()->Addr()->SetContained();
             }
             break;
-#endif // !TARGET_ARMARCH
+#endif // !_TARGET_ARMARCH_
 
         default:
             break;
@@ -524,13 +524,13 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         minSwitchTabJumpCnt++;
     }
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     // On ARM for small switch tables we will
     // generate a sequence of compare and branch instructions
     // because the code to load the base of the switch
     // table is huge and hideous due to the relocation... :(
     minSwitchTabJumpCnt += 2;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     // Once we have the temporary variable, we construct the conditional branch for
     // the default case.  As stated above, this conditional is being shared between
@@ -574,7 +574,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
     bool useJumpSequence = jumpCnt < minSwitchTabJumpCnt;
 
-#if defined(TARGET_UNIX) && defined(TARGET_ARM)
+#if defined(_TARGET_UNIX_) && defined(_TARGET_ARM_)
     // Force using an inlined jumping instead switch table generation.
     // Switch jump table is generated with incorrect values in CoreRT case,
     // so any large switch will crash after loading to PC any such value.
@@ -584,7 +584,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // See also https://github.com/dotnet/coreclr/issues/13194
     // Also https://github.com/dotnet/coreclr/pull/13197
     useJumpSequence = useJumpSequence || comp->IsTargetAbi(CORINFO_CORERT_ABI);
-#endif // defined(TARGET_UNIX) && defined(TARGET_ARM)
+#endif // defined(_TARGET_UNIX_) && defined(_TARGET_ARM_)
 
     // If we originally had 2 unique successors, check to see whether there is a unique
     // non-default case, in which case we can eliminate the switch altogether.
@@ -757,7 +757,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         {
             JITDUMP("Lowering switch " FMT_BB ": using jump table expansion\n", originalSwitchBB->bbNum);
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
             if (tempLclType != TYP_I_IMPL)
             {
                 // SWITCH_TABLE expects the switch value (the index into the jump table) to be TYP_I_IMPL.
@@ -819,7 +819,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 bool Lowering::TryLowerSwitchToBitTest(
     BasicBlock* jumpTable[], unsigned jumpCount, unsigned targetCount, BasicBlock* bbSwitch, GenTree* switchValue)
 {
-#ifndef TARGET_XARCH
+#ifndef _TARGET_XARCH_
     // Other architectures may use this if they substitute GT_BT with equivalent code.
     return false;
 #else
@@ -892,7 +892,7 @@ bool Lowering::TryLowerSwitchToBitTest(
         return false;
     }
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     //
     // See if we can avoid a 8 byte immediate on 64 bit targets. If all upper 32 bits are 1
     // then inverting the bit table will make them 0 so that the table now fits in 32 bits.
@@ -953,7 +953,7 @@ bool Lowering::TryLowerSwitchToBitTest(
     LIR::AsRange(bbSwitch).InsertAfter(switchValue, bitTableIcon, bitTest, jcc);
 
     return true;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 }
 
 // NOTE: this method deliberately does not update the call arg table. It must only
@@ -1013,7 +1013,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
     bool isOnStack = true;
     isOnStack      = info->regNum == REG_STK;
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     // Mark contained when we pass struct
     // GT_FIELD_LIST is always marked contained when it is generated
     if (type == TYP_STRUCT)
@@ -1034,9 +1034,9 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
         // TODO: Need to check correctness for FastTailCall
         if (call->IsFastTailCall())
         {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             NYI_ARM("lower: struct argument by fast tail call");
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
         }
 
         putArg = new (comp, GT_PUTARG_SPLIT)
@@ -1196,7 +1196,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                     numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
                     putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                     // On x86 VM lies about the type of a struct containing a pointer sized
                     // integer field by returning the type of its field as the type of struct.
                     // Such struct can be passed in a register depending its position in
@@ -1231,7 +1231,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                             comp->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_VMNeedsStackAddr));
                         }
                     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
                 }
                 else if (!arg->OperIs(GT_FIELD_LIST))
                 {
@@ -1304,7 +1304,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     }
 
 #if defined(FEATURE_SIMD)
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // Non-param TYP_SIMD12 local var nodes are massaged in Lower to TYP_SIMD16 to match their
     // allocated size (see lvSize()). However, when passing the variables as arguments, and
     // storing the variables to the outgoing argument area on the stack, we must use their
@@ -1327,7 +1327,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
             }
         }
     }
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     // TYP_SIMD8 parameters that are passed as longs
     if (type == TYP_SIMD8 && genIsValidIntReg(info->regNum))
     {
@@ -1337,13 +1337,13 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
         info->node = *ppArg = arg = bitcast;
         type                      = TYP_LONG;
     }
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 #endif // defined(FEATURE_SIMD)
 
     // If we hit this we are probably double-lowering.
     assert(!arg->OperIsPutArg());
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
         bool isReg = (info->regNum != REG_STK);
@@ -1388,10 +1388,10 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
         }
     }
     else
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
     {
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
         if (call->IsVarargs() || comp->opts.compUseSoftFP)
         {
             // For vararg call or on armel, reg args should be all integer.
@@ -1402,7 +1402,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
                 type = newNode->TypeGet();
             }
         }
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
         GenTree* putArg = NewPutArg(call, arg, info, type);
 
@@ -1416,7 +1416,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     }
 }
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
 // LowerFloatArg: Lower float call arguments on the arm platform.
 //
@@ -1501,7 +1501,7 @@ GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
     var_types intType = (floatType == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
     GenTree*  intArg  = comp->gtNewBitCastNode(intType, arg);
     intArg->gtRegNum  = regNum;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     if (floatType == TYP_DOUBLE)
     {
         regNumber nextReg                  = REG_NEXT(regNum);
@@ -1743,7 +1743,7 @@ void Lowering::CheckVSQuirkStackPaddingNeeded(GenTreeCall* call)
 {
     assert(comp->opts.IsJit64Compat());
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // Confine this to IL stub calls which aren't marked as unmanaged.
     if (call->IsPInvoke() && !call->IsUnmanaged())
     {
@@ -1795,7 +1795,7 @@ void Lowering::CheckVSQuirkStackPaddingNeeded(GenTreeCall* call)
             comp->compVSQuirkStackPaddingNeeded = VSQUIRK_STACK_PAD;
         }
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 }
 
 // Inserts profiler hook, GT_PROF_HOOK for a tail call node.
@@ -1840,14 +1840,14 @@ void Lowering::InsertProfTailCallHook(GenTreeCall* call, GenTree* insertionPoint
     assert(call->IsTailCall());
     assert(comp->compIsProfilerHookNeeded());
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
     if (insertionPoint == nullptr)
     {
         insertionPoint = call;
     }
 
-#else // !defined(TARGET_X86)
+#else // !defined(_TARGET_X86_)
 
     if (insertionPoint == nullptr)
     {
@@ -1885,7 +1885,7 @@ void Lowering::InsertProfTailCallHook(GenTreeCall* call, GenTree* insertionPoint
         }
     }
 
-#endif // !defined(TARGET_X86)
+#endif // !defined(_TARGET_X86_)
 
     assert(insertionPoint != nullptr);
     GenTree* profHookNode = new (comp, GT_PROF_HOOK) GenTree(GT_PROF_HOOK, TYP_VOID);
@@ -1905,9 +1905,9 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     assert(!call->IsUnmanaged());                            // tail calls to unamanaged methods
     assert(!comp->compLocallocUsed);                         // tail call from methods that also do localloc
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     assert(!comp->getNeedsGSSecurityCookie()); // jit64 compat: tail calls from methods that need GS check
-#endif                                         // TARGET_AMD64
+#endif                                         // _TARGET_AMD64_
 
     // We expect to see a call that meets the following conditions
     assert(call->IsFastTailCall());
@@ -2158,9 +2158,9 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     assert(!call->IsUnmanaged());                            // tail calls to unamanaged methods
     assert(!comp->compLocallocUsed);                         // tail call from methods that also do localloc
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     assert(!comp->getNeedsGSSecurityCookie()); // jit64 compat: tail calls from methods that need GS check
-#endif                                         // TARGET_AMD64
+#endif                                         // _TARGET_AMD64_
 
     // We expect to see a call that meets the following conditions
     assert(call->IsTailCallViaHelper());
@@ -2194,7 +2194,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     // The callTarget tree needs to be sequenced.
     LIR::Range callTargetRange = LIR::SeqTree(comp, callTarget);
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
 
     // For ARM32 and AMD64, first argument is CopyRoutine and second argument is a place holder node.
     fgArgTabEntry* argEntry;
@@ -2224,7 +2224,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 
     argEntry->node->gtOp.gtOp1 = callTarget;
 
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
 
     // Verify the special args are what we expect, and replace the dummy args with real values.
     // We need to figure out the size of the outgoing stack arguments, not including the special args.
@@ -2313,7 +2313,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     return result;
 }
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
 //------------------------------------------------------------------------
 // Lowering::DecomposeLongCompare: Decomposes a TYP_LONG compare node.
 //
@@ -2530,7 +2530,7 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
 
     return cmp->gtNext;
 }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
 
 //------------------------------------------------------------------------
 // Lowering::OptimizeConstCompare: Performs various "compare with const" optimizations.
@@ -2556,12 +2556,12 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 {
     assert(cmp->gtGetOp2()->IsIntegralConst());
 
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
     GenTree*       op1      = cmp->gtGetOp1();
     GenTreeIntCon* op2      = cmp->gtGetOp2()->AsIntCon();
     ssize_t        op2Value = op2->IconValue();
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     var_types op1Type = op1->TypeGet();
     if (IsContainableMemoryOp(op1) && varTypeIsSmall(op1Type) && genSmallTypeCanRepresentValue(op1Type, op2Value))
     {
@@ -2595,11 +2595,11 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             // the result of bool returning calls.
             //
             bool removeCast =
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
                 (op2Value == 0) && cmp->OperIs(GT_EQ, GT_NE, GT_GT) &&
 #endif
                 (castOp->OperIs(GT_CALL, GT_LCL_VAR) || castOp->OperIsLogical()
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
                  || IsContainableMemoryOp(castOp)
 #endif
                      );
@@ -2608,7 +2608,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             {
                 assert(!castOp->gtOverflowEx()); // Must not be an overflow checking operation
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
                 bool cmpEq = cmp->OperIs(GT_EQ);
 
                 cmp->SetOperRaw(cmpEq ? GT_TEST_EQ : GT_TEST_NE);
@@ -2674,7 +2674,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             andOp1->ClearContained();
             andOp2->ClearContained();
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             if (IsContainableMemoryOp(andOp1) && andOp2->IsIntegralConst())
             {
                 //
@@ -2712,7 +2712,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 
     if (cmp->OperIs(GT_TEST_EQ, GT_TEST_NE))
     {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         //
         // Transform TEST_EQ|NE(x, LSH(1, y)) into BT(x, y) when possible. Using BT
         // results in smaller and faster code. It also doesn't have special register
@@ -2757,7 +2757,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 
             return cmp->gtNext;
         }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     }
     else if (cmp->OperIs(GT_EQ, GT_NE))
     {
@@ -2771,9 +2771,9 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
         // test instruction.
 
         if (op2->IsIntegralConst(0) && (op1->gtNext == op2) && (op2->gtNext == cmp) &&
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             op1->OperIs(GT_AND, GT_OR, GT_XOR, GT_ADD, GT_SUB, GT_NEG))
-#else // TARGET_ARM64
+#else // _TARGET_ARM64_
             op1->OperIs(GT_AND, GT_ADD, GT_SUB))
 #endif
         {
@@ -2818,7 +2818,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             return next;
         }
     }
-#endif // defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
 
     return cmp;
 }
@@ -2834,7 +2834,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 //
 GenTree* Lowering::LowerCompare(GenTree* cmp)
 {
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
         return DecomposeLongCompare(cmp);
@@ -2852,7 +2852,7 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
         }
     }
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     if (cmp->gtGetOp1()->TypeGet() == cmp->gtGetOp2()->TypeGet())
     {
         if (varTypeIsSmall(cmp->gtGetOp1()->TypeGet()) && varTypeIsUnsigned(cmp->gtGetOp1()->TypeGet()))
@@ -2868,7 +2868,7 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
             cmp->gtFlags |= GTF_UNSIGNED;
         }
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     ContainCheckCompare(cmp->AsOp());
     return cmp->gtNext;
 }
@@ -2888,7 +2888,7 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
 //
 GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
 {
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     GenTree* relop    = jtrue->gtGetOp1();
     GenTree* relopOp2 = relop->gtOp.gtGetOp2();
 
@@ -2925,7 +2925,7 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
             return nullptr;
         }
     }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
     ContainCheckJTrue(jtrue);
 
@@ -2959,7 +2959,7 @@ void Lowering::LowerRet(GenTree* ret)
     DISPNODE(ret);
     JITDUMP("============");
 
-#if defined(TARGET_AMD64) && defined(FEATURE_SIMD)
+#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
     GenTreeUnOp* const unOp = ret->AsUnOp();
     if ((unOp->TypeGet() == TYP_LONG) && (unOp->gtOp1->TypeGet() == TYP_SIMD8))
     {
@@ -2967,7 +2967,7 @@ void Lowering::LowerRet(GenTree* ret)
         unOp->gtOp1          = bitcast;
         BlockRange().InsertBefore(unOp, bitcast);
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     // Method doing PInvokes has exactly one return block unless it has tail calls.
     if (comp->info.compCallUnmanaged && (comp->compCurBB == comp->genReturnBB))
@@ -3111,13 +3111,13 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     GenTree* thisArgNode;
     if (call->IsTailCallViaHelper())
     {
-#ifdef TARGET_X86 // x86 tailcall via helper follows normal calling convention, but with extra stack args.
+#ifdef _TARGET_X86_ // x86 tailcall via helper follows normal calling convention, but with extra stack args.
         const unsigned argNum = 0;
-#else  // !TARGET_X86
+#else  // !_TARGET_X86_
         // In case of helper dispatched tail calls, "thisptr" will be the third arg.
         // The first two args are: real call target and addr of args copy routine.
         const unsigned argNum  = 2;
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
         fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
         thisArgNode                    = thisArgTabEntry->node;
@@ -3135,7 +3135,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 
     unsigned lclNum;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     if (call->IsTailCallViaHelper() && originalThisExpr->IsLocal())
     {
         // For ordering purposes for the special tailcall arguments on x86, we forced the
@@ -3147,7 +3147,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
         lclNum = originalThisExpr->AsLclVarCommon()->GetLclNum();
     }
     else
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     {
         unsigned delegateInvokeTmp = comp->lvaGrabTemp(true DEBUGARG("delegate invoke call"));
 
@@ -3187,7 +3187,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 
 GenTree* Lowering::LowerIndirectNonvirtCall(GenTreeCall* call)
 {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     if (call->gtCallCookie != nullptr)
     {
         NYI_X86("Morphing indirect non-virtual call with non-standard args");
@@ -3380,7 +3380,7 @@ void Lowering::InsertPInvokeMethodProlog()
     // for x86, don't pass the secretArg.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if defined(TARGET_X86) || defined(TARGET_ARM)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     GenTreeArgList* argList = comp->gtNewArgList(frameAddr);
 #else
     GenTreeArgList*    argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
@@ -3404,7 +3404,7 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, store));
     DISPTREERANGE(firstBlockRange, store);
 
-#if !defined(TARGET_X86) && !defined(TARGET_ARM)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
     // For x86, this step is done at the call site (due to stack pointer not being static in the function).
     // For arm32, CallSiteSP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
@@ -3419,9 +3419,9 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeSP));
     DISPTREERANGE(firstBlockRange, storeSP);
 
-#endif // !defined(TARGET_X86) && !defined(TARGET_ARM)
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
 
-#if !defined(TARGET_ARM)
+#if !defined(_TARGET_ARM_)
     // For arm32, CalleeSavedFP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
     // --------------------------------------------------------
@@ -3435,14 +3435,14 @@ void Lowering::InsertPInvokeMethodProlog()
 
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeFP));
     DISPTREERANGE(firstBlockRange, storeFP);
-#endif // !defined(TARGET_ARM)
+#endif // !defined(_TARGET_ARM_)
 
     // --------------------------------------------------------
     // On 32-bit targets, CORINFO_HELP_INIT_PINVOKE_FRAME initializes the PInvoke frame and then pushes it onto
     // the current thread's Frame stack. On 64-bit targets, it only initializes the PInvoke frame.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (comp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB))
     {
         // Push a frame - if we are NOT in an IL stub, this is done right before the call
@@ -3452,7 +3452,7 @@ void Lowering::InsertPInvokeMethodProlog()
         ContainCheckStoreIndir(frameUpd->AsIndir());
         DISPTREERANGE(firstBlockRange, frameUpd);
     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 }
 
 //------------------------------------------------------------------------
@@ -3520,9 +3520,9 @@ void Lowering::InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTree* 
     // this in the epilog for IL stubs; for non-IL stubs the frame is popped after every PInvoke call.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (comp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB))
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
     {
         GenTree* frameUpd = CreateFrameLinkUpdate(PopFrame);
         returnBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, frameUpd));
@@ -3591,7 +3591,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
 
     if (callType == CT_INDIRECT)
     {
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         // On 32-bit targets, indirect calls need the size of the stack args in InlinedCallFrame.m_Datum.
         const unsigned numStkArgBytes = call->fgArgInfo->GetNextSlotNum() * TARGET_POINTER_SIZE;
 
@@ -3603,7 +3603,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
         {
             src = comp->gtNewLclvNode(comp->lvaStubArgumentVar, TYP_I_IMPL);
         }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
     }
     else
     {
@@ -3639,7 +3639,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
         InsertTreeBeforeAndContainCheck(insertBefore, store);
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
     // ----------------------------------------------------------------------------------
     // InlinedCallFrame.m_pCallSiteSP = SP
@@ -3670,7 +3670,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
     // contains PInvokes; on 64-bit targets this is necessary in non-stubs.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (!comp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB))
     {
         // Set the TCB's frame to be the one we just created.
@@ -3682,7 +3682,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
         BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, frameUpd));
         ContainCheckStoreIndir(frameUpd->AsIndir());
     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
     // IMPORTANT **** This instruction must be the last real instruction ****
     // It changes the thread's state to Preemptive mode
@@ -3746,7 +3746,7 @@ void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
     // happens after every PInvoke call in non-stubs. 32-bit targets instead mark the frame as inactive.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (!comp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB))
     {
         tree = CreateFrameLinkUpdate(PopFrame);
@@ -3770,7 +3770,7 @@ void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
 
     BlockRange().InsertBefore(insertionPoint, constantZero, storeCallSiteTracker);
     ContainCheckStoreLoc(storeCallSiteTracker);
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 }
 
 //------------------------------------------------------------------------
@@ -3905,14 +3905,14 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
     int       thisPtrArgNum;
     regNumber thisPtrArgReg;
 
-#ifndef TARGET_X86 // x86 tailcall via helper follows normal calling convention, but with extra stack args.
+#ifndef _TARGET_X86_ // x86 tailcall via helper follows normal calling convention, but with extra stack args.
     if (call->IsTailCallViaHelper())
     {
         thisPtrArgNum = 2;
         thisPtrArgReg = REG_ARG_2;
     }
     else
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
     {
         thisPtrArgNum = 0;
         thisPtrArgReg = comp->codeGen->genGetThisArgReg(call);
@@ -4061,7 +4061,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 
     GenTree* result = nullptr;
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     // Non-tail calls: Jump Stubs are not taken into account by VM for mapping an AV into a NullRef
     // exception. Therefore, JIT needs to emit an explicit null check.  Note that Jit64 too generates
     // an explicit null check.
@@ -4117,7 +4117,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
         // accessed via an indirection.
         GenTree* addr = AddrGen(stubAddr);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         // On x86, for tailcall via helper, the JIT_TailCall helper takes the stubAddr as
         // the target address, and we set a flag that it's a VSD call. The helper then
         // handles any necessary indirection.
@@ -4125,7 +4125,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
         {
             result = addr;
         }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         if (result == nullptr)
         {
@@ -4392,7 +4392,7 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
 //
 GenTree* Lowering::LowerAdd(GenTree* node)
 {
-#ifndef TARGET_ARMARCH
+#ifndef _TARGET_ARMARCH_
     if (varTypeIsIntegralOrI(node))
     {
         LIR::Use use;
@@ -4411,7 +4411,7 @@ GenTree* Lowering::LowerAdd(GenTree* node)
             }
         }
     }
-#endif // !TARGET_ARMARCH
+#endif // !_TARGET_ARMARCH_
 
     return nullptr;
 }
@@ -4442,14 +4442,14 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
     }
     assert(varTypeIsFloating(divMod->TypeGet()));
 #endif // USE_HELPERS_FOR_INT_DIV
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
     assert(divMod->OperGet() != GT_UMOD);
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
     GenTree* dividend = divMod->gtGetOp1();
     GenTree* divisor  = divMod->gtGetOp2();
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (dividend->OperIs(GT_LONG))
     {
         return false;
@@ -4523,7 +4523,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
     }
 
 // TODO-ARM-CQ: Currently there's no GT_MULHI for ARM32
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
     if (!comp->opts.MinOpts() && (divisorValue >= 3))
     {
         size_t magic;
@@ -4536,7 +4536,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
         }
         else
         {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
             magic = MagicDivide::GetUnsigned64Magic(static_cast<uint64_t>(divisorValue), &add, &shift);
 #else
             unreached();
@@ -4645,9 +4645,9 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 #if defined(USE_HELPERS_FOR_INT_DIV)
     assert(!"unreachable: integral GT_DIV/GT_MOD should get morphed into helper calls");
 #endif // USE_HELPERS_FOR_INT_DIV
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
     assert(node->OperGet() != GT_MOD);
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
     if (!divisor->IsCnsIntOrI())
     {
@@ -4701,7 +4701,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
             return nullptr;
         }
 
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         ssize_t magic;
         int     shift;
 
@@ -4711,11 +4711,11 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         }
         else
         {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
             magic = MagicDivide::GetSigned64Magic(static_cast<int64_t>(divisorValue), &shift);
-#else  // !TARGET_64BIT
+#else  // !_TARGET_64BIT_
             unreached();
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
         }
 
         divisor->gtIntConCommon.SetIconValue(magic);
@@ -4802,7 +4802,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         }
 
         return mulhi;
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
         // Currently there's no GT_MULHI for ARM32
         return nullptr;
 #else
@@ -4926,7 +4926,7 @@ void Lowering::LowerShift(GenTreeOp* shift)
     assert(shift->OperIs(GT_LSH, GT_RSH, GT_RSZ));
 
     size_t mask = 0x1f;
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (varTypeIsLong(shift->TypeGet()))
     {
         mask = 0x3f;
@@ -5166,25 +5166,25 @@ void Lowering::DoPhase()
         InsertPInvokeMethodProlog();
     }
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     DecomposeLongs decomp(comp); // Initialize the long decomposition class.
     if (comp->compLongUsed)
     {
         decomp.PrepareForDecomposition();
     }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
 
     for (BasicBlock* block = comp->fgFirstBB; block; block = block->bbNext)
     {
         /* Make the block publicly available */
         comp->compCurBB = block;
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         if (comp->compLongUsed)
         {
             decomp.DecomposeBlock(block);
         }
-#endif //!TARGET_64BIT
+#endif //!_TARGET_64BIT_
 
         LowerBlock(block);
     }
@@ -5321,7 +5321,7 @@ void Lowering::CheckNode(Compiler* compiler, GenTree* node)
         case GT_SIMD:
             assert(node->TypeGet() != TYP_SIMD12);
             break;
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         case GT_LCL_VAR:
         case GT_STORE_LCL_VAR:
         {
@@ -5330,7 +5330,7 @@ void Lowering::CheckNode(Compiler* compiler, GenTree* node)
             assert(node->TypeGet() != TYP_SIMD12 || compiler->lvaIsFieldOfDependentlyPromotedStruct(lclVar));
         }
         break;
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 #endif // SIMD
 
         default:
@@ -5535,7 +5535,7 @@ void Lowering::ContainCheckNode(GenTree* node)
 
         case GT_ADD:
         case GT_SUB:
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         case GT_ADD_LO:
         case GT_ADD_HI:
         case GT_SUB_LO:
@@ -5547,7 +5547,7 @@ void Lowering::ContainCheckNode(GenTree* node)
             ContainCheckBinary(node->AsOp());
             break;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         case GT_MUL_LONG:
 #endif
         case GT_MUL:
@@ -5565,7 +5565,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_RSZ:
         case GT_ROL:
         case GT_ROR:
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
         case GT_LSH_HI:
         case GT_RSH_LO:
 #endif
@@ -5596,11 +5596,11 @@ void Lowering::ContainCheckNode(GenTree* node)
             // The regNum must have been set by the lowering of the call.
             assert(node->gtRegNum != REG_NA);
             break;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         case GT_INTRINSIC:
             ContainCheckIntrinsic(node->AsOp());
             break;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 #ifdef FEATURE_SIMD
         case GT_SIMD:
             ContainCheckSIMD(node->AsSIMD());
@@ -5624,14 +5624,14 @@ void Lowering::ContainCheckNode(GenTree* node)
 //
 void Lowering::ContainCheckReturnTrap(GenTreeOp* node)
 {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     assert(node->OperIs(GT_RETURNTRAP));
     // This just turns into a compare of its child with an int + a conditional call
     if (node->gtOp1->isIndir())
     {
         MakeSrcContained(node, node->gtOp1);
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 }
 
 //------------------------------------------------------------------------
@@ -5676,14 +5676,14 @@ void Lowering::ContainCheckRet(GenTreeOp* ret)
 {
     assert(ret->OperIs(GT_RETURN));
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (ret->TypeGet() == TYP_LONG)
     {
         GenTree* op1 = ret->gtGetOp1();
         noway_assert(op1->OperGet() == GT_LONG);
         MakeSrcContained(ret, op1);
     }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
 #if FEATURE_MULTIREG_RET
     if (varTypeIsStruct(ret))
     {

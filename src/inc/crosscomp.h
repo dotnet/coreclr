@@ -177,7 +177,7 @@ typedef struct _T_DISPATCHER_CONTEXT {
 } T_DISPATCHER_CONTEXT, *PT_DISPATCHER_CONTEXT;
 
 
-#elif defined(HOST_AMD64) && defined(TARGET_ARM64)  // Host amd64 managing ARM64 related code
+#elif defined(_AMD64_) && defined(_TARGET_ARM64_)  // Host amd64 managing ARM64 related code
 
 #ifndef CROSS_COMPILE
 #define CROSS_COMPILE

@@ -676,7 +676,7 @@ bool ShimProcess::RemoveDuplicateCreationEventIfPresent(void * pKey)
 //   It can be passed into ICorDebugProcess4::Filter.
 CorDebugRecordFormat GetHostExceptionRecordFormat()
 {
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     return FORMAT_WINDOWS_EXCEPTIONRECORD64;
 #else
     return FORMAT_WINDOWS_EXCEPTIONRECORD32;
@@ -1825,7 +1825,7 @@ HMODULE ShimProcess::GetDacModule()
     HModuleHolder hDacDll;
     PathString wszAccessDllPath;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     if (!PAL_GetPALDirectoryWrapper(wszAccessDllPath))
     {
         ThrowLastError();
@@ -1852,7 +1852,7 @@ HMODULE ShimProcess::GetDacModule()
     PCWSTR eeFlavor = 
         W("mscordaccore.dll");
     
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     wszAccessDllPath.Append(eeFlavor);
 
     hDacDll.Assign(WszLoadLibrary(wszAccessDllPath));

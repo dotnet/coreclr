@@ -1532,9 +1532,9 @@ PCODE RangeSectionStubManager::GetMethodThunkTarget(PCODE stubStartAddress)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     return rel32Decode(stubStartAddress+1);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     TADDR pInstr = PCODEToPINSTR(stubStartAddress);
     return *dac_cast<PTR_PCODE>(pInstr + 2 * sizeof(DWORD));
 #else
@@ -1824,9 +1824,9 @@ BOOL ILStubManager::TraceManager(Thread *thread,
         target = (PCODE)arg;
         
         // The value is mangled on 64-bit
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         target = target >> 1; // call target is encoded as (addr << 1) | 1
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         LOG((LF_CORDB, LL_INFO10000, "ILSM::TraceManager: Unmanaged CALLI case 0x%x\n", target));
         trace->InitForUnmanaged(target);
@@ -1928,7 +1928,7 @@ static BOOL IsVarargPInvokeStub(PCODE stubStartAddress)
     if (stubStartAddress == GetEEFuncEntryPoint(VarargPInvokeStub))
         return TRUE;
 
-#if !defined(TARGET_X86) && !defined(TARGET_ARM64)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
     if (stubStartAddress == GetEEFuncEntryPoint(VarargPInvokeStub_RetBuffArg))
         return TRUE;
 #endif
@@ -2115,7 +2115,7 @@ BOOL DelegateInvokeStubManager::CheckIsStub_Internal(PCODE stubStartAddress)
     bool fIsStub = false;
 
 #ifndef DACCESS_COMPILE
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
     fIsStub = fIsStub || (stubStartAddress == GetEEFuncEntryPoint(SinglecastDelegateInvokeStub));
 #endif
 #endif // !DACCESS_COMPILE
@@ -2163,14 +2163,14 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
     pThis = NULL;
 
     // Retrieve the this pointer from the context.
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     (*pRetAddr) = *(BYTE **)(size_t)(pContext->Esp);
 
     pThis = (BYTE*)(size_t)(pContext->Ecx);
 
     destAddr = *(PCODE*)(pThis + DelegateObject::GetOffsetOfMethodPtrAux());
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
     // <TODO>
     // We need to check whether the following is the correct return address. 
@@ -2217,7 +2217,7 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
     }
 
     destAddr = orDelegate->GetMethodPtrAux();
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
     pThis = (BYTE*)(size_t)(pContext->R0);
 
@@ -2229,7 +2229,7 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
     else
         offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtrAux();
     destAddr = *(PCODE*)(pThis + offsetOfNextDest);
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
     pThis = (BYTE*)(size_t)(pContext->X0);
 
@@ -2389,10 +2389,10 @@ BOOL TailCallStubManager::CheckIsStub_Internal(PCODE stubStartAddress)
 
 #if !defined(DACCESS_COMPILE)
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 EXTERN_C void STDCALL JIT_TailCallLeave();
 EXTERN_C void STDCALL JIT_TailCallVSDLeave();
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 BOOL TailCallStubManager::TraceManager(Thread * pThread, 
                                        TraceDestination * pTrace, 
@@ -2400,7 +2400,7 @@ BOOL TailCallStubManager::TraceManager(Thread * pThread,
                                        BYTE ** ppRetAddr)
 {
     WRAPPER_NO_CONTRACT;
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     TADDR esp = GetSP(pContext);
     TADDR ebp = GetFP(pContext);
 
@@ -2450,12 +2450,12 @@ BOOL TailCallStubManager::TraceManager(Thread * pThread,
         return TRUE;
     }
 
-#elif defined(TARGET_AMD64) || defined(TARGET_ARM)
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
 
     _ASSERTE(GetIP(pContext) == GetEEFuncEntryPoint(JIT_TailCall));
 
     // The target address is the second argument
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     PCODE target = (PCODE)pContext->Rdx;
 #else
     PCODE target = (PCODE)pContext->R1;
@@ -2464,12 +2464,12 @@ BOOL TailCallStubManager::TraceManager(Thread * pThread,
     pTrace->InitForStub(target);
     return TRUE;
 
-#else  // !TARGET_X86 && !TARGET_AMD64 && !TARGET_ARM
+#else  // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM_
 
     _ASSERTE(!"TCSM::TM - TailCallStubManager should not be necessary on this platform");
     return FALSE;
 
-#endif // TARGET_X86 || TARGET_AMD64
+#endif // _TARGET_X86_ || _TARGET_AMD64_
 }
 
 #endif // !DACCESS_COMPILE

@@ -35,7 +35,7 @@
 #include "gcenv.ee.h"
 #include "volatile.h"
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 #include "gcenv.unix.inl"
 #else
 #include "gcenv.windows.inl"

@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
 
 // The ARM64 instructions are all 32 bits in size.
 // we use an unsigned int to hold the encoded instructions.
@@ -889,4 +889,4 @@ inline bool emitIsLoadConstant(instrDesc* jmp)
             (jmp->idInsFmt() == IF_LARGELDC));
 }
 
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_

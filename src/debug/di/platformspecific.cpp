@@ -23,16 +23,16 @@
 #include "LocalEventChannel.cpp"
 #endif 
 
-#if TARGET_X86
+#if DBG_TARGET_X86
 #include "i386/cordbregisterset.cpp"
 #include "i386/primitives.cpp"
-#elif TARGET_AMD64
+#elif DBG_TARGET_AMD64
 #include "amd64/cordbregisterset.cpp"
 #include "amd64/primitives.cpp"
-#elif TARGET_ARM
+#elif DBG_TARGET_ARM
 #include "arm/cordbregisterset.cpp"
 #include "arm/primitives.cpp"
-#elif TARGET_ARM64
+#elif DBG_TARGET_ARM64
 #include "arm64/cordbregisterset.cpp"
 #include "arm64/primitives.cpp"
 #else

@@ -142,7 +142,7 @@ do                                                      \
         if (CorTypeInfo::IsPrimitiveType(corElemType))
         {
             pfwalk->m_managedPlacement.m_size = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
-#if defined(TARGET_X86) && defined(UNIX_X86_ABI)
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
             switch (corElemType)
             {
                 // The System V ABI for i386 defines different packing for these types.
@@ -160,7 +160,7 @@ do                                                      \
                     break;
                 }
             }
-#else // TARGET_X86 && UNIX_X86_ABI
+#else // _TARGET_X86_ && UNIX_X86_ABI
             pfwalk->m_managedPlacement.m_alignment = pfwalk->m_managedPlacement.m_size;
 #endif
         }
@@ -193,7 +193,7 @@ do                                                      \
         }
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // Normalization might have put corElementType and ntype out of sync which can
     // result in problems with non-default ntype being validated against the 
     // normalized primitive corElemType.
@@ -201,7 +201,7 @@ do                                                      \
     VerifyAndAdjustNormalizedType(pModule, fsig.GetArgProps(), fsig.GetSigTypeContext(), &corElemType, &ntype);
 
     fDefault = (ntype == NATIVE_TYPE_DEFAULT);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     CorElementType sigElemType;
     IfFailThrow(fsig.GetArgProps().PeekElemType(&sigElemType));
@@ -373,11 +373,11 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
             if (fDefault || ntype == NATIVE_TYPE_INT || ntype == NATIVE_TYPE_UINT)
             {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
                 INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
-#else // !TARGET_64BIT
+#else // !_TARGET_64BIT_
                 INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
             }
             else
             {
@@ -417,11 +417,11 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
             if (fDefault)
             {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
                 INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
-#else // !TARGET_64BIT
+#else // !_TARGET_64BIT_
                 INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
             }
             else
             {

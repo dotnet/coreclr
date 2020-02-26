@@ -69,7 +69,7 @@ public:
     // contained in debug/inc/DbgIPCEvents.h.
     enum RegNum
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         REGNUM_EAX,
         REGNUM_ECX,
         REGNUM_EDX,
@@ -78,7 +78,7 @@ public:
         REGNUM_EBP,
         REGNUM_ESI,
         REGNUM_EDI,
-#elif TARGET_ARM
+#elif _TARGET_ARM_
         REGNUM_R0,
         REGNUM_R1,
         REGNUM_R2,
@@ -95,7 +95,7 @@ public:
         REGNUM_SP,
         REGNUM_LR,
         REGNUM_PC,
-#elif TARGET_ARM64
+#elif _TARGET_ARM64_
         REGNUM_X0,
         REGNUM_X1,
         REGNUM_X2,
@@ -129,7 +129,7 @@ public:
         REGNUM_LR,
         REGNUM_SP,
         REGNUM_PC,
-#elif TARGET_AMD64
+#elif _TARGET_AMD64_
         REGNUM_RAX,
         REGNUM_RCX,
         REGNUM_RDX,
@@ -153,18 +153,18 @@ public:
         REGNUM_AMBIENT_SP, // ambient SP support. Ambient SP is the original SP in the non-BP based frame.
                            // Ambient SP should not change even if there are push/pop operations in the method.
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         REGNUM_FP = REGNUM_EBP,
         REGNUM_SP = REGNUM_ESP,
-#elif TARGET_AMD64
+#elif _TARGET_AMD64_
         REGNUM_SP = REGNUM_RSP,
-#elif TARGET_ARM
+#elif _TARGET_ARM_
 #ifdef REDHAWK
         REGNUM_FP = REGNUM_R7,
 #else
         REGNUM_FP = REGNUM_R11,
 #endif //REDHAWK
-#elif TARGET_ARM64
+#elif _TARGET_ARM64_
         //Nothing to do here. FP is already alloted.
 #else
         // RegNum values should be properly defined for this platform

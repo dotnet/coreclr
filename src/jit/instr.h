@@ -14,7 +14,7 @@
 // clang-format off
 enum instruction : unsigned
 {
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
     #define INST0(id, nm, um, mr,                 flags) INS_##id,
     #define INST1(id, nm, um, mr,                 flags) INS_##id,
     #define INST2(id, nm, um, mr, mi,             flags) INS_##id,
@@ -23,7 +23,7 @@ enum instruction : unsigned
     #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) INS_##id,
     #include "instrs.h"
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     #define INST1(id, nm, fp, ldst, fmt, e1                                ) INS_##id,
     #define INST2(id, nm, fp, ldst, fmt, e1, e2                            ) INS_##id,
     #define INST3(id, nm, fp, ldst, fmt, e1, e2, e3                        ) INS_##id,
@@ -36,7 +36,7 @@ enum instruction : unsigned
 
     INS_lea,   // Not a real instruction. It is used for load the address of stack locals
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     #define INST1(id, nm, fp, ldst, fmt, e1                                ) INS_##id,
     #define INST2(id, nm, fp, ldst, fmt, e1, e2                            ) INS_##id,
     #define INST3(id, nm, fp, ldst, fmt, e1, e2, e3                        ) INS_##id,
@@ -86,7 +86,7 @@ enum GCtype : unsigned
     GCT_BYREF
 };
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 enum insFlags: uint8_t
 {
     INS_FLAGS_None = 0x00,
@@ -96,11 +96,11 @@ enum insFlags: uint8_t
     INS_Flags_IsDstDstSrcAVXInstruction = 0x08,
     INS_Flags_IsDstSrcSrcAVXInstruction = 0x10,
 
-    //  TODO-Cleanup:  Remove this flag and its usage from TARGET_XARCH
+    //  TODO-Cleanup:  Remove this flag and its usage from _TARGET_XARCH_
     INS_FLAGS_DONT_CARE = 0x00,
 };
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
-// TODO-Cleanup: Move 'insFlags' under TARGET_ARM
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+// TODO-Cleanup: Move 'insFlags' under _TARGET_ARM_
 enum insFlags: unsigned
 {
     INS_FLAGS_NOT_SET = 0x00,
@@ -111,7 +111,7 @@ enum insFlags: unsigned
 #error Unsupported target architecture
 #endif
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 enum insOpts: unsigned
 {
     INS_OPTS_NONE,
@@ -124,7 +124,7 @@ enum insOpts: unsigned
     INS_OPTS_ASR,
     INS_OPTS_ROR
 };
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 enum insOpts : unsigned
 {
     INS_OPTS_NONE,
@@ -257,7 +257,7 @@ enum emitAttr : unsigned
                 EA_32BYTE        = 0x020,
                 EA_SIZE_MASK     = 0x03F,
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
                 EA_PTRSIZE       = EA_8BYTE,
 #else
                 EA_PTRSIZE       = EA_4BYTE,
@@ -295,7 +295,7 @@ enum emitAttr : unsigned
 enum InstructionSet
 {
     InstructionSet_ILLEGAL = 0,
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     InstructionSet_Vector128,
     InstructionSet_Vector256,
     // Start linear order SIMD instruction sets
@@ -324,9 +324,9 @@ enum InstructionSet
     InstructionSet_SSE2_X64,
     InstructionSet_SSE41_X64,
     InstructionSet_SSE42_X64,
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     InstructionSet_NEON,
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     InstructionSet_Vector64,
     InstructionSet_Vector128,
     InstructionSet_Base,      // Base instructions available on all Arm64 platforms

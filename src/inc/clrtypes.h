@@ -23,7 +23,7 @@
 #include "staticcontract.h"
 #include "static_assert.h"
 
-#if HOST_64BIT
+#if BIT64
     #define POINTER_BITS 64
 #else
     #define POINTER_BITS 32

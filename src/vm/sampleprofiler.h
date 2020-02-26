@@ -70,11 +70,11 @@ private:
     static bool LoadDependencies();
     static void UnloadDependencies();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     static HINSTANCE s_hMultimediaLib;
     static PVOID s_timeBeginPeriodFn;
     static PVOID s_timeEndPeriodFn;
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 
     static void SetTimeGranularity();
     static void ResetTimeGranularity();

@@ -284,7 +284,7 @@ typedef ANSI_STRING64 *PANSI_STRING64;
 #define GDI_HANDLE_BUFFER_SIZE32  34
 #define GDI_HANDLE_BUFFER_SIZE64  60
 
-#if !defined(TARGET_AMD64)
+#if !defined(_TARGET_AMD64_)
 #define GDI_HANDLE_BUFFER_SIZE      GDI_HANDLE_BUFFER_SIZE32
 #else
 #define GDI_HANDLE_BUFFER_SIZE      GDI_HANDLE_BUFFER_SIZE64
@@ -587,7 +587,7 @@ typedef struct _TEB {
     PVOID SystemReserved1[54];      // Used by FP emulator
     NTSTATUS ExceptionCode;         // for RaiseUserException
     ACTIVATION_CONTEXT_STACK ActivationContextStack;   // Fusion activation stack
-    // sizeof(PVOID) is a way to express processor-dependence, more generally than #ifdef HOST_64BIT
+    // sizeof(PVOID) is a way to express processor-dependence, more generally than #ifdef BIT64
     UCHAR SpareBytes1[48 - sizeof(PVOID) - sizeof(ACTIVATION_CONTEXT_STACK)];
     GDI_TEB_BATCH GdiTebBatch;      // Gdi batching
     CLIENT_ID RealClientId;
@@ -763,7 +763,7 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
     PT_RUNTIME_FUNCTION FunctionTable;
     LARGE_INTEGER TimeStamp;
     
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     ULONG MinimumAddress;
     ULONG MaximumAddress;
     ULONG BaseAddress;
@@ -780,12 +780,12 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
     ULONG EntryCount;
 } DYNAMIC_FUNCTION_TABLE, *PDYNAMIC_FUNCTION_TABLE;
 
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
 //
 //   AMD64
 //
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,address)  ((prf)->BeginAddress = (address))
@@ -847,7 +847,7 @@ typedef struct _DISPATCHER_CONTEXT {
     _EXCEPTION_REGISTRATION_RECORD* RegistrationPointer;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
 
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,addr)     ((prf)->BeginAddress = (addr))
@@ -888,9 +888,9 @@ RtlVirtualUnwind (
     );
 #endif // WIN64EXCEPTIONS
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 #include "daccess.h"
 
 //
@@ -933,7 +933,7 @@ typedef struct _UNWIND_INFO {
     // dummy
 } UNWIND_INFO, *PUNWIND_INFO;
 
-#if defined(TARGET_UNIX) || defined(HOST_X86)
+#if defined(FEATURE_PAL) || defined(_X86_)
 EXTERN_C
 NTSYSAPI
 VOID
@@ -961,13 +961,13 @@ RtlVirtualUnwind (
     __out PDWORD EstablisherFrame,
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
-#endif // TARGET_UNIX || HOST_X86
+#endif // FEATURE_PAL || _X86_
 
 #define UNW_FLAG_NHANDLER 0x0
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
 #include "daccess.h"
 
 #define UNW_FLAG_NHANDLER               0x0             /* any handler */

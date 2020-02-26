@@ -22,7 +22,7 @@ HINSTANCE LoadDbgHelp();
 #define cfrMaxAssertStackLevels 20
 #define cchMaxAssertExprLen 257
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 
 #define cchMaxAssertStackLevelStringLen \
     ((3 * 8) + cchMaxAssertModuleLen + cchMaxAssertSymbolLen + 13)
@@ -74,7 +74,7 @@ void GetStringFromStackLevels(UINT ifrStart, UINT cfrTotal, __out_ecount(cchMaxA
 ******************************************************************** robch */
 void GetStringFromAddr(DWORD_PTR dwAddr, __out_ecount(cchMaxAssertStackLevelStringLen) LPSTR szString);
 
-#if defined(TARGET_X86) && !defined(TARGET_UNIX)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 /****************************************************************************
 * ClrCaptureContext *
 *-------------------*
@@ -83,9 +83,9 @@ void GetStringFromAddr(DWORD_PTR dwAddr, __out_ecount(cchMaxAssertStackLevelStri
 *       support this, so we need it for CoreCLR 4, if we require Win2K support
 ****************************************************************************/
 extern "C" void __stdcall ClrCaptureContext(__out PCONTEXT ctx);
-#else // TARGET_X86 && !TARGET_UNIX
+#else // _TARGET_X86_ && !FEATURE_PAL
 #define ClrCaptureContext RtlCaptureContext
-#endif // TARGET_X86 && !TARGET_UNIX
+#endif // _TARGET_X86_ && !FEATURE_PAL
 
 
 #endif

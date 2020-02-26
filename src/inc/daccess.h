@@ -599,10 +599,10 @@ typedef SIZE_T TSIZE_T;
 
 typedef struct _DacGlobals
 {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     static void Initialize();
     void InitializeEntries(TADDR baseAddress);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 // These will define all of the dac related mscorwks static and global variables    
 #define DEFINE_DACVAR(id_type, size, id, var)                 id_type id;
@@ -614,9 +614,9 @@ typedef struct _DacGlobals
     ULONG fn__DACNotifyCompilationFinished;
     ULONG fn__ThePreStub;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     ULONG fn__ThePreStubCompactARM;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
@@ -785,10 +785,10 @@ struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
 #endif // WIN64EXCEPTIONS
 
-#if defined(TARGET_UNIX)
+#if defined(FEATURE_PAL)
 // call back through data target to unwind out-of-process
 HRESULT DacVirtualUnwind(ULONG32 threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 class SString;
@@ -1019,7 +1019,7 @@ public:
     {
         return DPtrType(DacTAddrOffset(m_addr, val, sizeof(type)));
     }
-#if defined (HOST_64BIT)
+#if defined (BIT64)
     DPtrType operator+(unsigned int val)
     {
         return DPtrType(DacTAddrOffset(m_addr, val, sizeof(type)));
@@ -1063,7 +1063,7 @@ public:
     {
         return DPtrType(m_addr - val * sizeof(type));
     }
-#ifdef HOST_64BIT
+#ifdef BIT64
     DPtrType operator-(unsigned int val)
     {
         return DPtrType(m_addr - val * sizeof(type));
@@ -2113,7 +2113,7 @@ typedef const void* PTR_CVOID;
 #define S16PTR(type) type*
 #define S16PTRMAX(type, maxChars) type*
 
-#if defined(TARGET_UNIX)
+#if defined(FEATURE_PAL)
 
 #define VPTR_VTABLE_CLASS(name, base) \
         friend struct _DacGlobals; \
@@ -2147,7 +2147,7 @@ public: name(int dummy) : base(dummy) {}
         VPTR_ABSTRACT_VTABLE_CLASS(name, base) \
         name() : base() {}
 
-#else // TARGET_UNIX
+#else // FEATURE_PAL
 
 #define VPTR_VTABLE_CLASS(name, base)
 #define VPTR_VTABLE_CLASS_AND_CTOR(name, base)
@@ -2158,7 +2158,7 @@ public: name(int dummy) : base(dummy) {}
 #define VPTR_ABSTRACT_VTABLE_CLASS(name, base)
 #define VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(name, base)
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 // helper macro to make the vtables unique for DAC
 #define VPTR_UNIQUE(unique) virtual int MakeVTableUniqueForDAC() { return unique; }
@@ -2393,19 +2393,19 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 #include <xclrdata.h>
 #endif
 
-#if defined(TARGET_X86) && defined(TARGET_UNIX)
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
 typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #endif
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 typedef DPTR(union _UNWIND_CODE)       PTR_UNWIND_CODE;
-#endif // TARGET_AMD64
-#endif // TARGET_64BIT
+#endif // _TARGET_AMD64_
+#endif // _TARGET_64BIT_
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 #endif
 

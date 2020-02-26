@@ -453,7 +453,7 @@ void EventReporter::Report()
             {
                 // If the event log file was neither corrupt nor full, then assert,
                 // since something is wrong!
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
                 //ARMTODO: Event reporting is currently non-functional on winpe.
                 _ASSERTE(!"EventReporter::Report - Unable to log details to event log!");
 #endif

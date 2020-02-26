@@ -106,7 +106,7 @@ typedef unsigned short WCHAR;
 
 /* _W64 */
 #if !defined(_W64)
-#if !defined(__midl) && (defined(HOST_X86) || defined(_M_IX86)) && _MSC_VER >= 1300
+#if !defined(__midl) && (defined(_X86_) || defined(_M_IX86)) && _MSC_VER >= 1300
 #define _W64 __w64
 #else
 #define _W64
@@ -116,7 +116,7 @@ typedef unsigned short WCHAR;
 /* size_t */
 #if defined (SAFECRT_INCLUDE_REDEFINES)
 #if !defined(_SIZE_T_DEFINED)
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 typedef unsigned __int64    size_t;
 #else
 typedef _W64 unsigned int   size_t;
@@ -127,7 +127,7 @@ typedef _W64 unsigned int   size_t;
 
 /* uintptr_t */
 #if !defined(_UINTPTR_T_DEFINED)
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 typedef unsigned __int64    uintptr_t;
 #else
 typedef _W64 unsigned int   uintptr_t;

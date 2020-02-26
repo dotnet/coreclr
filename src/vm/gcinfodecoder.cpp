@@ -125,11 +125,11 @@ GcInfoDecoder::GcInfoDecoder(
     m_GenericSecretParamIsMD   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MD;
     m_GenericSecretParamIsMT   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MT;
     int hasStackBaseRegister   = headerFlags & GC_INFO_HAS_STACK_BASE_REGISTER;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     m_WantsReportOnlyLeaf      = ((headerFlags & GC_INFO_WANTS_REPORT_ONLY_LEAF) != 0);
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     m_HasTailCalls             = ((headerFlags & GC_INFO_HAS_TAILCALLS) != 0);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
     int hasSizeOfEditAndContinuePreservedArea = headerFlags & GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS;
     
     int hasReversePInvokeFrame = false;
@@ -146,9 +146,9 @@ GcInfoDecoder::GcInfoDecoder(
     }
     else
     {
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
         m_ReturnKind = RT_Unset;
-#endif // ! TARGET_X86
+#endif // ! _TARGET_X86_
     }
 
     if (flags == DECODE_RETURN_KIND) {
@@ -372,7 +372,7 @@ bool GcInfoDecoder::IsSafePoint(UINT32 codeOffset)
     if(m_NumSafePoints == 0)
         return false;
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // Safepoints are encoded with a -1 adjustment
     codeOffset--;
 #endif
@@ -392,7 +392,7 @@ UINT32 GcInfoDecoder::FindSafePoint(UINT32 breakOffset)
     const UINT32 numBitsPerOffset = CeilOfLog2(NORMALIZE_CODE_OFFSET(m_CodeLength));
     UINT32 result = m_NumSafePoints;
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // Safepoints are encoded with a -1 adjustment
     // but normalizing them masks off the low order bit
     // Thus only bother looking if the address is odd
@@ -439,7 +439,7 @@ void GcInfoDecoder::EnumerateSafePoints(EnumerateSafePointsCallback *pCallback, 
         UINT32 normOffset = (UINT32)m_Reader.Read(numBitsPerOffset);
         UINT32 offset = DENORMALIZE_CODE_OFFSET(normOffset) + 2;
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         // Safepoints are encoded with a -1 adjustment
         offset--;
 #endif
@@ -531,18 +531,18 @@ bool GcInfoDecoder::GetIsVarArg()
     return m_IsVarArg;
 }
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 bool GcInfoDecoder::HasTailCalls()
 {
     _ASSERTE( m_Flags & DECODE_HAS_TAILCALLS );
     return m_HasTailCalls;
 }
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 bool GcInfoDecoder::WantsReportOnlyLeaf()
 {
     // Only AMD64 with JIT64 can return false here.
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     return m_WantsReportOnlyLeaf;
 #else
     return true;
@@ -1349,7 +1349,7 @@ const GcSlotDesc* GcSlotDecoder::GetSlotDesc(UINT32 slotIndex)
 // Platform-specific methods
 //-----------------------------------------------------------------------------
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
 
 OBJECTREF* GcInfoDecoder::GetRegisterSlot(
@@ -1373,7 +1373,7 @@ OBJECTREF* GcInfoDecoder::GetRegisterSlot(
     return (OBJECTREF*)*(ppRax + regNum);
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 OBJECTREF* GcInfoDecoder::GetCapturedRegister(
     int             regNum,
     PREGDISPLAY     pRD
@@ -1389,7 +1389,7 @@ OBJECTREF* GcInfoDecoder::GetCapturedRegister(
 
     return (OBJECTREF*)(pRax + regNum);
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 bool GcInfoDecoder::IsScratchRegister(int regNum,  PREGDISPLAY pRD)
 {
@@ -1443,7 +1443,7 @@ void GcInfoDecoder::ReportRegisterToGC(  // AMD64
     LOG((LF_GCROOTS, LL_INFO1000, "Reporting " FMT_REG, regNum ));
 
     OBJECTREF* pObjRef = GetRegisterSlot( regNum, pRD );
-#if defined(TARGET_UNIX) && !defined(SOS_TARGET_AMD64) 
+#if defined(FEATURE_PAL) && !defined(SOS_TARGET_AMD64) 
     // On PAL, we don't always have the context pointers available due to
     // a limitation of an unwinding library. In such case, the context
     // pointers for some nonvolatile registers are NULL.
@@ -1463,7 +1463,7 @@ void GcInfoDecoder::ReportRegisterToGC(  // AMD64
 
         gcFlags |= GC_CALL_PINNED;
     }
-#endif // TARGET_UNIX && !SOS_TARGET_AMD64
+#endif // FEATURE_PAL && !SOS_TARGET_AMD64
 
 #ifdef _DEBUG
     if(IsScratchRegister(regNum, pRD))
@@ -1485,7 +1485,7 @@ void GcInfoDecoder::ReportRegisterToGC(  // AMD64
     pCallBack(hCallBack, pObjRef, gcFlags DAC_ARG(DacSlotLocation(regNum, 0, false)));
 }
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
 OBJECTREF* GcInfoDecoder::GetRegisterSlot(
                         int             regNum,
@@ -1517,7 +1517,7 @@ OBJECTREF* GcInfoDecoder::GetRegisterSlot(
 
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 OBJECTREF* GcInfoDecoder::GetCapturedRegister(
     int             regNum,
     PREGDISPLAY     pRD
@@ -1533,7 +1533,7 @@ OBJECTREF* GcInfoDecoder::GetCapturedRegister(
 
     return (OBJECTREF*)(pR0 + regNum);
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 
 bool GcInfoDecoder::IsScratchRegister(int regNum,  PREGDISPLAY pRD)
@@ -1597,7 +1597,7 @@ void GcInfoDecoder::ReportRegisterToGC(  // ARM
     pCallBack(hCallBack, pObjRef, gcFlags DAC_ARG(DacSlotLocation(regNum, 0, false)));
 }
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
 OBJECTREF* GcInfoDecoder::GetRegisterSlot(
                         int             regNum,
@@ -1688,7 +1688,7 @@ void GcInfoDecoder::ReportRegisterToGC( // ARM64
     pCallBack(hCallBack, pObjRef, gcFlags DAC_ARG(DacSlotLocation(regNum, 0, false)));
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 OBJECTREF* GcInfoDecoder::GetCapturedRegister(
     int             regNum,
     PREGDISPLAY     pRD
@@ -1703,7 +1703,7 @@ OBJECTREF* GcInfoDecoder::GetCapturedRegister(
 
     return (OBJECTREF*)(pX0 + regNum);
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #else // Unknown platform
 
@@ -1769,7 +1769,7 @@ OBJECTREF* GcInfoDecoder::GetStackSlot(
 
         SIZE_T * pFrameReg = (SIZE_T*) GetRegisterSlot(m_StackBaseRegister, pRD);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         // On PAL, we don't always have the context pointers available due to
         // a limitation of an unwinding library. In such case, the context
         // pointers for some nonvolatile registers are NULL.
@@ -1777,7 +1777,7 @@ OBJECTREF* GcInfoDecoder::GetStackSlot(
         {
             pFrameReg = (SIZE_T*) GetCapturedRegister(m_StackBaseRegister, pRD);
         }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
         pObjRef = (OBJECTREF*)(*pFrameReg + spOffset);
     }
@@ -1789,11 +1789,11 @@ OBJECTREF* GcInfoDecoder::GetStackSlot(
 #ifdef DACCESS_COMPILE
 int GcInfoDecoder::GetStackReg(int spBase)
 {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     int esp = 4;
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     int esp = 13;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     int esp = 31;
 #endif
 

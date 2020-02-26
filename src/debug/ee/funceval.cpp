@@ -189,20 +189,20 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
     case ELEMENT_TYPE_CHAR:
         *(UINT16*)pDst = (UINT16)srcValue;
         break;
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I4:
         *(int*)pDst = (int)srcValue;
         break;
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
         *(unsigned*)pDst = (unsigned)srcValue;
         break;
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I8:
@@ -210,7 +210,7 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
         *(INT64*)pDst = (INT64)srcValue;
         break;
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U8:
@@ -286,7 +286,7 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = (SIZE_T)GetFP(&pDE->m_context);
             break;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         case REGISTER_X86_EAX:
             ret = pDE->m_context.Eax;
             break;
@@ -311,7 +311,7 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = pDE->m_context.Edi;
             break;
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
         case REGISTER_AMD64_RAX:
             ret = pDE->m_context.Rax;
             break;
@@ -388,7 +388,7 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = FPSpillToR8(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0));
             break;
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         // fall through
         case REGISTER_ARM64_X0:
         case REGISTER_ARM64_X1:
@@ -462,7 +462,7 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = FPSpillToR8(&pDE->m_context.V[reg - REGISTER_ARM64_V0]);
             break;
 
-#endif // !TARGET_X86 && !TARGET_AMD64 && !TARGET_ARM64
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -502,7 +502,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             SetFP(&pDE->m_context, newValue);
             break;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         case REGISTER_X86_EAX:
             pDE->m_context.Eax = newValue;
             break;
@@ -527,7 +527,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             pDE->m_context.Edi = newValue;
             break;
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
         case REGISTER_AMD64_RAX:
             pDE->m_context.Rax = newValue;
             break;
@@ -604,7 +604,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             R8ToFPSpill(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0), newValue);
             break;
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         // fall through
         case REGISTER_ARM64_X0:
         case REGISTER_ARM64_X1:
@@ -678,7 +678,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             R8ToFPSpill(&pDE->m_context.V[reg - REGISTER_ARM64_V0], newValue);
             break;
 
-#endif // !TARGET_X86 && !TARGET_AMD64 && !TARGET_ARM64
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -714,15 +714,15 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
 
     PVOID pAddr;
 
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
     pAddr = pInt64Buf;
     DWORD *pLow = (DWORD*)(pInt64Buf);
     DWORD *pHigh  = pLow + 1;
-#endif // HOST_64BIT
+#endif // BIT64
 
     switch (pFEAD->argHome.kind)
     {
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
     case RAK_REGREG:
         *pLow = GetRegisterValue(pDE, pFEAD->argHome.u.reg2, pFEAD->argHome.u.reg2Addr, pFEAD->argHome.u.reg2Value);
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
@@ -737,7 +737,7 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
         *pLow = *((DWORD*)CORDB_ADDRESS_TO_PTR(pFEAD->argHome.addr));
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
         break;
-#endif // HOST_64BIT
+#endif // BIT64
 
     case RAK_REG:
         // Simply grab the value out of the proper register.
@@ -850,15 +850,15 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
         {
             INT64 *pSource;
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
             _ASSERTE(dataLocation & DL_MaybeInteriorPtrArray);
 
             pSource = (INT64 *)pMaybeInteriorPtrArg;
-#else  // !HOST_64BIT
+#else  // !BIT64
             _ASSERTE(dataLocation & DL_BufferForArgsArray);
 
             pSource = pBufferArg;
-#endif // !HOST_64BIT
+#endif // !BIT64
 
             if (!isByRef)
             {
@@ -900,10 +900,10 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
                 unsigned size = argTH.GetMethodTable()->GetNumInstanceFieldBytes();
                 if (size <= sizeof(ARG_SLOT)
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
                     // On AMD64 we pass value types of size which are not powers of 2 by ref.
                     && ((size & (size-1)) == 0)
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
                    )
                 {
                     memcpyNoGCRefs(ArgSlotEndianessFixup(pArgument, sizeof(LPVOID)), pAddr, size);
@@ -975,7 +975,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 
             INDEBUG(DataLocation expectedLocation);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             if ((pFEAD->argElementType == ELEMENT_TYPE_I4) ||
                 (pFEAD->argElementType == ELEMENT_TYPE_U4) ||
                 (pFEAD->argElementType == ELEMENT_TYPE_R4))
@@ -1216,13 +1216,13 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 static CorDebugRegister GetArgAddrFromReg( DebuggerIPCE_FuncEvalArgData *pFEAD)
 {
     CorDebugRegister retval = REGISTER_INSTRUCTION_POINTER; // good as default as any
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     retval = (pFEAD->argHome.kind == RAK_REG ?
               pFEAD->argHome.reg1 :
               (CorDebugRegister)((int)REGISTER_IA64_F0 + pFEAD->argHome.floatIndex));
-#else  // !HOST_64BIT
+#else  // !BIT64
     retval = pFEAD->argHome.reg1;
-#endif // !HOST_64BIT
+#endif // !BIT64
     return retval;
 }
 
@@ -1254,11 +1254,11 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
         {
             INT64 source;
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
             source = (INT64)maybeInteriorPtrArg;
-#else  // !HOST_64BIT
+#else  // !BIT64
             source = bufferByRefArg;
-#endif // !HOST_64BIT
+#endif // !BIT64
 
             if (pFEAD->argIsLiteral)
             {
@@ -1272,7 +1272,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
             }
             else
             {
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
 
@@ -1299,12 +1299,12 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
                 default:
                     break;
                 }
-#else // HOST_64BIT
+#else // BIT64
                 // The only types we use are RAK_REG and RAK_FLOAT, and both of them can be 4 or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 SetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, source);
-#endif // HOST_64BIT
+#endif // BIT64
             }
         }
         break;
@@ -1314,7 +1314,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
         {
             SIZE_T source;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             if ((pFEAD->argElementType == ELEMENT_TYPE_I4) ||
                 (pFEAD->argElementType == ELEMENT_TYPE_U4) ||
                 (pFEAD->argElementType == ELEMENT_TYPE_R4))
@@ -1325,7 +1325,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
             {
 #endif
                 source = (SIZE_T)bufferByRefArg;
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             }
 #endif
 
@@ -1457,7 +1457,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
         case ELEMENT_TYPE_R8:
             // 64bit values
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
             //
             // Only need to worry about protecting if a pointer is a 64 bit quantity.
             //
@@ -1506,7 +1506,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
                 }
 #endif
             }
-#endif // HOST_64BIT
+#endif // BIT64
             break;
 
         case ELEMENT_TYPE_VALUETYPE:
@@ -1580,7 +1580,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
         case ELEMENT_TYPE_R4:
             // 32bit values
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             _ASSERTE(sizeof(void *) == sizeof(INT32));
 
             if (pFEAD->argAddr != NULL)
@@ -1636,7 +1636,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
                 }
 #endif
             }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         default:
             //
@@ -2362,7 +2362,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
             else
             {
 
-#if !defined(HOST_64BIT)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
                 
@@ -2379,13 +2379,13 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
 
                 *pDest = *pAddr;
 
-#else  // HOST_64BIT
+#else  // BIT64
                 // Both RAK_REG and RAK_FLOAT can be either 4 bytes or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
                 *pDest = GetRegisterValue(pDE, regNum, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
-#endif // HOST_64BIT
+#endif // BIT64
 
 
 
@@ -3975,7 +3975,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
         // Signal to the helper thread that we're done with our func eval.  Start by creating a DebuggerFuncEvalComplete
         // object. Give it an address at which to create the patch, which is a chunk of memory specified by our
         // DebuggerEval big enough to hold a breakpoint instruction.
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         dest = (BYTE*)((DWORD)&(pDE->m_bpInfoSegment->m_breakpointInstruction) | THUMB_CODE);
 #else
         dest = &(pDE->m_bpInfoSegment->m_breakpointInstruction);
@@ -4046,7 +4046,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 }
 
 
-#if defined(WIN64EXCEPTIONS) && !defined(TARGET_UNIX)
+#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 
 EXTERN_C EXCEPTION_DISPOSITION
 FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
@@ -4057,15 +4057,15 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
                                 )
 {
     DebuggerEval* pDE = NULL;
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     // on ARM the establisher frame is the SP of the caller of FuncEvalHijack, on other platforms it's FuncEvalHijack's SP.
     // in FuncEvalHijack we allocate 8 bytes of stack space and then store R0 at the current SP, so if we subtract 8 from
     // the establisher frame we can get the stack location where R0 was stored.
     pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame - 8);
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     // on ARM64 the establisher frame is the SP of the caller of FuncEvalHijack.
     // in FuncEvalHijack we allocate 32 bytes of stack space and then store R0 at the current SP + 16, so if we subtract 16 from
     // the establisher frame we can get the stack location where R0 was stored.
@@ -4083,6 +4083,6 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 
 
-#endif // WIN64EXCEPTIONS && !TARGET_UNIX
+#endif // WIN64EXCEPTIONS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE

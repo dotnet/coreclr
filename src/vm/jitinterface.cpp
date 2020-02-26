@@ -478,14 +478,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
-#if defined(TARGET_UNIX) || defined(TARGET_ARM)
+#if defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
-#endif // defined(TARGET_UNIX) || defined(TARGET_ARM)
+#endif // defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -9956,7 +9956,7 @@ CorInfoUnmanagedCallConv CEEInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
     pMD = GetMethod(method);
     _ASSERTE(pMD->IsNDirect());
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     EX_TRY
     {
         PInvokeStaticSigInfo sigInfo(pMD, PInvokeStaticSigInfo::NO_THROW_ON_ERROR);
@@ -9980,12 +9980,12 @@ CorInfoUnmanagedCallConv CEEInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
         result = CORINFO_UNMANAGED_CALLCONV_UNKNOWN;
     }
     EX_END_CATCH(SwallowAllExceptions)
-#else // !TARGET_X86
+#else // !_TARGET_X86_
     //
     // we have only one calling convention
     //
     result = CORINFO_UNMANAGED_CALLCONV_STDCALL;
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     EE_TO_JIT_TRANSITION();
     
@@ -10263,9 +10263,9 @@ void InlinedCallFrame::GetEEInfo(CORINFO_EE_INFO::InlinedCallFrameInfo *pInfo)
     pInfo->offsetOfCalleeSavedFP         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCalleeSavedFP);
     pInfo->offsetOfCallTarget            = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_Datum);
     pInfo->offsetOfReturnAddress         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCallerReturnAddress);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     pInfo->offsetOfSPAfterProlog         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pSPAfterProlog);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 }
 
 /*********************************************************************/
@@ -10807,7 +10807,7 @@ DWORD CEEInfo::getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes)
 }
 
 /*********************************************************************/
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
 
 struct RunWithErrorTrapFilterParam
 {
@@ -10826,7 +10826,7 @@ static LONG RunWithErrorTrapFilter(struct _EXCEPTION_POINTERS* exceptionPointers
     return param->m_corInfo->FilterException(exceptionPointers);
 }
 
-#endif // !defined(TARGET_UNIX)
+#endif // !defined(PLATFORM_UNIX)
 
 bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 {
@@ -10842,7 +10842,7 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 
     bool success = true;
 
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
 
     RunWithErrorTrapFilterParam trapParam;
     trapParam.m_corInfo = m_pOverride == nullptr ? this : m_pOverride;
@@ -10860,7 +10860,7 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
     }
     PAL_ENDTRY
 
-#else // !defined(TARGET_UNIX)
+#else // !defined(PLATFORM_UNIX)
 
     // We shouldn't need PAL_TRY on *nix: any exceptions that we are able to catch
     // ought to originate from the runtime itself and should be catchable inside of
@@ -10994,7 +10994,7 @@ void* CEEJitInfo::getHelperFtn(CorInfoHelpFunc    ftnNum,         /* IN  */
 #pragma warning(disable:26001) // "Bounds checked above using the underflow trick"
 #endif /*_PREFAST_ */
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         // To avoid using a jump stub we always call certain helpers using an indirect call.
         // Because when using a direct call and the target is father away than 2^31 bytes,
         // the direct call instead goes to a jump stub which jumps to the jit helper.
@@ -11240,9 +11240,9 @@ void CEEJitInfo::CompressDebugInfo()
 
 void reservePersonalityRoutineSpace(ULONG &unwindSize)
 {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // Do nothing
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     // Add space for personality routine, it must be 4-byte aligned.
     // Everything in the UNWIND_INFO up to the variable-sized UnwindCodes
     // array has already had its size included in unwindSize by the caller.
@@ -11254,7 +11254,7 @@ void reservePersonalityRoutineSpace(ULONG &unwindSize)
 
     _ASSERTE(FitsInU4(unwindSize + sizeof(ULONG)));
     unwindSize = (ULONG)(ALIGN_UP(unwindSize, sizeof(ULONG)));
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // The JIT passes in a 4-byte aligned block of unwind data.
     _ASSERTE(IS_ALIGNED(unwindSize, sizeof(ULONG)));
 
@@ -11262,7 +11262,7 @@ void reservePersonalityRoutineSpace(ULONG &unwindSize)
     unwindSize += sizeof(ULONG);
 #else
     PORTABILITY_ASSERT("reservePersonalityRoutineSpace");
-#endif // !defined(TARGET_AMD64)
+#endif // !defined(_TARGET_AMD64_)
 
 }
 // Reserve memory for the method/funclet's unwind information.
@@ -11423,7 +11423,7 @@ void CEEJitInfo::allocUnwindInfo (
 
     RUNTIME_FUNCTION__SetBeginAddress(pRuntimeFunction, currentCodeOffset + startOffset);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     pRuntimeFunction->EndAddress        = currentCodeOffset + endOffset;
 #endif
 
@@ -11446,25 +11446,25 @@ void CEEJitInfo::allocUnwindInfo (
     /* Copy the UnwindBlock */
     memcpy(pUnwindInfo, pUnwindBlock, unwindSize);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
     // Do NOTHING
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
     pUnwindInfo->Flags = UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER;
 
     ULONG * pPersonalityRoutine = (ULONG*)ALIGN_UP(&(pUnwindInfo->UnwindCode[pUnwindInfo->CountOfUnwindCodes]), sizeof(ULONG));
     *pPersonalityRoutine = ExecutionManager::GetCLRPersonalityRoutineValue();
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
     *(LONG *)pUnwindInfo |= (1 << 20); // X bit
 
     ULONG * pPersonalityRoutine = (ULONG*)((BYTE *)pUnwindInfo + ALIGN_UP(unwindSize, sizeof(ULONG)));
     *pPersonalityRoutine = ExecutionManager::GetCLRPersonalityRoutineValue();
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     *(LONG *)pUnwindInfo |= (1 << 20); // X bit
 
@@ -11473,11 +11473,11 @@ void CEEJitInfo::allocUnwindInfo (
 
 #endif
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     // Publish the new unwind information in a way that the ETW stack crawler can find
     if (m_usedUnwindInfos == m_totalUnwindInfos)
         UnwindInfoTable::PublishUnwindInfoForMethod(baseAddress, m_CodeHeader->GetUnwindInfo(0), m_totalUnwindInfos);
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
     EE_TO_JIT_TRANSITION();
 #else // WIN64EXCEPTIONS
@@ -11513,7 +11513,7 @@ void CEEJitInfo::recordRelocation(void * location,
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     JIT_TO_EE_TRANSITION();
 
     INT64 delta;
@@ -11525,7 +11525,7 @@ void CEEJitInfo::recordRelocation(void * location,
         *((UINT64 *) ((BYTE *) location + slot)) = (UINT64) target;
         break;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     case IMAGE_REL_BASED_REL32:
         {
             target = (BYTE *)target + addlDelta;
@@ -11579,9 +11579,9 @@ void CEEJitInfo::recordRelocation(void * location,
             *fixupLocation = (INT32) delta;
         }
         break;
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     case IMAGE_REL_ARM64_BRANCH26:   // 26 bit offset << 2 & sign ext, for B and BL
         {
             _ASSERTE(slot == 0);
@@ -11683,7 +11683,7 @@ void CEEJitInfo::recordRelocation(void * location,
         }
         break;
 
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
     default:
         _ASSERTE(!"Unknown reloc type");
@@ -11691,13 +11691,13 @@ void CEEJitInfo::recordRelocation(void * location,
     }
 
     EE_TO_JIT_TRANSITION();
-#else // HOST_64BIT
+#else // BIT64
     JIT_TO_EE_TRANSITION_LEAF();
 
     // Nothing to do on 32-bit
 
     EE_TO_JIT_TRANSITION_LEAF();
-#endif // HOST_64BIT
+#endif // BIT64
 }
 
 WORD CEEJitInfo::getRelocTypeHint(void * target)
@@ -11708,14 +11708,14 @@ WORD CEEJitInfo::getRelocTypeHint(void * target)
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     if (m_fAllowRel32)
     {
         // The JIT calls this method for data addresses only. It always uses REL32s for direct code targets.
         if (IsPreferredExecutableRange(target))
             return IMAGE_REL_BASED_REL32;
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     // No hints
     return (WORD)-1;
@@ -12180,12 +12180,12 @@ void * CEEJitInfo::allocGCInfo (size_t size)
     _ASSERTE(m_CodeHeader != 0);
     _ASSERTE(m_CodeHeader->GetGCInfo() == 0);
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         COMPlusThrowHR(CORJIT_OUTOFMEM);
     }
-#endif // HOST_64BIT
+#endif // BIT64
 
     block = m_jitManager->allocGCInfo(m_CodeHeader,(DWORD)size, &m_GCinfo_len);
     if (!block)
@@ -12603,10 +12603,10 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
     if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PINVOKE_RESTORE_ESP);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     //See if we should instruct the JIT to emit calls to JIT_PollGC for thread suspension.  If we have a
     //non-default value in the EE Config, then use that.  Otherwise select the platform specific default.
@@ -12790,7 +12790,7 @@ LONG g_JitCount = 0;
 #endif
 
 //#define PERF_TRACK_METHOD_JITTIMES
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 BOOL g_fAllowRel32 = TRUE;
 #endif
 
@@ -12933,7 +12933,7 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
     }
 #endif //_DEBUG
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     BOOL fForceJumpStubOverflow = FALSE;
 
 #ifdef _DEBUG
@@ -12942,13 +12942,13 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
         fForceJumpStubOverflow = TRUE;
 #endif
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     BOOL fAllowRel32 = (g_fAllowRel32 | fForceJumpStubOverflow);
 #endif
 
     size_t reserveForJumpStubs = 0;
 
-#endif // defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
     for (;;)
     {
@@ -12962,8 +12962,8 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
         EEJitManager *jitMgr = NULL;
 #endif
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64)) && !defined(CROSSGEN_COMPILE)
-#ifdef TARGET_AMD64
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && !defined(CROSSGEN_COMPILE)
+#ifdef _TARGET_AMD64_
         if (fForceJumpStubOverflow)
             jitInfo.SetJumpStubOverflow(fAllowRel32);
         jitInfo.SetAllowRel32(fAllowRel32);
@@ -13094,26 +13094,26 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
         if (!nativeEntry)
             COMPlusThrow(kInvalidProgramException);
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64)) && !defined(CROSSGEN_COMPILE)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && !defined(CROSSGEN_COMPILE)
         if (jitInfo.IsJumpStubOverflow())
         {
             // Backout and try again with fAllowRel32 == FALSE.
             jitInfo.BackoutJitData(jitMgr);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             // Disallow rel32 relocs in future.
             g_fAllowRel32 = FALSE;
 
             fAllowRel32 = FALSE;
-#endif // TARGET_AMD64
-#ifdef TARGET_ARM64
+#endif // _TARGET_AMD64_
+#ifdef _TARGET_ARM64_
             fForceJumpStubOverflow = FALSE;
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
             reserveForJumpStubs = jitInfo.GetReserveForJumpStubs();
             continue;
         }
-#endif // (TARGET_AMD64 || TARGET_ARM64) && !CROSSGEN_COMPILE
+#endif // (_TARGET_AMD64_ || _TARGET_ARM64_) && !CROSSGEN_COMPILE
 
         LOG((LF_JIT, LL_INFO10000,
             "Jitted Entry at" FMT_ADDR "method %s::%s %s\n", DBG_ADDR(nativeEntry),
@@ -13139,7 +13139,7 @@ PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODE
         ClrFlushInstructionCache(nativeEntry, sizeOfCode); 
         ret = (PCODE)nativeEntry;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         ret |= THUMB_CODE;
 #endif
 
@@ -13255,7 +13255,7 @@ void Module::LoadHelperTable()
                 // Jump thunk
                 //
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
                 *curEntry = X86_INSTR_JMP_REL32;
                 *(INT32 *)(curEntry + 1) = rel32UsingJumpStub((INT32 *)(curEntry + 1), pfnHelper, NULL, GetLoaderAllocator());   
 #else // all other platforms
@@ -13636,7 +13636,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
                 result = pMD->GetMultiCallableAddrOfCode(CORINFO_ACCESS_ANY);
             }
 
-        #ifndef TARGET_ARM
+        #ifndef _TARGET_ARM_
             if (CORCOMPILE_IS_PCODE_TAGGED(result))
             {
                 // There is a rare case where the function entrypoint may not be aligned. This could happen only for FCalls, 
@@ -13920,7 +13920,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     void * ftn = NULL;
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM)) && !defined(TARGET_UNIX)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
 
     JIT_TO_EE_TRANSITION();
 
@@ -13930,7 +13930,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     EE_TO_JIT_TRANSITION();
 
-#endif // (TARGET_AMD64 || TARGET_ARM) && !TARGET_UNIX
+#endif // (_TARGET_AMD64_ || _TARGET_ARM_) && !FEATURE_PAL
 
     return ftn;
 }
@@ -14236,7 +14236,7 @@ TADDR EECodeInfo::GetSavedMethodCode()
         HOST_NOCALLS;
         SUPPORTS_DAC;
     } CONTRACTL_END;
-#ifndef HOST_64BIT
+#ifndef BIT64
 #if defined(HAVE_GCCOVER)
     _ASSERTE (!m_pMD->m_GcCover || GCStress<cfg_instr>::IsEnabled());
     if (GCStress<cfg_instr>::IsEnabled()
@@ -14325,7 +14325,7 @@ PTR_RUNTIME_FUNCTION EECodeInfo::GetFunctionEntry()
     return m_pFunctionEntry;
 }
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
 BOOL EECodeInfo::HasFrameRegister()
 {
@@ -14344,12 +14344,12 @@ BOOL EECodeInfo::HasFrameRegister()
 
     return fHasFrameRegister;
 }
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
 #endif // defined(WIN64EXCEPTIONS)
 
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 // ----------------------------------------------------------------------------
 // EECodeInfo::GetUnwindInfoHelper
 //
@@ -14525,12 +14525,12 @@ LPVOID                EECodeInfo::findNextFunclet (LPVOID pvFuncletStart, SIZE_T
     {
         PT_RUNTIME_FUNCTION   pFunctionEntry;
         ULONGLONG           uImageBase;
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         EECodeInfo codeInfo;
         codeInfo.Init((PCODE)pvFuncletStart);
         pFunctionEntry = codeInfo.GetFunctionEntry();
         uImageBase = (ULONGLONG)codeInfo.GetModuleBase();
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
         //
         // This is GCStress debug only - use the slow OS APIs to enumerate funclets
         //
@@ -14572,4 +14572,4 @@ LPVOID                EECodeInfo::findNextFunclet (LPVOID pvFuncletStart, SIZE_T
     return NULL;
 }
 #endif // defined(_DEBUG) && !defined(HAVE_GCCOVER)
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)

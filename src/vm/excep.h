@@ -22,9 +22,9 @@ class Thread;
 #include <excepcpu.h>
 #include "interoputil.h"
 
-#if defined(TARGET_ARM) || defined(TARGET_X86)
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
 #define VSD_STUB_CAN_THROW_AV
-#endif // TARGET_ARM || TARGET_X86
+#endif // _TARGET_ARM_ || _TARGET_X86_
 
 BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord);
 #ifdef VSD_STUB_CAN_THROW_AV
@@ -32,13 +32,13 @@ BOOL IsIPinVirtualStub(PCODE f_IP);
 #endif // VSD_STUB_CAN_THROW_AV
 bool IsIPInMarkedJitHelper(UINT_PTR uControlPc);
 
-#if defined(FEATURE_HIJACK) && (!defined(TARGET_X86) || defined(TARGET_UNIX))
+#if defined(FEATURE_HIJACK) && (!defined(_TARGET_X86_) || defined(FEATURE_PAL))
 
 // General purpose functions for use on an IP in jitted code. 
 bool IsIPInProlog(EECodeInfo *pCodeInfo);
 bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSafeToInjectThreadAbort);
 
-#endif // FEATURE_HIJACK && (!TARGET_X86 || TARGET_UNIX)
+#endif // FEATURE_HIJACK && (!_TARGET_X86_ || FEATURE_PAL)
 
 //******************************************************************************
 //
@@ -175,7 +175,7 @@ BOOL IsCOMPlusExceptionHandlerInstalled();
 BOOL InstallUnhandledExceptionFilter();
 void UninstallUnhandledExceptionFilter();
 
-#if !defined(TARGET_UNIX)
+#if !defined(FEATURE_PAL)
 // Section naming is a strategy by itself. Ideally, we could have named the UEF section
 // ".text$zzz" (lowercase after $ is important). What the linker does is look for the sections
 // that has the same name before '$' sign. It combines them together but sorted in an alphabetical
@@ -194,7 +194,7 @@ void UninstallUnhandledExceptionFilter();
 // section that comes after UEF section, it can affect the UEF section and we will
 // assert about it in "CExecutionEngine::ClrVirtualProtect".
 #define CLR_UEF_SECTION_NAME ".CLR_UEF"
-#endif //!defined(TARGET_UNIX)
+#endif //!defined(FEATURE_PAL)
 LONG __stdcall COMUnhandledExceptionFilter(EXCEPTION_POINTERS *pExceptionInfo);
 
 
@@ -540,9 +540,9 @@ EXCEPTION_HANDLER_DECL(COMPlusFrameHandlerRevCom);
 // Pop off any SEH handlers we have registered below pTargetSP
 VOID __cdecl PopSEHRecords(LPVOID pTargetSP);
 
-#if defined(TARGET_X86) && defined(DEBUGGING_SUPPORTED)
+#if defined(_TARGET_X86_) && defined(DEBUGGING_SUPPORTED)
 VOID UnwindExceptionTrackerAndResumeInInterceptionFrame(ExInfo* pExInfo, EHContext* context);
-#endif // TARGET_X86 && DEBUGGING_SUPPORTED
+#endif // _TARGET_X86_ && DEBUGGING_SUPPORTED
 
 BOOL PopNestedExceptionRecords(LPVOID pTargetSP, BOOL bCheckForUnknownHandlers = FALSE);
 VOID PopNestedExceptionRecords(LPVOID pTargetSP, T_CONTEXT *pCtx, void *pSEH);
@@ -558,14 +558,14 @@ VOID SetCurrentSEHRecord(EXCEPTION_REGISTRATION_RECORD *pSEH);
 #define STACK_OVERWRITE_BARRIER_VALUE 0xabcdefab
 
 #ifdef _DEBUG
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 struct FrameHandlerExRecordWithBarrier {
     DWORD m_StackOverwriteBarrier[STACK_OVERWRITE_BARRIER_SIZE];
     FrameHandlerExRecord m_ExRecord;
 };
 
 void VerifyValidTransitionFromManagedCode(Thread *pThread, CrawlFrame *pCF);
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 #endif // _DEBUG
 #endif // !defined(WIN64EXCEPTIONS)
 
@@ -741,10 +741,10 @@ bool IsInterceptableException(Thread *pThread);
 // perform simple checking to see if the current exception is intercepted
 bool CheckThreadExceptionStateForInterception();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // Currently, only Windows supports ClrUnwindEx (used inside ClrDebuggerDoUnwindAndIntercept)
 #define DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 // Intercept the current exception and start an unwind.  This function may never return.
@@ -757,9 +757,9 @@ LONG NotifyDebuggerLastChance(Thread *pThread,
                               BOOL jitAttachRequested);
 #endif // DEBUGGING_SUPPORTED
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 DWORD GetGcMarkerExceptionCode(LPVOID ip);
 bool IsGcMarker(T_CONTEXT *pContext, EXCEPTION_RECORD *pExceptionRecord);
@@ -788,9 +788,9 @@ bool DebugIsEECxxException(EXCEPTION_RECORD* pExceptionRecord);
 inline void CopyOSContext(T_CONTEXT* pDest, T_CONTEXT* pSrc)
 {
     SIZE_T cbReadOnlyPost = 0;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     cbReadOnlyPost = sizeof(CONTEXT) - FIELD_OFFSET(CONTEXT, FltSave); // older OSes don't have the vector reg fields
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     memcpyNoGCRefs(pDest, pSrc, sizeof(T_CONTEXT) - cbReadOnlyPost);
 }
@@ -799,7 +799,7 @@ void SaveCurrentExceptionInfo(PEXCEPTION_RECORD pRecord, PT_CONTEXT pContext);
 
 #ifdef _DEBUG
 void SetReversePInvokeEscapingUnhandledExceptionStatus(BOOL fIsUnwinding,
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                                                        EXCEPTION_REGISTRATION_RECORD * pEstablisherFrame
 #elif defined(WIN64EXCEPTIONS)
                                                        ULONG64 pEstablisherFrame

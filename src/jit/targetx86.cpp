@@ -9,11 +9,11 @@
 #pragma hdrstop
 #endif
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
 #include "target.h"
 
 const char*            Target::g_tgtCPUName  = "x86";
 const Target::ArgOrder Target::g_tgtArgOrder = ARG_ORDER_L2R;
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_

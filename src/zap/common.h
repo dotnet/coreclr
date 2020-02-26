@@ -21,13 +21,13 @@
 #include <float.h>
 #include <limits.h>
 
-#if !defined(TARGET_X86) || defined(TARGET_UNIX)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
 #endif
-#endif // !TARGET_X86 || TARGET_UNIX
+#endif // !_TARGET_X86_ || FEATURE_PAL
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 typedef unsigned __int64 TARGET_POINTER_TYPE;
 #else
 typedef unsigned int TARGET_POINTER_TYPE;

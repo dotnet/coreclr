@@ -249,11 +249,11 @@ public:
 
         // sentinel value indicating uninitialized data
         *(reinterpret_cast<DWORD*>(PatchBypass)) = SentinelValue;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         *(reinterpret_cast<DWORD*>(BypassBuffer)) = SentinelValue;
         RipTargetFixup = 0;
         RipTargetFixupSize = 0;
-#elif TARGET_ARM64
+#elif _TARGET_ARM64_
         RipTargetFixup = 0;
         
 #endif
@@ -288,13 +288,13 @@ public:
 
     // "PatchBypass" must be the first field of this class for alignment to be correct.
     BYTE    PatchBypass[MAX_INSTRUCTION_LENGTH];
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     const static int cbBufferBypass = 0x10;
     BYTE    BypassBuffer[cbBufferBypass];
 
     UINT_PTR                RipTargetFixup;
     BYTE                    RipTargetFixupSize;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     UINT_PTR                RipTargetFixup;
 #endif
 
@@ -427,11 +427,11 @@ private:
         DebuggerJitInfo        *dji; // used for Slave and native patches, though only when tracking JIT Info
     };
 
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
     // this is shared among all the skippers for this controller. see the comments
     // right before the definition of SharedPatchBypassBuffer for lifetime info.
     SharedPatchBypassBuffer* m_pSharedPatchBypassBuffer;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 public:
     SIZE_T                  pid;
@@ -531,7 +531,7 @@ public:
     // Is this patch at a position at which it's safe to take a stack?
     bool IsSafeForStackTrace();
 
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
     // gets a pointer to the shared buffer
     SharedPatchBypassBuffer* GetOrCreateSharedPatchBypassBuffer();
 
@@ -547,7 +547,7 @@ public:
         if (m_pSharedPatchBypassBuffer != NULL)
             m_pSharedPatchBypassBuffer->Release();
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 private:
     DebuggerPatchKind kind;
@@ -962,9 +962,9 @@ inline bool IsInUsedAction(DPOSS_ACTION action)
 inline void VerifyExecutableAddress(const BYTE* address)
 {
 // TODO: : when can we apply this to x86?
-#if defined(HOST_64BIT)   
+#if defined(BIT64)   
 #if defined(_DEBUG) 
-#ifndef TARGET_UNIX    
+#ifndef FEATURE_PAL    
     MEMORY_BASIC_INFORMATION mbi;
     
     if (sizeof(mbi) == ClrVirtualQuery(address, &mbi, sizeof(mbi)))
@@ -982,9 +982,9 @@ inline void VerifyExecutableAddress(const BYTE* address)
                 ("VEA: address (0x%p) is not on an executable page.", address));
         }
     }
-#endif // !TARGET_UNIX    
+#endif // !FEATURE_PAL    
 #endif // _DEBUG   
-#endif // HOST_64BIT
+#endif // BIT64
 }
 
 #endif // !DACCESS_COMPILE
@@ -1457,7 +1457,7 @@ class DebuggerPatchSkip : public DebuggerController
     CORDB_ADDRESS_TYPE      *m_address;
     int                      m_iOrigDisp;        // the original displacement of a relative call or jump
     InstructionAttribute     m_instrAttrib;      // info about the instruction being skipped over
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
     // this is shared among all the skippers and the controller. see the comments
     // right before the definition of SharedPatchBypassBuffer for lifetime info.
     SharedPatchBypassBuffer *m_pSharedPatchBypassBuffer;
@@ -1469,7 +1469,7 @@ public:
         BYTE* patchBypass = m_pSharedPatchBypassBuffer->PatchBypass;
         return (CORDB_ADDRESS_TYPE *)patchBypass;
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 };
 
 /* ------------------------------------------------------------------------- *

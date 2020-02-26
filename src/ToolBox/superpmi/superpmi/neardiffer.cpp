@@ -101,12 +101,12 @@ bool NearDiffer::InitAsmDiff()
         }
 
         TargetArch coreDisTargetArchitecture = Target_Host;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         if ((TargetArchitecture != nullptr) && (0 == _stricmp(TargetArchitecture, "arm64")))
         {
             coreDisTargetArchitecture = Target_Arm64;
         }
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
         if ((TargetArchitecture != nullptr) && (0 == _stricmp(TargetArchitecture, "arm")))
         {
             coreDisTargetArchitecture = Target_Thumb;
@@ -166,7 +166,7 @@ DIS* NearDiffer::GetMsVcDis()
 {
     DIS* disasm;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     if ((TargetArchitecture != nullptr) && (0 == _stricmp(TargetArchitecture, "arm64")))
     {
         disasm = DIS::PdisNew(DIS::distArm64);
@@ -175,7 +175,7 @@ DIS* NearDiffer::GetMsVcDis()
     {
         disasm = DIS::PdisNew(DIS::distX8664);
     }
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     disasm = DIS::PdisNew(DIS::distX86);
 #endif
 
@@ -641,11 +641,11 @@ bool NearDiffer::compareCodeSection(MethodContext* mc,
                     size_t gOffset2 = (size_t)originalBlock2 + offset + (size_t)ops_2[i].dwl;
 
                     LogVerbose("operand %d dwl is different", i);
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
                     LogVerbose("gOffset1 %016llX", gOffset1);
                     LogVerbose("gOffset2 %016llX", gOffset2);
                     LogVerbose("gOffset1 - gOffset2 %016llX", gOffset1 - gOffset2);
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
                     LogVerbose("gOffset1 %08X", gOffset1);
                     LogVerbose("gOffset2 %08X", gOffset2);
                     LogVerbose("gOffset1 - gOffset2 %08X", gOffset1 - gOffset2);
@@ -678,11 +678,11 @@ DumpDetails:
     LogVerbose("otherCodeBlockSize1 %08X", otherCodeBlockSize1);
     LogVerbose("otherCodeBlockSize2 %08X", otherCodeBlockSize2);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     LogVerbose("offset %016llX", offset);
     LogVerbose("addr1 %016llX", (size_t)originalBlock1 + offset);
     LogVerbose("addr2 %016llX", (size_t)originalBlock2 + offset);
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     LogVerbose("offset %08X", offset);
     LogVerbose("addr1 %08X", (size_t)originalBlock1 + offset);
     LogVerbose("addr2 %08X", (size_t)originalBlock2 + offset);

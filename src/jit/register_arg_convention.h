@@ -19,12 +19,12 @@ struct InitVarDscInfo
 
     bool hasRetBufArg;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Support back-filling of FP parameters. This is similar to code in gtMorphArgs() that
     // handles arguments.
     regMaskTP fltArgSkippedRegMask;
     bool      anyFloatStackArgs;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 #if FEATURE_FASTTAILCALL
     // It is used to calculate argument stack size information in byte
@@ -44,10 +44,10 @@ public:
         maxIntRegArgNum   = MAX_REG_ARG;
         maxFloatRegArgNum = MAX_FLOAT_REG_ARG;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         fltArgSkippedRegMask = RBM_NONE;
         anyFloatStackArgs    = false;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 #if FEATURE_FASTTAILCALL
         stackArgSize       = 0;
@@ -71,14 +71,14 @@ public:
     // Returns the first argument register of the allocated set.
     unsigned allocRegArg(var_types type, unsigned numRegs = 1);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // We are aligning the register to an ABI-required boundary, such as putting
     // double-precision floats in even-numbered registers, by skipping one register.
     // "requiredRegAlignment" is the amount to align to: 1 for no alignment (everything
     // is 1-aligned), 2 for "double" alignment.
     // Returns the number of registers skipped.
     unsigned alignReg(var_types type, unsigned requiredRegAlignment);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     // Return true if it is an enregisterable type and there is room.
     // Note that for "type", we only care if it is float or not. In particular,
@@ -92,7 +92,7 @@ public:
         regArgNum(type) = maxRegArgNum(type);
     }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
     void setAnyFloatStackArgs()
     {
@@ -104,7 +104,7 @@ public:
         return anyFloatStackArgs;
     }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 private:
     // return max register arg for this type

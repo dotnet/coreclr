@@ -263,13 +263,13 @@ Exit:
     /* static */
     PEKIND Assembly::GetSystemArchitecture()
     {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         return peI386;
-#elif defined(TARGET_AMD64) 
+#elif defined(_TARGET_AMD64_) 
         return peAMD64;
-#elif defined(TARGET_ARM) 
+#elif defined(_TARGET_ARM_) 
         return peARM;
-#elif defined(TARGET_ARM64) 
+#elif defined(_TARGET_ARM64_) 
         return peARM64;
 #else
         PORTABILITY_ASSERT("Assembly::GetSystemArchitecture");

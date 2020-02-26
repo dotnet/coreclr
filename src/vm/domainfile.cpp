@@ -1750,7 +1750,7 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
     static CORINFO_CPU ngenCpuInfo =
         {
@@ -1762,11 +1762,11 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
     // We always generate P3-compatible code on CoreCLR
     *cpuInfo = ngenCpuInfo;
 
-#else // TARGET_X86
+#else // _TARGET_X86_
     cpuInfo->dwCPUType = 0;
     cpuInfo->dwFeatures = 0;
     cpuInfo->dwExtendedFeatures = 0;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 // --------------------------------------------------------------------------------
@@ -1790,7 +1790,7 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
                                           &fForceProfiling,
                                           &fForceInstrument);
 
-#ifndef TARGET_UNIX 
+#ifndef FEATURE_PAL 
     pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_WIN32_NT;
 #else
     pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_UNIX;

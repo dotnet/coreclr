@@ -92,7 +92,7 @@ extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
 
 #endif // _DEBUG
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 /****************************************************************************/
 /* assigns 'val to 'array[idx], after doing all the proper checks */
 
@@ -321,9 +321,9 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClassSpecial(MethodT
         jmp             JITutil_ChkCastAny
     }
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 HCIMPL1_V(INT32, JIT_Dbl2IntOvf, double val)
 {
     FCALL_CONTRACT;
@@ -339,7 +339,7 @@ THROW:
     FCThrow(kOverflowException);
 }
 HCIMPLEND
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 
 FCDECL1(Object*, JIT_New, CORINFO_CLASS_HANDLE typeHnd_);

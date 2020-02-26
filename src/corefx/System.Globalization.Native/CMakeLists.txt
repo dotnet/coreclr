@@ -3,7 +3,7 @@ project(System.Globalization.Native C)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_definitions(-DPIC)
-add_definitions(-DHOST_64BIT)
+add_definitions(-DBIT64)
 
 set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 

@@ -22,7 +22,7 @@
  *
 ******************************************************************************/
 
-#if !defined(TARGET_ARM)
+#if !defined(_TARGET_ARM_)
 #error Unexpected target type
 #endif
 

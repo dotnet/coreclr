@@ -354,7 +354,7 @@ BOOL PEImage::PathEquals(const SString &p1, const SString &p2)
 #endif
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 /* static */
 void PEImage::GetPathFromDll(HINSTANCE hMod, SString &result)
 {
@@ -373,7 +373,7 @@ void PEImage::GetPathFromDll(HINSTANCE hMod, SString &result)
     WszGetModuleFileName(hMod, result);   
     
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 /* static */
 BOOL PEImage::CompareImage(UPTR u1, UPTR u2)
@@ -1024,12 +1024,12 @@ PTR_PEImageLayout PEImage::GetLayoutInternal(DWORD imageLayoutMask,DWORD flags)
         BOOL bIsMappedLayoutSuitable = ((imageLayoutMask & PEImageLayout::LAYOUT_MAPPED) != 0);
         BOOL bIsFlatLayoutSuitable = ((imageLayoutMask & PEImageLayout::LAYOUT_FLAT) != 0);
 
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
         if (bIsMappedLayoutSuitable)
         {
             bIsFlatLayoutSuitable = FALSE;
         }
-#endif // !TARGET_UNIX
+#endif // !PLATFORM_UNIX
 
         _ASSERTE(bIsMappedLayoutSuitable || bIsFlatLayoutSuitable);
 
@@ -1181,7 +1181,7 @@ PTR_PEImage PEImage::LoadFlat(const void *flat, COUNT_T size)
     RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 /* static */
 PTR_PEImage PEImage::LoadImage(HMODULE hMod)
 {
@@ -1212,7 +1212,7 @@ PTR_PEImage PEImage::LoadImage(HMODULE hMod)
 
     RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 void PEImage::Load()
 {
@@ -1234,7 +1234,7 @@ void PEImage::Load()
         return;
     }
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
     if (m_pLayouts[IMAGE_FLAT] != NULL
         && m_pLayouts[IMAGE_FLAT]->CheckILOnlyFormat()
         && !m_pLayouts[IMAGE_FLAT]->HasWriteableSections())
@@ -1252,7 +1252,7 @@ void PEImage::Load()
         SetLayout(IMAGE_LOADED, m_pLayouts[IMAGE_FLAT]);
     }
     else
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
     {
         if(!IsFile())
         {
@@ -1491,7 +1491,7 @@ PEImage * PEImage::OpenImage(
         IfFailThrow(pIResourcePath->GetPath(cchPath, &cchPath, wzPath));
         pPEImage = PEImage::OpenImage(wzPath, flags);
     }
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     else if (iidResource ==__uuidof(ICLRPrivResourceHMODULE))
     {
         ReleaseHolder<ICLRPrivResourceHMODULE> pIResourceHMODULE;
@@ -1501,7 +1501,7 @@ PEImage * PEImage::OpenImage(
         IfFailThrow(pIResourceHMODULE->GetHMODULE(&hMod));
         pPEImage = PEImage::LoadImage(hMod);
     }
-#endif // !TARGET_UNIX    
+#endif // !FEATURE_PAL    
     else
     {
         ThrowHR(COR_E_BADIMAGEFORMAT);

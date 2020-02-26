@@ -50,9 +50,9 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     do 
     {
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&ctx, &nonVolRegPtrs);
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
         
 #if defined(DACCESS_COMPILE)
         HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
@@ -70,7 +70,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #endif  // DACCESS_COMPILE    
 
         pvControlPc = GetIP(&ctx);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
         if (funCallDepth > 0)
         {
@@ -115,7 +115,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
     // "unwoundState->_pRetAddr = PTR_TADDR(&unwoundState->m_Rip)".
     unwoundState->_pRetAddr = PTR_TADDR(unwoundState->m_Rsp - 8);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #define CALLEE_SAVED_REGISTER(regname) unwoundState->m_Unwound.regname = ctx.regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER

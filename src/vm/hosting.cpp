@@ -51,8 +51,8 @@ LPVOID EEVirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, D
 
         if (lpAddress == NULL && (flAllocationType & MEM_RESERVE) != 0 && PEDecoder::GetForceRelocs())
         {
-#ifdef HOST_64BIT
-            // Try to allocate memory all over the place when we are stressing relocations on HOST_64BIT.
+#ifdef BIT64
+            // Try to allocate memory all over the place when we are stressing relocations on BIT64.
             // This will make sure that we generate jump stubs correctly among other things.
             static BYTE* ptr = (BYTE*)0x234560000;
             ptr += 0x123450000;
@@ -67,7 +67,7 @@ LPVOID EEVirtualAlloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, D
 #else
             // Allocate memory top to bottom to stress ngen fixups with LARGEADDRESSAWARE support.
             p = ::VirtualAlloc(lpAddress, dwSize, flAllocationType | MEM_TOP_DOWN, flProtect);
-#endif // HOST_64BIT
+#endif // BIT64
         }
         }
 #endif // _DEBUG
@@ -154,14 +154,14 @@ HANDLE EEHeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     
     {
         return ::HeapCreate(flOptions, dwInitialSize, dwMaximumSize);
     }
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     return NULL;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 #define HeapCreate(flOptions, dwInitialSize, dwMaximumSize) Dont_Use_HeapCreate(flOptions, dwInitialSize, dwMaximumSize)
 
@@ -175,19 +175,19 @@ BOOL EEHeapDestroy(HANDLE hHeap)
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
     {
         return ::HeapDestroy(hHeap);
     }
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     UNREACHABLE();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 #define HeapDestroy(hHeap) Dont_Use_HeapDestroy(hHeap)
 
 #ifdef _DEBUG
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 #define OS_HEAP_ALIGN 8
 #else
 #define OS_HEAP_ALIGN 16
@@ -305,14 +305,14 @@ BOOL EEHeapValidate(HANDLE hHeap, DWORD dwFlags, LPCVOID lpMem) {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
     {
         return ::HeapValidate(hHeap, dwFlags, lpMem);
     }
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     return TRUE;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 #define HeapValidate(hHeap, dwFlags, lpMem) Dont_Use_HeapValidate(hHeap, dwFlags, lpMem)
 
@@ -322,7 +322,7 @@ HANDLE EEGetProcessExecutableHeap() {
     STATIC_CONTRACT_GC_NOTRIGGER;
 
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
     //
     // Create the executable heap lazily
@@ -351,9 +351,9 @@ HANDLE EEGetProcessExecutableHeap() {
 #define HeapCreate(flOptions, dwInitialSize, dwMaximumSize) Dont_Use_HeapCreate(flOptions, dwInitialSize, dwMaximumSize)
 #define HeapDestroy(hHeap) Dont_Use_HeapDestroy(hHeap)
 
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     UNREACHABLE();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 
     // TODO: implement hosted executable heap
@@ -440,7 +440,7 @@ BOOL __DangerousSwitchToThread (DWORD dwSleepMSec, DWORD dwSwitchCount, BOOL goT
     // The following two values appear to yield roughly equivalent spin times
     // on their respective platforms.
     //
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     #define SLEEP_START_THRESHOLD (5 * 1024)
 #else
     #define SLEEP_START_THRESHOLD (32 * 1024)

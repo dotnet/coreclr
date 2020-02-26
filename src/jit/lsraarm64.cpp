@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
 
 #include "jit.h"
 #include "sideeffects.h"
@@ -1085,4 +1085,4 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 }
 #endif
 
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_

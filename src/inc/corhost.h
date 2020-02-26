@@ -103,9 +103,9 @@ enum ESymbolReadingSetBy
 
 class CorHost2 :
     public CorRuntimeHostBase
-#ifndef TARGET_UNIX    
+#ifndef FEATURE_PAL    
     , public IPrivateManagedExceptionReporting /* This interface is for internal Watson testing only*/
-#endif // TARGET_UNIX    
+#endif // FEATURE_PAL    
     , public ICLRRuntimeHost4
 {
     friend struct _DacGlobals;
@@ -126,10 +126,10 @@ public:
 
     // *** ICorRuntimeHost methods ***
 
-#ifndef TARGET_UNIX    
+#ifndef FEATURE_PAL    
     // defined in IPrivateManagedExceptionReporting interface for internal Watson testing only
     STDMETHODIMP GetBucketParametersForCurrentException(BucketParameters *pParams);
-#endif // TARGET_UNIX    
+#endif // FEATURE_PAL    
 
     // Starts the runtime. This is equivalent to CoInitializeCor().
     STDMETHODIMP Start();

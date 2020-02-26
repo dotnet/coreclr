@@ -149,12 +149,12 @@ FCFuncStart(gDiagnosticsStackTrace)
 FCFuncEnd()
 
 FCFuncStart(gDateTimeFuncs)
-#if !defined(TARGET_UNIX)
+#if !defined(FEATURE_PAL)
     FCFuncElement("GetSystemTimeWithLeapSecondsHandling", SystemNative::GetSystemTimeWithLeapSecondsHandling)
     FCFuncElement("ValidateSystemTime", SystemNative::ValidateSystemTime)
     FCFuncElement("FileTimeToSystemTime", SystemNative::FileTimeToSystemTime)
     FCFuncElement("SystemTimeToFileTime", SystemNative::SystemTimeToFileTime)
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     FCFuncElement("GetSystemTimeAsFileTime", SystemNative::__GetSystemTimeAsFileTime)
 FCFuncEnd()
 
@@ -516,7 +516,7 @@ FCFuncStart(gAssemblyLoadContextFuncs)
 #ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
     QCFuncElement("LoadTypeForWinRTTypeNameInContextInternal", AssemblyNative::LoadTypeForWinRTTypeNameInContext)
 #endif
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     QCFuncElement("LoadFromInMemoryModuleInternal", AssemblyNative::LoadFromInMemoryModule)
 #endif
     QCFuncElement("GetLoadContextForAssembly", AssemblyNative::GetLoadContextForAssembly)
@@ -748,7 +748,7 @@ FCFuncStart(gBufferFuncs)
     FCFuncElement("BlockCopy", Buffer::BlockCopy)
     FCFuncElement("IsPrimitiveTypeArray", Buffer::IsPrimitiveTypeArray)
     FCFuncElement("_ByteLength", Buffer::ByteLength)
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     FCFuncElement("Memcpy", FCallMemcpy)
 #endif
     QCFuncElement("__Memmove", Buffer::MemMove)
@@ -1057,9 +1057,9 @@ FCFuncStart(gStubHelperFuncs)
     FCFuncElement("ValidateByref", StubHelpers::ValidateByref)
     FCFuncElement("LogPinnedArgument", StubHelpers::LogPinnedArgument)
     FCIntrinsic("GetStubContext", StubHelpers::GetStubContext, CORINFO_INTRINSIC_StubHelpers_GetStubContext)
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     FCIntrinsic("GetStubContextAddr", StubHelpers::GetStubContextAddr, CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 #ifdef FEATURE_ARRAYSTUB_AS_IL
     FCFuncElement("ArrayTypeCheck", StubHelpers::ArrayTypeCheck)
 #endif //FEATURE_ARRAYSTUB_AS_IL
@@ -1140,7 +1140,7 @@ FCFuncStart(gWeakReferenceOfTFuncs)
     FCFuncElement("IsTrackResurrection", WeakReferenceOfTNative::IsTrackResurrection)
 FCFuncEnd()
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 FCFuncStart(gPalKernel32Funcs)
     QCFuncElement("CloseHandle", CloseHandle)
     QCFuncElement("CreateEvent", CreateEventW)
@@ -1263,7 +1263,7 @@ FCClassElement("IReflect", "System.Reflection", gStdMngIReflectFuncs)
 FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFuncs)
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
-#if TARGET_UNIX
+#if FEATURE_PAL
 FCClassElement("Kernel32", "", gPalKernel32Funcs)
 #endif
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
@@ -1292,7 +1292,7 @@ FCClassElement("Object", "System", gObjectFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("ObjectMarshaler", "System.StubHelpers", gObjectMarshalerFuncs)
 #endif
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 FCClassElement("Ole32", "", gPalOle32Funcs)
 FCClassElement("OleAut32", "", gPalOleAut32Funcs)
 #endif

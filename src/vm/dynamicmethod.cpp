@@ -456,7 +456,7 @@ HeapList* HostCodeHeap::InitializeHeapList(CodeHeapRequestInfo *pInfo)
     pHp->maxCodeHeapSize = m_TotalBytesAvailable - pTracker->size;
     pHp->reserveForJumpStubs = 0;
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
 #endif
 
@@ -981,10 +981,10 @@ void LCGMethodResolver::Destroy()
 
     if (m_recordCodePointer)
     {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         // Remove the unwind information (if applicable)
         UnwindInfoTable::UnpublishUnwindInfoForMethod((TADDR)m_recordCodePointer);
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
         HostCodeHeap *pHeap = HostCodeHeap::GetCodeHeap((TADDR)m_recordCodePointer);
         LOG((LF_BCL, LL_INFO1000, "Level3 - Resolver {0x%p} - Release reference to heap {%p, vt(0x%x)} \n", this, pHeap, *(size_t*)pHeap));

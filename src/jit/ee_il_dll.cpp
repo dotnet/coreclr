@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 #include "corexcep.h"
 
-#if !defined(HOST_UNIX)
+#if !defined(_HOST_UNIX_)
 #include <io.h>    // For _dup, _setmode
 #include <fcntl.h> // For _O_TEXT
 #include <errno.h> // For EINVAL
@@ -78,7 +78,7 @@ extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
     }
 #endif // DEBUG
 
-#if !defined(HOST_UNIX)
+#if !defined(_HOST_UNIX_)
     if (jitstdout == nullptr)
     {
         int stdoutFd = _fileno(procstdout());
@@ -102,7 +102,7 @@ extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
             }
         }
     }
-#endif // !HOST_UNIX
+#endif // !_HOST_UNIX_
 
     // If jitstdout is still null, fallback to whatever procstdout() was
     // initially set to.
@@ -398,7 +398,7 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     jitFlags.SetFromFlags(cpuCompileFlags);
 
 #ifdef FEATURE_SIMD
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
@@ -416,7 +416,7 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
             return 32;
         }
     }
-#endif // defined(TARGET_XARCH)
+#endif // defined(_TARGET_XARCH_)
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
         JITDUMP("getMaxIntrinsicSIMDVectorLength: returning 16\n");
@@ -442,7 +442,7 @@ void CILJit::setRealJit(ICorJitCompiler* realJitCompiler)
 
 unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig)
 {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
     // Everything fits into a single 'slot' size
     // to accommodate irregular sized structs, they are passed byref
@@ -460,7 +460,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
 #endif // UNIX_AMD64_ABI
     return TARGET_POINTER_SIZE;
 
-#else // !TARGET_AMD64
+#else // !_TARGET_AMD64_
 
     CORINFO_CLASS_HANDLE argClass;
     CorInfoType          argTypeJit = strip(info.compCompHnd->getArgType(sig, list, &argClass));
@@ -478,7 +478,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if FEATURE_MULTIREG_ARGS
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
         // Any structs that are larger than MAX_PASS_MULTIREG_BYTES are always passed by reference
         if (structSize > MAX_PASS_MULTIREG_BYTES)
         {
@@ -492,7 +492,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
             {
                 var_types hfaType = GetHfaType(argClass); // set to float or double if it is an HFA, otherwise TYP_UNDEF
                 bool      isHfa   = (hfaType != TYP_UNDEF);
-#ifndef TARGET_UNIX
+#ifndef _TARGET_UNIX_
                 if (info.compIsVarArgs)
                 {
                     // Arm64 Varargs ABI requires passing in general purpose
@@ -500,7 +500,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
                     // to false to correctly pass as if it was not an HFA.
                     isHfa = false;
                 }
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
                 if (!isHfa)
                 {
                     // This struct is passed by reference using a single 'slot'
@@ -509,7 +509,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
             }
             // otherwise will we pass this struct by value in multiple registers
         }
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 //  otherwise will we pass this struct by value in multiple registers
 #else
         NYI("unknown target");
@@ -849,7 +849,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
             }
             break;
 
-#ifndef TARGET_AMD64
+#ifndef _TARGET_AMD64_
         case CodeGenInterface::VLT_REG_REG:
             printf("%s-%s", getRegName(var->loc.vlRegReg.vlrrReg1), getRegName(var->loc.vlRegReg.vlrrReg2));
             break;
@@ -888,7 +888,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
         case CodeGenInterface::VLT_FIXED_VA:
             printf("fxd_va[%d]", var->loc.vlFixedVarArg.vlfvOffset);
             break;
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 
         default:
             unreached(); // unexpected
@@ -1412,7 +1412,7 @@ const char* Compiler::eeGetClassName(CORINFO_CLASS_HANDLE clsHnd)
 
 const wchar_t* Compiler::eeGetCPString(size_t strHandle)
 {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     return nullptr;
 #else
     char buff[512 + sizeof(CORINFO_String)];
@@ -1436,7 +1436,7 @@ const wchar_t* Compiler::eeGetCPString(size_t strHandle)
     }
 
     return (asString->chars);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 }
 
 #endif // DEBUG

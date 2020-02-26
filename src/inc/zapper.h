@@ -71,7 +71,7 @@ class Zapper
     ICorJitCompiler         *m_pJitCompiler;
     IMetaDataDispenserEx    *m_pMetaDataDispenser;
     HMODULE                  m_hJitLib;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     HMODULE                  m_hJitLegacy;
 #endif
 

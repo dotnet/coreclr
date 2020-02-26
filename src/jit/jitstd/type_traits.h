@@ -178,7 +178,7 @@ struct make_unsigned<int>
     typedef unsigned int type;
 };
 
-#ifndef HOST_UNIX
+#ifndef _HOST_UNIX_
 
 template<>
 struct make_unsigned<long>
@@ -186,7 +186,7 @@ struct make_unsigned<long>
     typedef unsigned long type;
 };
 
-#endif // !HOST_UNIX
+#endif // !_HOST_UNIX_
 
 template<>
 struct make_unsigned<__int64>
@@ -211,7 +211,7 @@ struct make_signed<unsigned int>
     typedef signed int type;
 };
 
-#ifndef HOST_UNIX
+#ifndef _HOST_UNIX_
 
 template<>
 struct make_signed<unsigned long>
@@ -219,7 +219,7 @@ struct make_signed<unsigned long>
     typedef signed long type;
 };
 
-#endif // !HOST_UNIX
+#endif // !_HOST_UNIX_
 
 template<>
 struct make_signed<unsigned __int64>

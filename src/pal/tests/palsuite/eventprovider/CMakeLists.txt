@@ -17,9 +17,9 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/clralltestevents.cpp
 
 include_directories(${GENERATED_INCLUDE_DIR})
 
-if(TARGET_UNIX)
+if(FEATURE_PAL)
     include_directories(${COREPAL_SOURCE_DIR}/inc/rt)
-endif(TARGET_UNIX)
+endif(FEATURE_PAL)
 
 add_executable(eventprovidertest
             ${SOURCES}

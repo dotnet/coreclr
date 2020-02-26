@@ -63,9 +63,9 @@ ReturnKind GCInfo::getReturnKind()
                 case TYP_STRUCT:
                     if (compiler->IsHfa(structType))
                     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                         _ASSERTE(false && "HFAs not expected for X86");
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
                         return RT_Scalar;
                     }
@@ -81,21 +81,21 @@ ReturnKind GCInfo::getReturnKind()
                         return GetStructReturnKind(first, second);
                     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                 case TYP_FLOAT:
                 case TYP_DOUBLE:
                     return RT_Float;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
                 default:
                     return RT_Scalar;
             }
         }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         case TYP_FLOAT:
         case TYP_DOUBLE:
             return RT_Float;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         default:
             return RT_Scalar;
@@ -2558,7 +2558,7 @@ DONE_VLT:
 
     if (compiler->codeGen->genInterruptible)
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         assert(compiler->genFullPtrRegMap);
 
         unsigned ptrRegs = 0;
@@ -2882,7 +2882,7 @@ DONE_VLT:
             if (!mask)
                 dest = base;
         }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         /* Terminate the table with 0xFF */
 
@@ -2892,7 +2892,7 @@ DONE_VLT:
     }
     else if (compiler->isFramePointerUsed()) // genInterruptible is false
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         /*
             Encoding table for methods with an EBP frame and
                                that are not fully interruptible
@@ -3169,7 +3169,7 @@ DONE_VLT:
             if (!mask)
                 dest = base;
         }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         /* Terminate the table with 0xFF */
 
@@ -3181,7 +3181,7 @@ DONE_VLT:
     {
         assert(compiler->genFullPtrRegMap);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
         regPtrDsc*       genRegPtrTemp;
         regNumber        thisRegNum = regNumber(0);
@@ -3646,7 +3646,7 @@ DONE_VLT:
 
         assert(pasStk.pasCurDepth() == 0);
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         /* Terminate the table with 0xFF */
 
@@ -3905,7 +3905,7 @@ public:
         }
     }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     void SetWantsReportOnlyLeaf()
     {
         m_gcInfoEncoder->SetWantsReportOnlyLeaf();
@@ -3914,7 +3914,7 @@ public:
             printf("Set WantsReportOnlyLeaf.\n");
         }
     }
-#elif defined(TARGET_ARMARCH)
+#elif defined(_TARGET_ARMARCH_)
     void SetHasTailCalls()
     {
         m_gcInfoEncoder->SetHasTailCalls();
@@ -3923,7 +3923,7 @@ public:
             printf("Set HasTailCalls.\n");
         }
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     void SetSizeOfStackOutgoingAndScratchArea(UINT32 size)
     {
@@ -4050,30 +4050,30 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 #if FEATURE_EH_FUNCLETS
     if (compiler->lvaPSPSym != BAD_VAR_NUM)
     {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // The PSPSym is relative to InitialSP on X64 and CallerSP on other platforms.
         gcInfoEncoderWithLog->SetPSPSymStackSlot(compiler->lvaGetInitialSPRelativeOffset(compiler->lvaPSPSym));
-#else  // !TARGET_AMD64
+#else  // !_TARGET_AMD64_
         gcInfoEncoderWithLog->SetPSPSymStackSlot(compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym));
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
     }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     if (compiler->ehAnyFunclets())
     {
         // Set this to avoid double-reporting the parent frame (unlike JIT64)
         gcInfoEncoderWithLog->SetWantsReportOnlyLeaf();
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #endif // FEATURE_EH_FUNCLETS
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     if (compiler->codeGen->hasTailCalls)
     {
         gcInfoEncoderWithLog->SetHasTailCalls();
     }
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
 #if FEATURE_FIXED_OUT_ARGS
     // outgoing stack area size

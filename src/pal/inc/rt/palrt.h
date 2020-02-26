@@ -180,7 +180,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define ARGUMENT_PRESENT(ArgumentPointer)    (\
     (CHAR *)(ArgumentPointer) != (CHAR *)(NULL) )
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONGLONG)
 #else
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONG)
@@ -629,7 +629,7 @@ STDAPI_(HRESULT) VariantClear(VARIANT * pvarg);
 #define V_UINTREF(X)     V_UNION(X, puintVal)
 #define V_ARRAY(X)       V_UNION(X, parray)
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define V_INT_PTR(X)        V_UNION(X, llVal)
 #define V_UINT_PTR(X)       V_UNION(X, ullVal)
 #define V_INT_PTRREF(X)     V_UNION(X, pllVal)
@@ -1020,11 +1020,11 @@ typedef VOID (NTAPI *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 // usage pattern is:
 //
 // int get_scratch_register() {
-// #if defined(TARGET_X86)
+// #if defined(_TARGET_X86_)
 //     return eax;
-// #elif defined(TARGET_AMD64)
+// #elif defined(_TARGET_AMD64_)
 //     return rax;
-// #elif defined(TARGET_ARM)
+// #elif defined(_TARGET_ARM_)
 //     return r0;
 // #else
 //     PORTABILITY_ASSERT("scratch register");
@@ -1061,7 +1061,7 @@ typedef VOID (NTAPI *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 
 #define UNREFERENCED_PARAMETER(P)          (void)(P)
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define VALPTR(x) VAL64(x)
 #define GET_UNALIGNED_PTR(x) GET_UNALIGNED_64(x)
 #define GET_UNALIGNED_VALPTR(x) GET_UNALIGNED_VAL64(x)
@@ -1075,7 +1075,7 @@ typedef VOID (NTAPI *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 #define SET_UNALIGNED_VALPTR(p,x) SET_UNALIGNED_VAL32(p,x)
 #endif
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 #define RUNTIME_FUNCTION_INDIRECT 0x1
 #endif
 
@@ -1312,7 +1312,7 @@ EXCEPTION_DISPOSITION
     PVOID DispatcherContext
     );
 
-#if defined(HOST_ARM)
+#if defined(_ARM_)
 
 typedef struct _DISPATCHER_CONTEXT {
     DWORD ControlPc;
@@ -1330,7 +1330,7 @@ typedef struct _DISPATCHER_CONTEXT {
     DWORD Reserved;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
 
-#elif defined(HOST_ARM64)
+#elif defined(_ARM64_)
 
 typedef struct _DISPATCHER_CONTEXT {
     ULONG64 ControlPc;
@@ -1348,7 +1348,7 @@ typedef struct _DISPATCHER_CONTEXT {
     ULONG64 Reserved;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
 
-#elif defined(HOST_AMD64)
+#elif defined(_AMD64_)
 
 typedef struct _DISPATCHER_CONTEXT {
     ULONG64 ControlPc;
@@ -1362,7 +1362,7 @@ typedef struct _DISPATCHER_CONTEXT {
     PVOID HistoryTable;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
 
-#elif defined(HOST_X86)
+#elif defined(_X86_)
 
 typedef struct _DISPATCHER_CONTEXT {
     DWORD ControlPc;
@@ -1384,7 +1384,7 @@ typedef struct _DISPATCHER_CONTEXT {
 
 #endif
 
-// #endif // !defined(TARGET_OSX)
+// #endif // !defined(_TARGET_MAC64)
 
 typedef DISPATCHER_CONTEXT *PDISPATCHER_CONTEXT;
 

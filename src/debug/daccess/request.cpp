@@ -20,10 +20,10 @@
 #include <comcallablewrapper.h>
 #endif // FEATURE_COMINTEROP
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // It is unfortunate having to include this header just to get the definition of GenericModeBlock
 #include <msodw.h>
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 // To include definiton of IsThrowableThreadAbortException
 #include <exstatecommon.h>
@@ -584,13 +584,13 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
     if (!buffer && !pNeeded)
         return E_POINTER;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     static const wchar_t *regs[] = 
     {
         W("rax"), W("rcx"), W("rdx"), W("rbx"), W("rsp"), W("rbp"), W("rsi"), W("rdi"),
         W("r8"), W("r9"), W("r10"), W("r11"), W("r12"), W("r13"), W("r14"), W("r15"),
     };
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     static const wchar_t *regs[] = 
     {
         W("r0"),
@@ -603,7 +603,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         W("r7"),
         W("r8"), W("r9"), W("r10"), W("r11"), W("r12"), W("sp"), W("lr")
     };
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     static const wchar_t *regs[] = 
     {
         W("X0"),
@@ -618,7 +618,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         W("X18"), W("X19"), W("X20"), W("X21"), W("X22"), W("X23"), W("X24"), W("X25"), W("X26"), W("X27"), 
         W("X28"), W("Fp"),  W("Lr"),  W("Sp")
     };
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     static const wchar_t *regs[] = 
     {
         W("eax"), W("ecx"), W("edx"), W("ebx"), W("esp"), W("ebp"), W("esi"), W("edi"),
@@ -771,7 +771,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
     threadData->context = PTR_CDADDR(thread->m_pDomain);
     threadData->domain = PTR_CDADDR(thread->m_pDomain);
     threadData->lockCount = thread->m_dwLockCount;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     threadData->teb = TO_CDADDR(thread->m_pTEB);
 #else
     threadData->teb = NULL;
@@ -3689,7 +3689,7 @@ ClrDataAccess::GetJumpThunkTarget(T_CONTEXT *ctx, CLRDATA_ADDRESS *targetIP, CLR
     if (ctx == NULL || targetIP == NULL || targetMD == NULL)
         return E_INVALIDARG;
     
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     SOSDacEnter();
     
     if (!GetAnyThunkTarget(ctx, targetIP, targetMD))
@@ -3699,7 +3699,7 @@ ClrDataAccess::GetJumpThunkTarget(T_CONTEXT *ctx, CLRDATA_ADDRESS *targetIP, CLR
     return hr;
 #else
     return E_FAIL;
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 }
 
 
@@ -3798,10 +3798,10 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
 HRESULT
 ClrDataAccess::GetClrWatsonBuckets(CLRDATA_ADDRESS thread, void *pGenericModeBlock)
 {
-#ifdef TARGET_UNIX
-	// This API is not available under TARGET_UNIX
+#ifdef FEATURE_PAL
+	// This API is not available under FEATURE_PAL
 	return E_FAIL;
-#else // TARGET_UNIX
+#else // FEATURE_PAL
     if (thread == 0 || pGenericModeBlock == NULL)
         return E_INVALIDARG;
     
@@ -3812,10 +3812,10 @@ ClrDataAccess::GetClrWatsonBuckets(CLRDATA_ADDRESS thread, void *pGenericModeBlo
 
     SOSDacLeave();
     return hr;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 HRESULT ClrDataAccess::GetClrWatsonBucketsWorker(Thread * pThread, GenericModeBlock * pGM)
 {
@@ -3888,7 +3888,7 @@ HRESULT ClrDataAccess::GetClrWatsonBucketsWorker(Thread * pThread, GenericModeBl
     }
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 HRESULT ClrDataAccess::GetTLSIndex(ULONG *pIndex)
 {
@@ -4050,7 +4050,7 @@ PTR_ComCallWrapper ClrDataAccess::DACGetCCWFromAddress(CLRDATA_ADDRESS addr)
             returned == sizeof(TADDR))
         {
 
-#ifdef TARGET_ARM
+#ifdef DBG_TARGET_ARM
             // clear the THUMB bit on pPtr before comparing with known vtable entry
             pPtr &= ~THUMB_CODE;
 #endif

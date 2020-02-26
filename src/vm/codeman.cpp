@@ -33,10 +33,10 @@
 
 #include "configuration.h"
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define CHECK_DUPLICATED_STRUCT_LAYOUTS
 #include "../debug/daccess/fntableaccess.h"
-#endif // HOST_64BIT
+#endif // BIT64
 
 #ifdef FEATURE_PERFMAP
 #include "perfmap.h"
@@ -82,7 +82,7 @@ unsigned   ExecutionManager::m_LCG_JumpStubBlockFullCount;
 
 #endif // DACCESS_COMPILE
 
-#if defined(TARGET_AMD64) && !defined(DACCESS_COMPILE) // We don't do this on ARM just amd64
+#if defined(_TARGET_AMD64_) && !defined(DACCESS_COMPILE) // We don't do this on ARM just amd64
 
 // Support for new style unwind information (to allow OS to stack crawl JIT compiled code).
 
@@ -122,7 +122,7 @@ bool InitUnwindFtns()
         NOTHROW;
     } CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     if (!RtlUnwindFtnsInited)
     {
         HINSTANCE hNtdll = WszGetModuleHandle(W("ntdll.dll"));
@@ -154,9 +154,9 @@ bool InitUnwindFtns()
         RtlUnwindFtnsInited = true;
     }
     return (pRtlAddGrowableFunctionTable != NULL);
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     return false;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 
 /****************************************************************************/
@@ -537,7 +537,7 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
     } EX_END_CATCH(SwallowAllExceptions);
 }
 
-#endif // defined(TARGET_AMD64) && !defined(DACCESS_COMPILE)
+#endif // defined(_TARGET_AMD64_) && !defined(DACCESS_COMPILE)
 
 /*-----------------------------------------------------------------------------
  This is a listing of which methods uses which synchronization mechanism
@@ -817,7 +817,7 @@ ExecutionManager::DeleteRangeHelper
 
 //-----------------------------------------------------------------------------
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 #define EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS
 #endif
 
@@ -837,7 +837,7 @@ BOOL IsFunctionFragment(TADDR baseAddress, PTR_RUNTIME_FUNCTION pFunctionEntry)
     _ASSERTE((pFunctionEntry->UnwindData & 3) == 0);   // The unwind data must be an RVA; we don't support packed unwind format
     DWORD unwindHeader = *(PTR_DWORD)(baseAddress + pFunctionEntry->UnwindData);
     _ASSERTE((0 == ((unwindHeader >> 18) & 3)) || !"unknown unwind data format, version != 0");
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
     // On ARM, It's assumed that the prolog is always at the beginning of the function and cannot be split.
     // Given that, there are 4 possible ways to fragment a function:
@@ -852,7 +852,7 @@ BOOL IsFunctionFragment(TADDR baseAddress, PTR_RUNTIME_FUNCTION pFunctionEntry)
     _ASSERTE((pFunctionEntry->BeginAddress & THUMB_CODE) == THUMB_CODE);   // Sanity check: it's a thumb address
     DWORD Fbit = (unwindHeader >> 22) & 0x1;    // F "fragment" bit
     return (Fbit == 1);
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
     // ARM64 is a little bit more flexible, in the sense that it supports partial prologs. However only one of the 
     // prolog regions are allowed to alter SP and that's the Host Record. Partial prologs are used in ShrinkWrapping
@@ -995,7 +995,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     PTR_UNWIND_INFO pUnwindInfo(dac_cast<PTR_UNWIND_INFO>(moduleBase + RUNTIME_FUNCTION__GetUnwindInfoAddress(pRuntimeFunction)));
 
     *pSize = ALIGN_UP(offsetof(UNWIND_INFO, UnwindCode) +
@@ -1005,14 +1005,14 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 
     return pUnwindInfo;
 
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     PTR_UNWIND_INFO pUnwindInfo(dac_cast<PTR_UNWIND_INFO>(moduleBase + RUNTIME_FUNCTION__GetUnwindInfoAddress(pRuntimeFunction)));
 
     *pSize = sizeof(UNWIND_INFO);
 
     return pUnwindInfo;
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     // if this function uses packed unwind data then at least one of the two least significant bits
     // will be non-zero.  if this is the case then there will be no xdata record to enumerate.
@@ -1049,7 +1049,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     *pSize = size;
     return xdata;
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 	// if this function uses packed unwind data then at least one of the two least significant bits
 	// will be non-zero.  if this is the case then there will be no xdata record to enumerate.
 	_ASSERTE((pRuntimeFunction->UnwindData & 0x3) == 0);
@@ -1099,7 +1099,7 @@ TADDR IJitManager::GetFuncletStartAddress(EECodeInfo * pCodeInfo)
 {
     PTR_RUNTIME_FUNCTION pFunctionEntry = pCodeInfo->GetFunctionEntry();
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     _ASSERTE((pFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0);
 #endif
 
@@ -1215,10 +1215,10 @@ EEJitManager::EEJitManager()
     m_pCodeHeap = NULL;
     m_jit = NULL;
     m_JITCompiler      = NULL;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     m_pEmergencyJumpStubReserveList = NULL;
 #endif
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     m_JITCompilerOther = NULL;
 #endif
 
@@ -1231,13 +1231,13 @@ EEJitManager::EEJitManager()
     m_cleanupList = NULL;
 }
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
 bool DoesOSSupportAVX()
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // On Windows we have an api(GetEnabledXStateFeatures) to check if AVX is supported
     typedef DWORD64 (WINAPI *PGETENABLEDXSTATEFEATURES)();
     PGETENABLEDXSTATEFEATURES pfnGetEnabledXStateFeatures = NULL;
@@ -1258,12 +1258,12 @@ bool DoesOSSupportAVX()
     {
         return FALSE;
     }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     return TRUE;
 }
 
-#endif // defined(TARGET_X86) || defined(TARGET_AMD64)
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
 void EEJitManager::SetCpuInfo()
 {
@@ -1276,7 +1276,7 @@ void EEJitManager::SetCpuInfo()
 
     CORJIT_FLAGS CPUCompileFlags;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // NOTE: if you're adding any flags here, you probably should also be doing it
     // for ngen (zapper.cpp)
     CORINFO_CPU cpuInfo;
@@ -1302,9 +1302,9 @@ void EEJitManager::SetCpuInfo()
     {
         CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     // NOTE: The below checks are based on the information reported by
     //   Intel® 64 and IA-32 Architectures Software Developer’s Manual. Volume 2
     //   and
@@ -1475,17 +1475,17 @@ void EEJitManager::SetCpuInfo()
             CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_LZCNT);
         }
     }
-#endif // defined(TARGET_X86) || defined(TARGET_AMD64)
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
     static ConfigDWORD fFeatureSIMD;
     if (fFeatureSIMD.val(CLRConfig::EXTERNAL_FeatureSIMD) != 0)
     {
         CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
     }
-#if defined(TARGET_UNIX)
+#if defined(FEATURE_PAL)
     PAL_GetJitCpuCapabilityFlags(&CPUCompileFlags);
-#elif defined(HOST_64BIT)
+#elif defined(BIT64)
     // FP and SIMD support are enabled by default
     CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_SIMD);
     CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_FP);
@@ -1501,8 +1501,8 @@ void EEJitManager::SetCpuInfo()
     {
         CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_CRC32);
     }
-#endif // HOST_64BIT
-#endif // TARGET_ARM64
+#endif // BIT64
+#endif // _TARGET_ARM64_
 
     m_CPUCompileFlags = CPUCompileFlags;
 }
@@ -1744,7 +1744,7 @@ BOOL EEJitManager::LoadJIT()
 #else // !FEATURE_MERGE_JIT_AND_ENGINE
 
     m_JITCompiler = NULL;
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     m_JITCompilerOther = NULL;
 #endif
 
@@ -1985,7 +1985,7 @@ void ThrowOutOfMemoryWithinRange()
     EX_THROW(EEMessageException, (kOutOfMemoryException, IDS_EE_OUT_OF_MEMORY_WITHIN_RANGE));
 }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 BYTE * EEJitManager::AllocateFromEmergencyJumpStubReserve(const BYTE * loAddr, const BYTE * hiAddr, SIZE_T * pReserveSize)
 {
     CONTRACTL {
@@ -2099,13 +2099,13 @@ VOID EEJitManager::EnsureJumpStubReserve(BYTE * pImageBase, SIZE_T imageSize, SI
         m_pEmergencyJumpStubReserveList = pNewReserve.Extract();
     }
 }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 static size_t GetDefaultReserveForJumpStubs(size_t codeHeapSize)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     //
     // Keep a small default reserve at the end of the codeheap for jump stubs. It should reduce
     // chance that we won't be able allocate jump stub because of lack of suitable address space.
@@ -2183,14 +2183,14 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
                 // Conserve emergency jump stub reserve until when it is really needed
                 if (!pInfo->getThrowOnOutOfMemoryWithinRange())
                     RETURN NULL;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
                 pBaseAddr = ExecutionManager::GetEEJitManager()->AllocateFromEmergencyJumpStubReserve(loAddr, hiAddr, &reserveSize);
                 if (!pBaseAddr)
                     ThrowOutOfMemoryWithinRange();
                 fAllocatedFromEmergencyJumpStubReserve = true;                
 #else
                 ThrowOutOfMemoryWithinRange();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
             }
         }
         else
@@ -2230,9 +2230,9 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
          DBG_ADDR(pHp->startAddress), DBG_ADDR(pHp->startAddress+pHp->maxCodeHeapSize)
          ));
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
     pCodeHeap.SuppressRelease();
     RETURN pHp;
@@ -2277,7 +2277,7 @@ void CodeHeapRequestInfo::Init()
 
 #ifdef WIN64EXCEPTIONS
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG64   ControlPc,
                                                         IN PVOID     Context)
 #else
@@ -2331,7 +2331,7 @@ HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapLi
     size_t initialRequestSize = pInfo->getRequestSize();
     size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     if (pInfo->m_hiAddr == 0)
     {
         if (pADHeapList->m_CodeHeapList.Count() > CODE_HEAP_SIZE_INCREASE_THRESHOLD)
@@ -2562,7 +2562,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, size_t re
         alignment = max(alignment, 16);
     }
     
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // when not optimizing for code size, 8-byte align the method entry point, so that
     // the JIT can in turn 8-byte align the loop entry headers.
     // 
@@ -2983,7 +2983,7 @@ void * EEJitManager::allocCodeFragmentBlock(size_t blockSize, unsigned alignment
     HeapList *pCodeHeap = NULL;
     CodeHeapRequestInfo    requestInfo(NULL, pLoaderAllocator, NULL, NULL);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // CodeFragments are pretty much always Precodes that may need to be patched with jump stubs at some point in future
     // We will assume the worst case that every FixupPrecode will need to be patched and reserve the jump stubs accordingly
     requestInfo.setReserveForJumpStubs((blockSize / 8) * JUMP_ALLOCATE_SIZE);
@@ -3191,10 +3191,10 @@ void EEJitManager::RemoveJitData (CodeHeader * pCHdr, size_t GCinfo_len, size_t 
                 pResolver->m_recordCodePointer = NULL;
         }
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         // Remove the unwind information (if applicable)
         UnwindInfoTable::UnpublishUnwindInfoForMethod((TADDR)codeStart);
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
 
         HostCodeHeap* pHeap = HostCodeHeap::GetCodeHeap((TADDR)codeStart);
         FreeCodeMemory(pHeap, codeStart);
@@ -3894,7 +3894,7 @@ PTR_RUNTIME_FUNCTION EEJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
         if (RUNTIME_FUNCTION__BeginAddress(pFunctionEntry) <= address && address < RUNTIME_FUNCTION__EndAddress(pFunctionEntry, baseAddress))
         {
 
-#if defined(EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS) && defined(TARGET_ARM64)
+#if defined(EXCEPTION_DATA_SUPPORTS_FUNCTION_FRAGMENTS) && defined(_TARGET_ARM64_)
             // If we might have fragmented unwind, and we're on ARM64, make sure
             // to returning the root record, as the trailing records don't have
             // prolog unwind codes.
@@ -4727,9 +4727,9 @@ void ExecutionManager::AddRangeHelper(TADDR          pStartRange,
     pnewrange->flags       = flags;
     pnewrange->pLastUsed   = NULL;
     pnewrange->pHeapListOrZapModule = pHeapListOrZapModule;
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     pnewrange->pUnwindInfoTable = NULL;
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
     {
         CrstHolder ch(&m_RangeCrst); // Acquire the Crst before linking in a new RangeList
 
@@ -4840,10 +4840,10 @@ void ExecutionManager::DeleteRange(TADDR pStartRange)
     //
     if (pCurr != NULL)
     {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
         if (pCurr->pUnwindInfoTable != 0)
             delete pCurr->pUnwindInfoTable;
-#endif // defined(TARGET_AMD64)
+#endif // defined(_TARGET_AMD64_)
         delete pCurr;
     }
 }
@@ -5143,7 +5143,7 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
 
         numJumpStubs = 4;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // Note this these values are not requirements, instead we are 
         // just confirming the values that are mentioned in the comments.
         _ASSERTE(BACK_TO_BACK_JUMP_ALLOCATE_SIZE == 12);
@@ -5182,7 +5182,7 @@ DONE:
 
     _ASSERTE((curBlock->m_used < curBlock->m_allocated));
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // 8-byte alignment is required on ARM64
     _ASSERTE(((UINT_PTR)jumpStub & 7) == 0);
 #endif
@@ -5266,7 +5266,7 @@ static void GetFuncletStartOffsetsHelper(PCODE pCodeStart, SIZE_T size, SIZE_T o
     // Entries are sorted and terminated by sentinel value (DWORD)-1
     for (; RUNTIME_FUNCTION__BeginAddress(pFunctionEntry) < endAddress; pFunctionEntry++)
     {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         _ASSERTE((pFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0);
 #endif
 
@@ -5707,12 +5707,12 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
 
 #ifdef WIN64EXCEPTIONS
             PTR_RUNTIME_FUNCTION RawColdFunctionEntry = ColdFunctionTable + RawColdMethodIndex;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             if ((RawColdFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) != 0)
             {
                 RawColdFunctionEntry = PTR_RUNTIME_FUNCTION(ImageBase + (RawColdFunctionEntry->UnwindData & ~RUNTIME_FUNCTION_INDIRECT));
             }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
             pCodeInfo->m_pFunctionEntry = RawColdFunctionEntry;
 #endif
         }
@@ -5816,7 +5816,7 @@ TADDR NativeImageJitManager::GetFuncletStartAddress(EECodeInfo * pCodeInfo)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     NGenLayoutInfo * pLayoutInfo = JitTokenToZapModule(pCodeInfo->GetMethodToken())->GetNGenLayoutInfo();
 
     if (pLayoutInfo->m_CodeSections[2].IsInRange(pCodeInfo->GetCodeAddress()))
@@ -5859,7 +5859,7 @@ DWORD NativeImageJitManager::GetFuncletStartOffsets(const METHODTOKEN& MethodTok
 
     // There are no funclets in cold section on ARM yet
     // @ARMTODO: support hot/cold splitting in functions with EH
-#if !defined(TARGET_ARM) && !defined(TARGET_ARM64)
+#if !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_)
     if (regionInfo.coldSize != NULL)
     {
         NGenLayoutInfo * pLayoutInfo = JitTokenToZapModule(MethodToken)->GetNGenLayoutInfo();
@@ -5874,7 +5874,7 @@ DWORD NativeImageJitManager::GetFuncletStartOffsets(const METHODTOKEN& MethodTok
 
         _ASSERTE(regionInfo.coldStartAddress == moduleBase + RUNTIME_FUNCTION__BeginAddress(pFunctionEntry));
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // Skip cold part of the method body
         if ((pFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) != 0)
             pFunctionEntry++;
@@ -5884,7 +5884,7 @@ DWORD NativeImageJitManager::GetFuncletStartOffsets(const METHODTOKEN& MethodTok
             pFunctionEntry, moduleBase,
             &nFunclets, pStartFuncletOffsets, dwLength);
     }
-#endif // !TARGET_ARM && !_TARGET_ARM64
+#endif // !_TARGET_ARM_ && !_TARGET_ARM64
 
     return nFunclets;
 }
@@ -6200,7 +6200,7 @@ int NativeUnwindInfoLookupTable::LookupUnwindInfoForMethod(DWORD RelativePc,
     } CONTRACTL_END;
 
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     RelativePc |= THUMB_CODE;
 #endif 
 

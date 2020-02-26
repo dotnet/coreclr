@@ -427,9 +427,9 @@ public:
 
     unsigned char lvIsTemp : 1; // Short-lifetime compiler temp
 
-#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     unsigned char lvIsImplicitByRef : 1; // Set if the argument is an implicit byref.
-#endif                                   // defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#endif                                   // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
 #if OPT_BOOL_OPS
     unsigned char lvIsBoolean : 1; // set if variable is boolean
@@ -443,10 +443,10 @@ public:
     unsigned char lvVolatileHint : 1; // hint for AssertionProp
 #endif
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     unsigned char lvStructDoubleAlign : 1; // Must we double align this struct?
-#endif                                     // !TARGET_64BIT
-#ifdef TARGET_64BIT
+#endif                                     // !_TARGET_64BIT_
+#ifdef _TARGET_64BIT_
     unsigned char lvQuirkToLong : 1; // Quirk to allocate this LclVar as a 64-bit long
 #endif
 #ifdef DEBUG
@@ -564,10 +564,10 @@ public:
         assert(lvIsHfa());
         assert(varTypeIsStruct(lvType));
         unsigned slots = 0;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         slots = lvExactSize / sizeof(float);
         assert(slots <= 8);
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         switch (_lvHfaElemKind)
         {
             case HFA_ELEM_NONE:
@@ -589,7 +589,7 @@ public:
                 unreached();
         }
         assert(slots <= 4);
-#endif //  TARGET_ARM64
+#endif //  _TARGET_ARM64_
         return slots;
     }
 
@@ -607,9 +607,9 @@ private:
                               // variable is enregistered (lvRegister is only set
                               // to non-zero if the variable gets the same register assignment for its entire
                               // lifetime).
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     regNumberSmall _lvOtherReg; // Used for "upper half" of long var.
-#endif                          // !defined(TARGET_64BIT)
+#endif                          // !defined(_TARGET_64BIT_)
 
     regNumberSmall _lvArgReg; // The (first) register in which this argument is passed.
 
@@ -641,7 +641,7 @@ public:
 
 /////////////////////
 
-#if defined(TARGET_64BIT)
+#if defined(_TARGET_64BIT_)
     __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
@@ -656,7 +656,7 @@ public:
         assert(!"shouldn't get here"); // can't use "unreached();" because it's NORETURN, which causes C4072
                                        // "unreachable code" warnings
     }
-#else  // !TARGET_64BIT
+#else  // !_TARGET_64BIT_
     __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
@@ -669,7 +669,7 @@ public:
         _lvOtherReg = (regNumberSmall)reg;
         assert(_lvOtherReg == reg);
     }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
 
     /////////////////////
 
@@ -805,11 +805,11 @@ public:
     // Otherwise lvPromoted is valid.
     bool lvPromotedStruct()
     {
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         return (lvPromoted && !varTypeIsLong(lvType));
-#else  // defined(TARGET_64BIT)
+#else  // defined(_TARGET_64BIT_)
         return lvPromoted;
-#endif // defined(TARGET_64BIT)
+#endif // defined(_TARGET_64BIT_)
     }
 
     unsigned lvSize() const // Size needed for storage representation. Only used for structs or TYP_BLK.
@@ -828,7 +828,7 @@ public:
 
         assert(varTypeIsStruct(lvType) || (lvType == TYP_BLK) || (lvPromoted && lvUnusedStruct));
 
-#if defined(FEATURE_SIMD) && !defined(TARGET_64BIT)
+#if defined(FEATURE_SIMD) && !defined(_TARGET_64BIT_)
         // For 32-bit architectures, we make local variable SIMD12 types 16 bytes instead of just 12. We can't do
         // this for arguments, which must be passed according the defined ABI. We don't want to do this for
         // dependently promoted struct fields, but we don't know that here. See lvaMapSimd12ToSimd16().
@@ -838,7 +838,7 @@ public:
             assert(lvExactSize == 12);
             return 16;
         }
-#endif // defined(FEATURE_SIMD) && !defined(TARGET_64BIT)
+#endif // defined(FEATURE_SIMD) && !defined(_TARGET_64BIT_)
 
         return roundUp(lvExactSize, TARGET_POINTER_SIZE);
     }
@@ -1262,7 +1262,7 @@ struct FuncInfoDsc
                                // funclet. It is only valid if funKind field indicates this is a
                                // EH-related funclet: FUNC_HANDLER or FUNC_FILTER
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
     // TODO-AMD64-Throughput: make the AMD64 info more like the ARM info to avoid having this large static array.
     emitLocation* startLoc;
@@ -1275,16 +1275,16 @@ struct FuncInfoDsc
     BYTE     unwindCodes[offsetof(UNWIND_INFO, UnwindCode) + (0xFF * sizeof(UNWIND_CODE))];
     unsigned unwindCodeSlot;
 
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
 
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
     emitLocation* startLoc;
     emitLocation* endLoc;
     emitLocation* coldStartLoc; // locations for the cold section, if there is one.
     emitLocation* coldEndLoc;
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
 
-#elif defined(TARGET_ARMARCH)
+#elif defined(_TARGET_ARMARCH_)
 
     UnwindInfo  uwi;     // Unwind information for this function/funclet's hot  section
     UnwindInfo* uwiCold; // Unwind information for this function/funclet's cold section
@@ -1294,18 +1294,18 @@ struct FuncInfoDsc
                          //   Note 2: we currently don't support hot/cold splitting in functions
                          //   with EH, so uwiCold will be NULL for all funclets.
 
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
     emitLocation* startLoc;
     emitLocation* endLoc;
     emitLocation* coldStartLoc; // locations for the cold section, if there is one.
     emitLocation* coldEndLoc;
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
     jitstd::vector<CFI_CODE>* cfiCodes;
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
 
     // Eventually we may want to move rsModifiedRegsMask, lvaOutgoingArgSize, and anything else
     // that isn't shared between the main function body and funclets.
@@ -1475,14 +1475,14 @@ public:
             // Note that hfaSlots is the number of registers we will use. For ARM, that is twice
             // the number of "double registers".
             unsigned numHfaRegs = hfaSlots;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             if (type == TYP_DOUBLE)
             {
                 // Must be an even number of registers.
                 assert((numRegs & 1) == 0);
                 numHfaRegs = hfaSlots / 2;
             }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
             if (!isHfaArg)
             {
@@ -1506,7 +1506,7 @@ public:
 #endif // FEATURE_HFA
     }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     void SetIsBackFilled(bool backFilled)
     {
         isBackFilled = backFilled;
@@ -1516,7 +1516,7 @@ public:
     {
         return isBackFilled;
     }
-#else  // !TARGET_ARM
+#else  // !_TARGET_ARM_
     void SetIsBackFilled(bool backFilled)
     {
     }
@@ -1525,7 +1525,7 @@ public:
     {
         return false;
     }
-#endif // !TARGET_ARM
+#endif // !_TARGET_ARM_
 
     bool isPassedInRegisters()
     {
@@ -1575,14 +1575,14 @@ public:
 #ifdef FEATURE_HFA
         if (isHfaRegArg)
         {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
             if (hfaType == TYP_DOUBLE)
             {
                 assert(!isSplit);
                 size <<= 1;
             }
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
             // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size,
             // or if they are SIMD16 vector hfa regs we have to double the size.
             if (hfaType == TYP_FLOAT)
@@ -1596,7 +1596,7 @@ public:
                 size <<= 1;
             }
 #endif // FEATURE_SIMD
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
         }
 #endif // FEATURE_HFA
         return size;
@@ -1614,7 +1614,7 @@ public:
         }
 
         regNumber argReg = getRegNum(0);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         unsigned int regSize = (hfaType == TYP_DOUBLE) ? 2 : 1;
 #else
         unsigned int regSize = 1;
@@ -1644,7 +1644,7 @@ public:
                 // On most targets, this is always a single register or slot.
                 // However, on ARM this could be two slots if it is TYP_DOUBLE.
                 bool isPassedAsPrimitiveType = ((numRegs == 1) || ((numRegs == 0) && (numSlots == 1)));
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
                 if (!isPassedAsPrimitiveType)
                 {
                     if (node->TypeGet() == TYP_DOUBLE && numRegs == 0 && (numSlots == 2))
@@ -1652,7 +1652,7 @@ public:
                         isPassedAsPrimitiveType = true;
                     }
                 }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
                 assert(isPassedAsPrimitiveType);
             }
         }
@@ -1947,9 +1947,9 @@ class Compiler
     friend struct HWIntrinsicInfo;
 #endif // FEATURE_HW_INTRINSICS
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     friend class DecomposeLongs;
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
 
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2257,11 +2257,11 @@ public:
     // a PSPSym for functions with any EH.
     bool ehNeedsPSPSym() const
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         return false;
-#else  // TARGET_X86
+#else  // _TARGET_X86_
         return compHndBBtabCount > 0;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     }
 
     bool     ehAnyFunclets();  // Are there any funclets in this function?
@@ -2893,7 +2893,7 @@ public:
 #ifdef DEBUG
     VARSET_TP lvaTrackedVars; // set of tracked variables
 #endif
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     VARSET_TP lvaLongVars; // set of long (64-bit) variables
 #endif
     VARSET_TP lvaFloatVars; // set of floating-point (32-bit and 64-bit) variables
@@ -2936,7 +2936,7 @@ public:
         DNER_DepField,    // It is a field of a dependently promoted struct
         DNER_NoRegVars,   // opts.compFlags & CLFLG_REGVAR is not set
         DNER_MinOptsGC,   // It is a GC Ref and we are compiling MinOpts
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         DNER_LongParamField, // It is a decomposed field of a long parameter.
 #endif
 #ifdef JIT32_GCENCODER
@@ -2947,10 +2947,10 @@ public:
     void lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregisterReason reason));
 
     unsigned lvaVarargsHandleArg;
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     unsigned lvaVarargsBaseOfStkArgs; // Pointer (computed based on incoming varargs handle) to the start of the stack
                                       // arguments
-#endif                                // TARGET_X86
+#endif                                // _TARGET_X86_
 
     unsigned lvaInlinedPInvokeFrameVar; // variable representing the InlinedCallFrame
     unsigned lvaReversePInvokeFrameVar; // variable representing the reverse PInvoke frame
@@ -2973,26 +2973,26 @@ public:
     PhasedVar<unsigned> lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
 #endif                                           // FEATURE_FIXED_OUT_ARGS
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // On architectures whose ABIs allow structs to be passed in registers, struct promotion will sometimes
     // require us to "rematerialize" a struct from it's separate constituent field variables.  Packing several sub-word
     // field variables into an argument register is a hard problem.  It's easier to reserve a word of memory into which
     // such field can be copied, after which the assembled memory word can be read into the register.  We will allocate
     // this variable to be this scratch word whenever struct promotion occurs.
     unsigned lvaPromotedStructAssemblyScratchVar;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#if defined(DEBUG) && defined(TARGET_XARCH)
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
 
     unsigned lvaReturnSpCheck; // Stores SP to confirm it is not corrupted on return.
 
-#endif // defined(DEBUG) && defined(TARGET_XARCH)
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
-#if defined(DEBUG) && defined(TARGET_X86)
+#if defined(DEBUG) && defined(_TARGET_X86_)
 
     unsigned lvaCallSpCheck; // Stores SP to confirm it is not corrupted after every call.
 
-#endif // defined(DEBUG) && defined(TARGET_X86)
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
     unsigned lvaGenericsContextUseCount;
 
@@ -3032,9 +3032,9 @@ public:
     //-------------------------------------------------------------------------
 
     unsigned lvaGetMaxSpillTempSize();
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     bool lvaIsPreSpilled(unsigned lclNum, regMaskTP preSpillMask);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
     void lvaAssignFrameOffsets(FrameLayoutState curState);
     void lvaFixVirtualFrameOffsets();
     void lvaUpdateArgsWithInitialReg();
@@ -3046,7 +3046,7 @@ public:
 #endif // !UNIX_AMD64_ABI
     void lvaAssignVirtualFrameOffsetsToLocals();
     int lvaAllocLocalAndSetVirtualOffset(unsigned lclNum, unsigned size, int stkOffs);
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // Returns true if compCalleeRegsPushed (including RBP if used as frame pointer) is even.
     bool lvaIsCalleeSavedIntRegCountEven();
 #endif
@@ -3156,7 +3156,7 @@ public:
 
 #endif
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     int lvaFrameAddress(int varNum, bool mustBeFPBased, regNumber* pBaseReg, int addrModeOffset, bool isFloatUsage);
 #else
     int lvaFrameAddress(int varNum, bool* pFPbased);
@@ -3172,7 +3172,7 @@ public:
     // For ARM64, this is structs larger than 16 bytes that are passed by reference.
     bool lvaIsImplicitByRefLocal(unsigned varNum)
     {
-#if defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         LclVarDsc* varDsc = lvaGetDesc(varNum);
         if (varDsc->lvIsImplicitByRef)
         {
@@ -3181,7 +3181,7 @@ public:
             assert(varTypeIsStruct(varDsc) || (varDsc->lvType == TYP_BYREF));
             return true;
         }
-#endif // defined(TARGET_AMD64) || defined(TARGET_ARM64)
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         return false;
     }
 
@@ -3256,9 +3256,9 @@ public:
         void CheckRetypedAsScalar(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
 #endif // DEBUG
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     private:
         bool CanPromoteStructVar(unsigned lclNum);
@@ -3273,9 +3273,9 @@ public:
         Compiler*              compiler;
         lvaStructPromotionInfo structPromotionInfo;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         bool requiresScratchVar;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 #ifdef DEBUG
         typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types>
@@ -3286,9 +3286,9 @@ public:
 
     StructPromotionHelper* structPromotionHelper;
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
     unsigned lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOffset);
     lvaPromotionType lvaGetPromotionType(const LclVarDsc* varDsc);
     lvaPromotionType lvaGetPromotionType(unsigned varNum);
@@ -3303,9 +3303,9 @@ public:
         assert(varDsc->lvType == TYP_SIMD12);
         assert(varDsc->lvExactSize == 12);
 
-#if defined(TARGET_64BIT)
+#if defined(_TARGET_64BIT_)
         assert(varDsc->lvSize() == 16);
-#endif // defined(TARGET_64BIT)
+#endif // defined(_TARGET_64BIT_)
 
         // We make local variable SIMD12 types 16 bytes instead of just 12. lvSize()
         // already does this calculation. However, we also need to prevent mapping types if the var is a
@@ -3539,7 +3539,7 @@ protected:
 protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
                               CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
@@ -3590,12 +3590,12 @@ protected:
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
     GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
-#endif // TARGET_XARCH
-#ifdef TARGET_ARM64
+#endif // _TARGET_XARCH_
+#ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
     NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
     GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                      CORINFO_SIG_INFO*    sig,
@@ -3941,7 +3941,7 @@ private:
     void impLoadLoc(unsigned ilLclNum, IL_OFFSET offset);
     bool impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& opcode);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     void impMarkLclDstNotPromotable(unsigned tmpNum, GenTree* op, CORINFO_CLASS_HANDLE hClass);
 #endif
 
@@ -4278,11 +4278,11 @@ public:
 
     void fgAddFinallyTargetFlags();
 
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
     bool fgNeedToAddFinallyTargetBits;
-#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     bool fgRetargetBranchesToCanonicalCallFinally(BasicBlock*      block,
                                                   BasicBlock*      handler,
@@ -4937,9 +4937,9 @@ public:
     BasicBlock* fgRelocateEHRange(unsigned regionIndex, FG_RELOCATE_TYPE relocateType);
 
 #if FEATURE_EH_FUNCLETS
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     void fgClearFinallyTargetBit(BasicBlock* block);
-#endif // defined(TARGET_ARM)
+#endif // defined(_TARGET_ARM_)
     bool fgIsIntraHandlerPred(BasicBlock* predBlock, BasicBlock* block);
     bool fgAnyIntraHandlerPreds(BasicBlock* block);
     void fgInsertFuncletPrologBlock(BasicBlock* block);
@@ -6805,7 +6805,7 @@ private:
 
     bool raIsVarargsStackArg(unsigned lclNum)
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
         LclVarDsc* varDsc = &lvaTable[lclNum];
 
@@ -6813,11 +6813,11 @@ private:
 
         return (info.compIsVarArgs && !varDsc->lvIsRegArg && (lclNum != lvaVarargsHandleArg));
 
-#else // TARGET_X86
+#else // _TARGET_X86_
 
         return false;
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     }
 
     /*
@@ -6931,7 +6931,7 @@ public:
     // Returns the frame size at which we will generate a loop to probe the stack.
     target_size_t getVeryLargeFrameSize()
     {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         // The looping probe code is 40 bytes, whereas the straight-line probing for
         // the (0x2000..0x3000) case is 44, so use looping for anything 0x2000 bytes
         // or greater, to generate smaller code.
@@ -6951,10 +6951,10 @@ public:
     public:
         VirtualStubParamInfo(bool isCoreRTABI)
         {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
             reg     = REG_EAX;
             regMask = RBM_EAX;
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
             if (isCoreRTABI)
             {
                 reg     = REG_R10;
@@ -6965,7 +6965,7 @@ public:
                 reg     = REG_R11;
                 regMask = RBM_R11;
             }
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
             if (isCoreRTABI)
             {
                 reg     = REG_R12;
@@ -6976,7 +6976,7 @@ public:
                 reg     = REG_R4;
                 regMask = RBM_R4;
             }
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
             reg     = REG_R11;
             regMask = RBM_R11;
 #else
@@ -7008,7 +7008,7 @@ public:
 
     bool generateCFIUnwindCodes()
     {
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
         return IsTargetAbi(CORINFO_CORERT_ABI);
 #else
         return false;
@@ -7199,7 +7199,7 @@ public:
         codeGen->setInterruptible(value);
     }
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
     bool getHasTailCalls()
     {
@@ -7209,7 +7209,7 @@ public:
     {
         codeGen->setHasTailCalls(value);
     }
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
 #if DOUBLE_ALIGN
     const bool genDoubleAlign()
@@ -7286,14 +7286,14 @@ public:
     // not all JIT Helper calls follow the standard ABI on the target architecture.
     regMaskTP compHelperCallKillSet(CorInfoHelpFunc helper);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Requires that "varDsc" be a promoted struct local variable being passed as an argument, beginning at
     // "firstArgRegNum", which is assumed to have already been aligned to the register alignment restriction of the
     // struct type. Adds bits to "*pArgSkippedRegMask" for any argument registers *not* used in passing "varDsc" --
     // i.e., internal "holes" caused by internal alignment constraints.  For example, if the struct contained an int and
     // a double, and we at R0 (on ARM), then R1 would be skipped, and the bit for R1 would be added to the mask.
     void fgAddSkippedRegsInPromotedStructArg(LclVarDsc* varDsc, unsigned firstArgRegNum, regMaskTP* pArgSkippedRegMask);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     // If "tree" is a indirection (GT_IND, or GT_OBJ) whose arg is an ADDR, whose arg is a LCL_VAR, return that LCL_VAR
     // node, else NULL.
@@ -7377,7 +7377,7 @@ public:
     void unwindSetFrameReg(regNumber reg, unsigned offset);
     void unwindSaveReg(regNumber reg, unsigned offset);
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     void unwindPushMaskInt(regMaskTP mask);
     void unwindPushMaskFloat(regMaskTP mask);
     void unwindPopMaskInt(regMaskTP mask);
@@ -7387,9 +7387,9 @@ public:
                                               // called via unwindPadding().
     void unwindPadding(); // Generate a sequence of unwind NOP codes representing instructions between the last
                           // instruction and the current location.
-#endif                    // TARGET_ARM
+#endif                    // _TARGET_ARM_
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
     void unwindNop();
     void unwindPadding(); // Generate a sequence of unwind NOP codes representing instructions between the last
                           // instruction and the current location.
@@ -7399,7 +7399,7 @@ public:
     void unwindSaveRegPairPreindexed(regNumber reg1, regNumber reg2, int offset); // stp reg1, reg2, [sp, #offset]!
     void unwindSaveNext();                                                        // unwind code: save_next
     void unwindReturn(regNumber reg);                                             // ret lr
-#endif                                                                            // defined(TARGET_ARM64)
+#endif                                                                            // defined(_TARGET_ARM64_)
 
     //
     // Private "helper" functions for the unwind implementation.
@@ -7416,16 +7416,16 @@ private:
     void unwindReserveFunc(FuncInfoDsc* func);
     void unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
 
-#if defined(TARGET_AMD64) || (defined(TARGET_X86) && FEATURE_EH_FUNCLETS)
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && FEATURE_EH_FUNCLETS)
 
     void unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode);
     void unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
 
-#endif // TARGET_AMD64 || (TARGET_X86 && FEATURE_EH_FUNCLETS)
+#endif // _TARGET_AMD64_ || (_TARGET_X86_ && FEATURE_EH_FUNCLETS)
 
     UNATIVE_OFFSET unwindGetCurrentOffset(FuncInfoDsc* func);
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
     void unwindBegPrologWindows();
     void unwindPushWindows(regNumber reg);
@@ -7436,14 +7436,14 @@ private:
 #ifdef UNIX_AMD64_ABI
     void unwindSaveRegCFI(regNumber reg, unsigned offset);
 #endif // UNIX_AMD64_ABI
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     void unwindPushPopMaskInt(regMaskTP mask, bool useOpsize16);
     void unwindPushPopMaskFloat(regMaskTP mask);
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#if defined(TARGET_UNIX)
+#if defined(_TARGET_UNIX_)
     short mapRegNumToDwarfReg(regNumber reg);
     void createCfiCode(FuncInfoDsc* func, UNATIVE_OFFSET codeOffset, UCHAR opcode, short dwarfReg, INT offset = 0);
     void unwindPushPopCFI(regNumber reg);
@@ -7460,7 +7460,7 @@ private:
                      const CFI_CODE* const pCfiCode);
 #endif
 
-#endif // TARGET_UNIX
+#endif // _TARGET_UNIX_
 
 #if !defined(__GNUC__)
 #pragma endregion // Note: region is NOT under !defined(__GNUC__)
@@ -7482,7 +7482,7 @@ private:
     // Get highest available level for SIMD codegen
     SIMDLevel getSIMDSupportLevel()
     {
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         if (compSupports(InstructionSet_AVX2))
         {
             return SIMD_AVX2_Supported;
@@ -7511,7 +7511,7 @@ private:
     // We always do this on ARM64 to support HVA types.
     bool supportSIMDTypes()
     {
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         return true;
 #else
         return featureSIMD;
@@ -7556,7 +7556,7 @@ private:
         CORINFO_CLASS_HANDLE SIMDVectorHandle;
 
 #ifdef FEATURE_HW_INTRINSICS
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
         CORINFO_CLASS_HANDLE Vector64FloatHandle;
         CORINFO_CLASS_HANDLE Vector64IntHandle;
         CORINFO_CLASS_HANDLE Vector64UShortHandle;
@@ -7564,7 +7564,7 @@ private:
         CORINFO_CLASS_HANDLE Vector64ShortHandle;
         CORINFO_CLASS_HANDLE Vector64ByteHandle;
         CORINFO_CLASS_HANDLE Vector64UIntHandle;
-#endif // defined(TARGET_ARM64)
+#endif // defined(_TARGET_ARM64_)
         CORINFO_CLASS_HANDLE Vector128FloatHandle;
         CORINFO_CLASS_HANDLE Vector128DoubleHandle;
         CORINFO_CLASS_HANDLE Vector128IntHandle;
@@ -7575,7 +7575,7 @@ private:
         CORINFO_CLASS_HANDLE Vector128LongHandle;
         CORINFO_CLASS_HANDLE Vector128UIntHandle;
         CORINFO_CLASS_HANDLE Vector128ULongHandle;
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         CORINFO_CLASS_HANDLE Vector256FloatHandle;
         CORINFO_CLASS_HANDLE Vector256DoubleHandle;
         CORINFO_CLASS_HANDLE Vector256IntHandle;
@@ -7586,7 +7586,7 @@ private:
         CORINFO_CLASS_HANDLE Vector256LongHandle;
         CORINFO_CLASS_HANDLE Vector256UIntHandle;
         CORINFO_CLASS_HANDLE Vector256ULongHandle;
-#endif // defined(TARGET_XARCH)
+#endif // defined(_TARGET_XARCH_)
 #endif // FEATURE_HW_INTRINSICS
 
         SIMDHandlesCache()
@@ -7840,7 +7840,7 @@ private:
     // Creates a GT_SIMD tree for Abs intrinsic.
     GenTree* impSIMDAbs(CORINFO_CLASS_HANDLE typeHnd, var_types baseType, unsigned simdVectorSize, GenTree* op1);
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 
     // Transforms operands and returns the SIMD intrinsic to be applied on
     // transformed operands to obtain == comparison result.
@@ -7869,7 +7869,7 @@ private:
     SIMDIntrinsicID impSIMDIntegralRelOpGreaterThanOrEqual(
         CORINFO_CLASS_HANDLE typeHnd, unsigned simdVectorSize, var_types baseType, GenTree** op1, GenTree** op2);
 
-#endif // defined(TARGET_XARCH)
+#endif // defined(_TARGET_XARCH_)
 
     void setLclRelatedToSIMDIntrinsic(GenTree* tree);
     bool areFieldsContiguous(GenTree* op1, GenTree* op2);
@@ -7907,7 +7907,7 @@ private:
     // This is the maximum SIMD type supported for this target.
     var_types getSIMDVectorType()
     {
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         if (getSIMDSupportLevel() == SIMD_AVX2_Supported)
         {
             return TYP_SIMD32;
@@ -7917,7 +7917,7 @@ private:
             assert(getSIMDSupportLevel() >= SIMD_SSE2_Supported);
             return TYP_SIMD16;
         }
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         return TYP_SIMD16;
 #else
         assert(!"getSIMDVectorType() unimplemented on target arch");
@@ -7946,7 +7946,7 @@ private:
     // Note - cannot be used for System.Runtime.Intrinsic
     unsigned getSIMDVectorRegisterByteLength()
     {
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         if (getSIMDSupportLevel() == SIMD_AVX2_Supported)
         {
             return YMM_REGSIZE_BYTES;
@@ -7956,7 +7956,7 @@ private:
             assert(getSIMDSupportLevel() >= SIMD_SSE2_Supported);
             return XMM_REGSIZE_BYTES;
         }
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         return FP_REGSIZE_BYTES;
 #else
         assert(!"getSIMDVectorRegisterByteLength() unimplemented on target arch");
@@ -7973,7 +7973,7 @@ private:
     // AVX2: 32-byte Vector<T> and Vector256<T>
     unsigned int maxSIMDStructBytes()
     {
-#if defined(FEATURE_HW_INTRINSICS) && defined(TARGET_XARCH)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
         if (compSupports(InstructionSet_AVX))
         {
             return YMM_REGSIZE_BYTES;
@@ -8107,7 +8107,7 @@ private:
 
     bool compSupports(InstructionSet isa) const
     {
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         return (opts.compSupportsISA & (1ULL << isa)) != 0;
 #else
         return false;
@@ -8116,7 +8116,7 @@ private:
 
     bool canUseVexEncoding() const
     {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         return compSupports(InstructionSet_AVX);
 #else
         return false;
@@ -8215,7 +8215,7 @@ public:
         bool compUseFCOMI;
         bool compUseCMOV;
 
-#if defined(TARGET_XARCH) || defined(TARGET_ARM64)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         uint64_t compSupportsISA;
         void setSupportedISA(InstructionSet isa)
         {
@@ -8314,7 +8314,7 @@ public:
         // true if we must generate code compatible with JIT32 quirks
         bool IsJit32Compat()
         {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
 #else
             return false;
@@ -8324,7 +8324,7 @@ public:
         // true if we must generate code compatible with Jit64 quirks
         bool IsJit64Compat()
         {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
             return jitFlags->IsSet(JitFlags::JIT_FLAG_DESKTOP_QUIRKS);
 #elif !defined(FEATURE_CORECLR)
             return true;
@@ -8348,17 +8348,17 @@ public:
         bool compGcChecks; // Check arguments and return values to ensure they are sane
 #endif
 
-#if defined(DEBUG) && defined(TARGET_XARCH)
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
 
         bool compStackCheckOnRet; // Check stack pointer on return to ensure it is correct.
 
-#endif // defined(DEBUG) && defined(TARGET_XARCH)
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
-#if defined(DEBUG) && defined(TARGET_X86)
+#if defined(DEBUG) && defined(_TARGET_X86_)
 
         bool compStackCheckOnCall; // Check stack pointer after call to ensure it is correct. Only for x86.
 
-#endif // defined(DEBUG) && defined(TARGET_X86)
+#endif // defined(DEBUG) && defined(_TARGET_X86_)
 
         bool compNeedSecurityCheck; // This flag really means where or not a security object needs
                                     // to be allocated on the stack.
@@ -8379,7 +8379,7 @@ public:
         bool compReloc; // Generate relocs for pointers in code, true for all ngen/prejit codegen
 
 #ifdef DEBUG
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         bool compEnablePCRelAddr; // Whether absolute addr be encoded as PC-rel offset by RyuJIT where possible
 #endif
 #endif // DEBUG
@@ -8449,11 +8449,11 @@ public:
         bool compTailCallLoopOpt;
 #endif
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
         // Decision about whether to save FP/LR registers with callee-saved registers (see
         // COMPlus_JitSaveFpLrWithCalleSavedRegisters).
         int compJitSaveFpLrWithCalleeSavedRegisters;
-#endif // defined(TARGET_ARM64)
+#endif // defined(_TARGET_ARM64_)
 
 #ifdef ARM_SOFTFP
         static const bool compUseSoftFP = true;
@@ -8764,11 +8764,11 @@ public:
         //    to be returned in RAX.
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         return (info.compRetBuffArg != BAD_VAR_NUM);
-#else  // !TARGET_AMD64
+#else  // !_TARGET_AMD64_
         return (compIsProfilerHookNeeded()) && (info.compRetBuffArg != BAD_VAR_NUM);
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
     }
 
     // Returns true if the method returns a value in more than one return register
@@ -8777,7 +8777,7 @@ public:
     bool compMethodReturnsMultiRegRetType()
     {
 #if FEATURE_MULTIREG_RET
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         // On x86 only 64-bit longs are returned in multiple registers
         return varTypeIsLong(info.compRetNativeType);
 #else  // targets: X64-UNIX, ARM64 or ARM32
@@ -8836,14 +8836,14 @@ public:
     unsigned  compHndBBtabCount;      // element count of used elements in EH data array
     unsigned  compHndBBtabAllocCount; // element count of allocated elements in EH data array
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
     //-------------------------------------------------------------------------
     //  Tracking of region covered by the monitor in synchronized methods
     void* syncStartEmitCookie; // the emitter cookie for first instruction after the call to MON_ENTER
     void* syncEndEmitCookie;   // the emitter cookie for first instruction after the call to MON_EXIT
 
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     Phases previousCompletedPhase; // the most recently completed phase
 
@@ -8860,11 +8860,11 @@ public:
     // In case of Amd64 this doesn't include float regs saved on stack.
     unsigned compCalleeRegsPushed;
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
     // Mask of callee saved float regs on stack.
     regMaskTP compCalleeFPRegsSavedMask;
 #endif
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 // Quirk for VS debug-launch scenario to work:
 // Bytes of padding between save-reg area and locals.
 #define VSQUIRK_STACK_PAD (2 * REGSIZE_BYTES)
@@ -9065,7 +9065,7 @@ protected:
     void compSetProcessor();
     void compInitDebuggingInfo();
     void compSetOptimizationLevel();
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     bool compRsvdRegCheck(FrameLayoutState curState);
 #endif
     void compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags* compileFlags);
@@ -9084,7 +9084,7 @@ protected:
     bool  compProfilerMethHndIndirected; // Whether compProfilerHandle is pointer to the handle or is an actual handle
 #endif
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     bool compQuirkForPPP(); // Check if this method should be Quirked for the PPP issue
 #endif
 public:
@@ -9292,7 +9292,7 @@ public:
 
         static bool mayNeedShadowCopy(LclVarDsc* varDsc)
         {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
             // GS cookie logic to create shadow slots, create trees to copy reg args to shadow
             // slots and update all trees to refer to shadow slots is done immediately after
             // fgMorph().  Lsra could potentially mark a param as DoNotEnregister after JIT determines
@@ -9318,7 +9318,7 @@ public:
             //   - Whenver a parameter passed in an argument register needs to be spilled by LSRA, we
             //     create a new spill temp if the method needs GS cookie check.
             return varDsc->lvIsParam;
-#else // !defined(TARGET_AMD64)
+#else // !defined(_TARGET_AMD64_)
             return varDsc->lvIsParam && !varDsc->lvIsRegArg;
 #endif
         }
@@ -10330,7 +10330,7 @@ extern unsigned fatal_NYI;
  * Codegen
  */
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 
 const instruction INS_SHIFT_LEFT_LOGICAL  = INS_shl;
 const instruction INS_SHIFT_RIGHT_LOGICAL = INS_shr;
@@ -10349,9 +10349,9 @@ const instruction INS_ADDC            = INS_adc;
 const instruction INS_SUBC            = INS_sbb;
 const instruction INS_NOT             = INS_not;
 
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
 const instruction INS_SHIFT_LEFT_LOGICAL  = INS_lsl;
 const instruction INS_SHIFT_RIGHT_LOGICAL = INS_lsr;
@@ -10374,9 +10374,9 @@ const instruction INS_NOT             = INS_mvn;
 const instruction INS_ABS  = INS_vabs;
 const instruction INS_SQRT = INS_vsqrt;
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
 
 const instruction INS_MULADD     = INS_madd;
 const instruction INS_BREAKPOINT = INS_bkpt;
@@ -10384,7 +10384,7 @@ const instruction INS_BREAKPOINT = INS_bkpt;
 const instruction INS_ABS  = INS_fabs;
 const instruction INS_SQRT = INS_fsqrt;
 
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
 /*****************************************************************************/
 
@@ -10403,7 +10403,7 @@ extern const BYTE genActualTypes[];
 // we already know we have at least three non-callee-saved, non-argument integer registers,
 // so we don't need to save any more.
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 #define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4)
 #endif
 

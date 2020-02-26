@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
 #include "jit.h"
 #include "sideeffects.h"
@@ -719,7 +719,7 @@ int LinearScan::BuildNode(GenTree* tree)
 
         case GT_COPY:
             srcCount = 1;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             // This case currently only occurs for double types that are passed as TYP_LONG;
             // actual long types would have been decomposed by now.
             if (tree->TypeGet() == TYP_LONG)
@@ -813,4 +813,4 @@ int LinearScan::BuildNode(GenTree* tree)
     return srcCount;
 }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_

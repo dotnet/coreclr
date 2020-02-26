@@ -86,7 +86,7 @@ WCHAR* GetEnvironmentVariableWithDefaultW(const WCHAR* envVarName, const WCHAR* 
     return retString;
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 // For some reason, the PAL doesn't have GetCommandLineA(). So write it.
 LPSTR GetCommandLineA()
 {
@@ -116,7 +116,7 @@ LPSTR GetCommandLineA()
 
     return pCmdLine;
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 bool LoadRealJitLib(HMODULE& jitLib, WCHAR* jitLibPath)
 {
@@ -214,11 +214,11 @@ WCHAR* GetResultFileName(const WCHAR* folderPath, const WCHAR* fileName, const W
     {
        unsigned randomNumber = 0;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
        PAL_Random(&randomNumber, sizeof(randomNumber));
-#else  // !TARGET_UNIX
+#else  // !FEATURE_PAL
        rand_s(&randomNumber);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
        WCHAR randomString[randomStringLength + 1];
        swprintf_s(randomString, randomStringLength + 1, W("%08X"), randomNumber);

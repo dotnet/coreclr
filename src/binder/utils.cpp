@@ -33,21 +33,21 @@ namespace BINDER_SPACE
 
         inline const WCHAR *GetPlatformPathSeparator()
         {
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
             return W("/");
 #else
             return W("\\");
-#endif // TARGET_UNIX            
+#endif // PLATFORM_UNIX            
         }
 
         inline WCHAR ToPlatformPathSepator(WCHAR wcChar)
         {
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
             if (IsPathSeparator(wcChar))
             {
                 wcChar = W('/');
             }
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
 
             return wcChar;
         }
@@ -59,7 +59,7 @@ namespace BINDER_SPACE
 
         bool NeedToRemoveDoubleAndNormalizePathSeparators(SString const &path)
         {
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
             return true;
 #else
             SString::CIterator begin = path.Begin();
@@ -167,7 +167,7 @@ namespace BINDER_SPACE
             }
 
             i = urlOrPath.Begin();
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
             if (i[0] == W('/'))
             {
                 // Disk path file:///
@@ -201,7 +201,7 @@ namespace BINDER_SPACE
 
         BINDER_LOG_STRING(W("Path"), pathOrUrl);
 
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
         // Network path \\server --> file://server
         // Disk path    c:\dir   --> file:///c:/dir
         if (i[0] == W('\\'))

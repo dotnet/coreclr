@@ -1751,7 +1751,7 @@ public:
             return false;
         }
 
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
         // Disqualify loops where the first block of the loop is a finally target.
         // The main problem is when multiple loops share a 'first' block that is a finally
         // target and we canonicalize the loops by adding a new loop head. In that case, we
@@ -1766,7 +1766,7 @@ public:
             JITDUMP("Loop 'first' " FMT_BB " is a finally target. Rejecting loop.\n", first->bbNum);
             return false;
         }
-#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
         // Compact the loop (sweep through it and move out any blocks that aren't part of the
         // flow cycle), and find the exits.
@@ -5571,7 +5571,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
             /* Constants can usually be narrowed by changing their value */
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
             __int64 lval;
             __int64 lmask;
 
@@ -5644,14 +5644,14 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                     case TYP_USHORT:
                         imask = 0x0000FFFF;
                         break;
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
                     case TYP_INT:
                         imask = 0x7FFFFFFF;
                         break;
                     case TYP_UINT:
                         imask = 0xFFFFFFFF;
                         break;
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
                     default:
                         return false;
                 }
@@ -5661,7 +5661,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                     return false;
                 }
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
                 if (doit)
                 {
                     tree->gtType             = TYP_INT;
@@ -5671,7 +5671,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                         fgValueNumberTreeConst(tree);
                     }
                 }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
                 return true;
 
@@ -6558,7 +6558,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
     pLoopDsc->lpLoopVarCount     = VarSetOps::Count(this, loopVars);
     pLoopDsc->lpHoistedExprCount = 0;
 
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     unsigned longVarsCount = VarSetOps::Count(this, lvaLongVars);
 
     if (longVarsCount > 0)
@@ -6579,7 +6579,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
         pLoopDsc->lpLoopVarCount += VarSetOps::Count(this, loopLongVars);
         pLoopDsc->lpVarInOutCount += VarSetOps::Count(this, inOutLongVars);
     }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
 
 #ifdef DEBUG
     if (verbose)
@@ -6728,7 +6728,7 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
         {
             availRegCount += CNT_CALLEE_TRASH_FLOAT - 1;
         }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         // For ARM each double takes two FP registers
         // For now on ARM we won't track singles/doubles
         // and instead just assume that we always have doubles.
@@ -6747,7 +6747,7 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
         {
             availRegCount += CNT_CALLEE_TRASH - 1;
         }
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
         // For our 32-bit targets Long types take two registers.
         if (varTypeIsLong(tree->TypeGet()))
         {
@@ -7076,7 +7076,7 @@ void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext*
     if (!varTypeIsFloating(tree->TypeGet()))
     {
         optLoopTable[lnum].lpHoistedExprCount++;
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
         // For our 32-bit targets Long types take two registers.
         if (varTypeIsLong(tree->TypeGet()))
         {
@@ -7537,7 +7537,7 @@ void Compiler::optComputeLoopSideEffects()
     }
 
     VarSetOps::AssignNoCopy(this, lvaFloatVars, VarSetOps::MakeEmpty(this));
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     VarSetOps::AssignNoCopy(this, lvaLongVars, VarSetOps::MakeEmpty(this));
 #endif
 
@@ -7550,7 +7550,7 @@ void Compiler::optComputeLoopSideEffects()
             {
                 VarSetOps::AddElemD(this, lvaFloatVars, varDsc->lvVarIndex);
             }
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
             else if (varTypeIsLong(varDsc->lvType))
             {
                 VarSetOps::AddElemD(this, lvaLongVars, varDsc->lvVarIndex);
@@ -8250,7 +8250,7 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
     {
         return false;
     }
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     if (index->gtOper != GT_CAST)
     {
         return false;
@@ -8850,7 +8850,7 @@ void Compiler::optOptimizeBools()
             {
                 continue;
             }
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
             // Skip the small operand which we cannot encode.
             if (varTypeIsSmall(c1->TypeGet()))
                 continue;

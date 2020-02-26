@@ -17,7 +17,7 @@
 
 PCSTR GetRegName (UINT32 regnum)
 {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 
     switch (regnum)
     {
@@ -41,7 +41,7 @@ PCSTR GetRegName (UINT32 regnum)
     
     
     return "???";
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
     static CHAR szRegName[16];
     if (regnum < 29)
@@ -63,7 +63,7 @@ PCSTR GetRegName (UINT32 regnum)
     }
     
     return "???";
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     if (regnum > 128)
         return "???";
 
@@ -286,7 +286,7 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
                                                   | DECODE_GC_LIFETIMES
                                                   | DECODE_PROLOG_LENGTH
                                                   | DECODE_RETURN_KIND
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
                                                   | DECODE_HAS_TAILCALLS
 #endif
                                                  ),
@@ -359,7 +359,7 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
             ofs = -ofs;
         }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // The PSPSym is relative to InitialSP on X64 and CallerSP on other platforms.
         gcPrintf("initial.sp%c%x\n", sign, ofs);
 #else
@@ -437,11 +437,11 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
                                     ? "<none>"
                                     : GetRegName(hdrdecoder.GetStackBaseRegister()));
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     gcPrintf("Wants Report Only Leaf: %u\n", hdrdecoder.WantsReportOnlyLeaf());
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     gcPrintf("Has tailcalls: %u\n", hdrdecoder.HasTailCalls());
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     gcPrintf("Size of parameter area: %x\n", hdrdecoder.GetSizeOfStackParameterArea());
 #endif

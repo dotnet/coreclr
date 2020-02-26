@@ -240,7 +240,7 @@ FORCEINLINE static void GetCOMIPFromRCW_ClearFP()
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // As per ASURT 146699 we need to clear FP state before calling to COM
     // the following sequence was previously generated to compiled ML stubs
     // and is faster than _clearfp().
@@ -252,7 +252,7 @@ FORCEINLINE static void GetCOMIPFromRCW_ClearFP()
         fnclex
 NoNeedToClear:
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 FORCEINLINE static SOleTlsData *GetOrCreateOleTlsData()
@@ -260,14 +260,14 @@ FORCEINLINE static SOleTlsData *GetOrCreateOleTlsData()
     LIMITED_METHOD_CONTRACT;
 
     SOleTlsData *pOleTlsData;
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // This saves 1 memory instruction over NtCurretTeb()->ReservedForOle because
     // NtCurrentTeb() reads _TEB.NtTib.Self which is the same as what FS:0 already
     // points to.
     pOleTlsData = (SOleTlsData *)(ULONG_PTR)__readfsdword(offsetof(TEB, ReservedForOle));
-#else // TARGET_X86
+#else // _TARGET_X86_
     pOleTlsData = (SOleTlsData *)NtCurrentTeb()->ReservedForOle;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     if (pOleTlsData == NULL)
     {
         pOleTlsData = (SOleTlsData *)SetupOleContext();
@@ -1069,7 +1069,7 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
 
     DELEGATEREF orefThis = (DELEGATEREF)ObjectToOBJECTREF(pThisUNSAFE);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // On x86 we wrap the call with a thunk that handles host notifications.
     SyncBlock *pSyncBlock = orefThis->PassiveGetSyncBlock();
     if (pSyncBlock != NULL)
@@ -1085,9 +1085,9 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
             }
         }
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     UINT_PTR target = (UINT_PTR)orefThis->GetMethodPtrAux();
 
     // See code:GenericPInvokeCalliHelper
@@ -1098,9 +1098,9 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
     // see IL code gen in NDirectStubLinker::DoNDirect for details.
     *ppStubArg = target;
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     // @ARMTODO: Nothing to do for ARM yet since we don't support the hosted path.
-#endif // HOST_64BIT, TARGET_ARM
+#endif // BIT64, _TARGET_ARM_
 
     if (pEntryPoint == NULL)
     {
@@ -1700,7 +1700,7 @@ FCIMPL2(void, StubHelpers::LogPinnedArgument, MethodDesc *target, Object *pinned
 }
 FCIMPLEND
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 FCIMPL0(void*, StubHelpers::GetStubContextAddr)
 {
     FCALL_CONTRACT;
@@ -1709,7 +1709,7 @@ FCIMPL0(void*, StubHelpers::GetStubContextAddr)
     UNREACHABLE_MSG("This is a JIT intrinsic!");
 }
 FCIMPLEND
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
 FCIMPL1(DWORD, StubHelpers::CalcVaListSize, VARARGS *varargs)
 {

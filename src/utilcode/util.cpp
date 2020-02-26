@@ -237,7 +237,7 @@ namespace
         StackSString ssDllName;
         if ((wszDllPath == nullptr) || (wszDllPath[0] == W('\0')) || fIsDllPathPrefix)
         {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
             IfFailRet(Clr::Util::Com::FindInprocServer32UsingCLSID(rclsid, ssDllName));
 
             EX_TRY
@@ -256,9 +256,9 @@ namespace
             IfFailRet(hr);
 
             wszDllPath = ssDllName.GetUnicode();
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
             return E_FAIL;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
         }
         _ASSERTE(wszDllPath != nullptr);
 
@@ -857,7 +857,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 /*static*/ LONG CPUGroupInfo::m_initialization = 0;
 /*static*/ bool CPUGroupInfo::s_hadSingleProcessorAtStartup = false;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
 // Calculate greatest common divisor
 DWORD GCD(DWORD u, DWORD v)
 {
@@ -887,7 +887,7 @@ DWORD LCM(DWORD u, DWORD v)
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     BYTE *bBuffer = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pSLPIEx = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pRecord = NULL;
@@ -962,7 +962,7 @@ DWORD LCM(DWORD u, DWORD v)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD begin   = 0;
     WORD nr_proc = 0;
 
@@ -988,7 +988,7 @@ DWORD LCM(DWORD u, DWORD v)
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     BOOL enableGCCPUGroups     = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCCpuGroup) != 0;
     BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
 
@@ -1010,7 +1010,7 @@ DWORD LCM(DWORD u, DWORD v)
 	BOOL hasMultipleGroups = m_nGroups > 1;
 	m_enableGCCPUGroups = enableGCCPUGroups && hasMultipleGroups;
 	m_threadUseAllCpuGroups = threadUseAllCpuGroups && hasMultipleGroups;
-#endif // TARGET_AMD64 || TARGET_ARM64
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
 
     // Determine if the process is affinitized to a single processor (or if the system has a single processor)
     DWORD_PTR processAffinityMask, systemAffinityMask;
@@ -1079,7 +1079,7 @@ retry:
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD bTemp = 0;
     WORD bDiff = processor_number - bTemp;
 
@@ -1110,7 +1110,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -1160,7 +1160,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD i, minGroup = 0;
     DWORD minWeight = 0;
 
@@ -1203,7 +1203,7 @@ found:
 /*static*/ void CPUGroupInfo::ClearCPUGroupAffinity(GROUP_AFFINITY *gf)
 {
     LIMITED_METHOD_CONTRACT;
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -2636,11 +2636,11 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24)
     // Verify that we got a valid offset
     _ASSERTE(FitsInThumb2BlRel24(imm24));
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     // Ensure that the ThumbBit is not set on the offset
     // as it cannot be encoded.
     _ASSERTE(!(imm24 & THUMB_CODE));
-#endif // TARGET_ARM    
+#endif // _TARGET_ARM_    
 
     USHORT Opcode0 = p[0];
     USHORT Opcode1 = p[1];

@@ -320,7 +320,7 @@ WszCreateProcess(
     LPPROCESS_INFORMATION lpProcessInformation
     );
 
-#if defined(HOST_X86) && defined(_MSC_VER)
+#if defined(_X86_) && defined(_MSC_VER)
 
 //
 // Windows SDK does not use intrinsics on x86. Redefine the interlocked operations to use intrinsics.
@@ -371,7 +371,7 @@ InterlockedCompareExchangePointer (
 #define InterlockedCompareExchangeRelease _InterlockedCompareExchange_rel
 #endif
 
-#if defined(HOST_X86) & !defined(InterlockedIncrement64)
+#if defined(_X86_) & !defined(InterlockedIncrement64)
 
 // Interlockedxxx64 that do not have intrinsics are only supported on Windows Server 2003
 // or higher for X86 so define our own portable implementation
@@ -437,7 +437,7 @@ __forceinline LONGLONG __InterlockedExchangeAdd64(LONGLONG volatile * Addend, LO
     return Old;
 }
 
-#endif // HOST_X86
+#endif // _X86_
 
 // Output printf-style formatted text to the debugger if it's present or stdout otherwise.
 inline void DbgWPrintf(const LPCWSTR wszFormat, ...)

@@ -24,7 +24,7 @@
 #define ELEMENTS_PER_NODE (1 << LOG2_ELEMENTS_PER_NODE)
 #define BITS_PER_NODE (1 << LOG2_BITS_PER_NODE)
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 typedef unsigned __int64 elemType;
 typedef unsigned __int64 indexType;
 #else

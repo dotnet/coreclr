@@ -210,7 +210,7 @@ class MethodDesc
 
 public:
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     static const int ALIGNMENT_SHIFT = 3;
 #else
     static const int ALIGNMENT_SHIFT = 2;
@@ -2260,9 +2260,9 @@ public:
 
     static BOOL IsCompactEntryPointAtAddress(PCODE addr);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     static int GetCompactEntryPointMaxCount ();
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 #endif // HAS_COMPACT_ENTRYPOINTS
 
     FORCEINLINE PTR_MethodTable GetMethodTable()
@@ -2437,7 +2437,7 @@ class StoredSigMethodDesc : public MethodDesc
 
     RelativePointer<TADDR>           m_pSig;
     DWORD           m_cSig;
-#ifdef HOST_64BIT 
+#ifdef BIT64 
     // m_dwExtendedFlags is not used by StoredSigMethodDesc itself.
     // It is used by child classes. We allocate the space here to get
     // optimal layout.
@@ -2496,7 +2496,7 @@ class FCallMethodDesc : public MethodDesc
 #endif
 
     DWORD   m_dwECallID;
-#ifdef HOST_64BIT 
+#ifdef BIT64 
     DWORD   m_padding;
 #endif
 
@@ -2536,7 +2536,7 @@ protected:
     RelativePointer<PTR_CUTF8>           m_pszMethodName;
     PTR_DynamicResolver m_pResolver;
 
-#ifndef HOST_64BIT
+#ifndef BIT64
     // We use m_dwExtendedFlags from StoredSigMethodDesc on WIN64
     DWORD               m_dwExtendedFlags;   // see DynamicMethodDesc::ExtendedFlags enum
 #endif
@@ -2819,12 +2819,12 @@ public:
         // Various attributes needed at runtime.
         WORD        m_wFlags;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         // Size of outgoing arguments (on stack). Note that in order to get the @n stdcall name decoration,
         // it may be necessary to subtract 4 as the hidden large structure pointer parameter does not count.
         // See code:kStdCallWithRetBuf
         WORD        m_cbStackArgumentSize;
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 
         // This field gets set only when this MethodDesc is marked as PreImplemented
         RelativePointer<PTR_MethodDesc> m_pStubMD;
@@ -3089,7 +3089,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         // thiscall passes the this pointer in ECX
         if (unmgdCallConv == pmCallConvThiscall)
         {
@@ -3106,10 +3106,10 @@ public:
         {
             _ASSERTE(ndirect.m_cbStackArgumentSize == cbDstBuffer);
         }
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
     }
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     WORD GetStackArgumentSize() const
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -3120,7 +3120,7 @@ public:
         // the outgoing marshalling buffer.
         return ndirect.m_cbStackArgumentSize;
     }
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 
     VOID InitEarlyBoundNDirectTarget();
 
@@ -3212,7 +3212,7 @@ struct ComPlusCallInfo
         return &m_pILStub;
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // Size of outgoing arguments (on stack). This is currently used only
     // on x86 when we have an InlinedCallFrame representing a CLR->COM call.
     WORD        m_cbStackArgumentSize;
@@ -3246,7 +3246,7 @@ struct ComPlusCallInfo
 
     LPVOID      m_pRetThunk;
 
-#else // TARGET_X86
+#else // _TARGET_X86_
     void InitStackArgumentSize()
     {
         LIMITED_METHOD_CONTRACT;
@@ -3256,7 +3256,7 @@ struct ComPlusCallInfo
     {
         LIMITED_METHOD_CONTRACT;
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     // This field gets set only when this MethodDesc is marked as PreImplemented
     RelativePointer<PTR_MethodDesc> m_pStubMD;
@@ -3316,7 +3316,7 @@ public:
         FastInterlockOr(reinterpret_cast<DWORD *>(&m_pComPlusCallInfo->m_flags), newFlags);
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     WORD GetStackArgumentSize()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -3328,12 +3328,12 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_pComPlusCallInfo->SetStackArgumentSize(cbDstBuffer);
     }
-#else // TARGET_X86
+#else // _TARGET_X86_
     void SetStackArgumentSize(WORD cbDstBuffer)
     {
         LIMITED_METHOD_CONTRACT;
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 };
 #endif // FEATURE_COMINTEROP
 

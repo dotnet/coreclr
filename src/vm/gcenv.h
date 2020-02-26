@@ -44,7 +44,7 @@
 #include "gcenv.interlocked.h"
 #include "gcenv.interlocked.inl"
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 #include "gcenv.unix.inl"
 #else
 #include "gcenv.windows.inl"
@@ -62,7 +62,7 @@ namespace ETW
     } GC_ROOT_KIND;
 };
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 #define _tcslen wcslen
 #define _tcscpy wcscpy
 #define _tfopen _wfopen

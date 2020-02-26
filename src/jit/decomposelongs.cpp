@@ -26,7 +26,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX*/
 #pragma hdrstop
 #endif
 
-#ifndef TARGET_64BIT // DecomposeLongs is only used on 32-bit platforms
+#ifndef _TARGET_64BIT_ // DecomposeLongs is only used on 32-bit platforms
 
 #include "decomposelongs.h"
 
@@ -929,7 +929,7 @@ GenTree* DecomposeLongs::DecomposeNeg(LIR::Use& use)
 
     GenTree* zero = m_compiler->gtNewZeroConNode(TYP_INT);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
     GenTree* hiAdjust = m_compiler->gtNewOperNode(GT_ADD_HI, TYP_INT, hiOp1, zero);
     GenTree* hiResult = m_compiler->gtNewOperNode(GT_NEG, TYP_INT, hiAdjust);
@@ -938,7 +938,7 @@ GenTree* DecomposeLongs::DecomposeNeg(LIR::Use& use)
     loResult->gtFlags |= GTF_SET_FLAGS;
     hiAdjust->gtFlags |= GTF_USE_FLAGS;
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     // We tend to use "movs" to load zero to a register, and that sets the flags, so put the
     // zero before the loResult, which is setting the flags needed by GT_SUB_HI.
@@ -1965,4 +1965,4 @@ genTreeOps DecomposeLongs::GetLoOper(genTreeOps oper)
     }
 }
 
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_

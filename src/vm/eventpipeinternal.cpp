@@ -11,9 +11,9 @@
 #include "eventpipesession.h"
 #include "eventpipesessionprovider.h"
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #include "pal.h"
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_PERFTRACING
 

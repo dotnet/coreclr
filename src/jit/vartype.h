@@ -36,7 +36,7 @@ enum var_types : BYTE
  * platform
  */
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 #define TYP_I_IMPL TYP_LONG
 #define TYP_U_IMPL TYP_ULONG
 #define TYPE_REF_IIM TYPE_REF_LNG
@@ -207,9 +207,9 @@ template <class T>
 inline bool varTypeIsIntOrI(T vt)
 {
     return ((TypeGet(vt) == TYP_INT)
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
             || (TypeGet(vt) == TYP_I_IMPL)
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
                 );
 }
 
@@ -228,7 +228,7 @@ inline bool varTypeIsLong(T vt)
 template <class T>
 inline bool varTypeIsMultiReg(T vt)
 {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     return false;
 #else
     return (TypeGet(vt) == TYP_LONG);
@@ -258,9 +258,9 @@ template <class T>
 inline bool varTypeIsPromotable(T vt)
 {
     return (varTypeIsStruct(vt) || (TypeGet(vt) == TYP_BLK)
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
             || varTypeIsLong(vt)
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
                 );
 }
 
@@ -281,7 +281,7 @@ inline bool varTypeUsesFloatReg(T vt)
 template <class T>
 inline bool varTypeUsesFloatArgReg(T vt)
 {
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // Arm64 passes SIMD types in floating point registers.
     return varTypeUsesFloatReg(vt);
 #else
@@ -311,11 +311,11 @@ inline bool varTypeIsValidHfaType(T vt)
     bool isValid = (TypeGet(vt) != TYP_UNDEF);
     if (isValid)
     {
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         assert(varTypeUsesFloatReg(vt));
-#else  // !TARGET_ARM64
+#else  // !_TARGET_ARM64_
         assert(varTypeIsFloating(vt));
-#endif // !TARGET_ARM64
+#endif // !_TARGET_ARM64_
     }
     return isValid;
 #else  // !FEATURE_HFA

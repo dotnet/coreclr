@@ -13,9 +13,9 @@
 #define REGALIAS(alias, realname)
 #endif
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 /*
 REGDEF(name, rnum,   mask, sname) */
 REGDEF(EAX,     0,   0x01, "eax"   )
@@ -35,7 +35,7 @@ REGALIAS(RBP, EBP)
 REGALIAS(RSI, ESI)
 REGALIAS(RDI, EDI)
 
-#else // !defined(TARGET_X86)
+#else // !defined(_TARGET_X86_)
 
 /*
 REGDEF(name, rnum,   mask, sname) */
@@ -65,15 +65,15 @@ REGALIAS(EBP, RBP)
 REGALIAS(ESI, RSI)
 REGALIAS(EDI, RDI)
 
-#endif // !defined(TARGET_X86)
+#endif // !defined(_TARGET_X86_)
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 #define XMMBASE 16
 #define XMMMASK(x) (__int64(1) << (x+XMMBASE))
-#else // !TARGET_AMD64
+#else // !_TARGET_AMD64_
 #define XMMBASE 8
 #define XMMMASK(x) (__int32(1) << (x+XMMBASE))
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 
 REGDEF(XMM0,    0+XMMBASE,  XMMMASK(0),   "mm0"  )
 REGDEF(XMM1,    1+XMMBASE,  XMMMASK(1),   "mm1"  )
@@ -84,9 +84,9 @@ REGDEF(XMM5,    5+XMMBASE,  XMMMASK(5),   "mm5"  )
 REGDEF(XMM6,    6+XMMBASE,  XMMMASK(6),   "mm6"  )
 REGDEF(XMM7,    7+XMMBASE,  XMMMASK(7),   "mm7"  )
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 REGDEF(STK,     8+XMMBASE,  0x0000,       "STK"  )
-#else // !TARGET_X86
+#else // !_TARGET_X86_
 REGDEF(XMM8,    8+XMMBASE,  XMMMASK(8),   "mm8"  )
 REGDEF(XMM9,    9+XMMBASE,  XMMMASK(9),   "mm9"  )
 REGDEF(XMM10,  10+XMMBASE,  XMMMASK(10),  "mm10" )
@@ -96,12 +96,12 @@ REGDEF(XMM13,  13+XMMBASE,  XMMMASK(13),  "mm13" )
 REGDEF(XMM14,  14+XMMBASE,  XMMMASK(14),  "mm14" )
 REGDEF(XMM15,  15+XMMBASE,  XMMMASK(15),  "mm15" )
 REGDEF(STK,    16+XMMBASE,  0x0000,       "STK"  )
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
  #include "registerarm.h"
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
  #include "registerarm64.h"
 
 #else

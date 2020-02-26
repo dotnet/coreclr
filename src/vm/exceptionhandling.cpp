@@ -17,16 +17,16 @@
 #include "virtualcallstub.h"
 #include "utilcode.h"
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 #define USE_CURRENT_CONTEXT_IN_FILTER
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 // ARM/ARM64 uses Caller-SP to locate PSPSym in the funclet frame.
 #define USE_CALLER_SP_IN_FUNCLET
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64) || defined(TARGET_X86)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
 #define ADJUST_PC_UNWOUND_TO_CALL
 #define STACK_RANGE_BOUNDS_ARE_CALLER_SP
 #define USE_FUNCLET_CALL_HELPER
@@ -35,15 +35,15 @@
 //
 // For x86/Linux, RtlVirtualUnwind sets EstablisherFrame as Caller-SP.
 #define ESTABLISHER_FRAME_ADDRESS_IS_CALLER_SP
-#endif // TARGET_ARM || TARGET_ARM64 || TARGET_X86
+#endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 void NOINLINE
 ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          ReturnValue,
                  UINT_PTR          TargetIP,
                  UINT_PTR          TargetFrameSp);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
 inline void CaptureNonvolatileRegisters(PKNONVOLATILE_CONTEXT pNonvolatileContext, PCONTEXT pContext)
@@ -142,20 +142,20 @@ void FixContext(PCONTEXT pContextRecord)
         pContextRecord->reg = (value);                                                      \
     } while (0)
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     size_t resumeSp = EECodeManager::GetResumeSp(pContextRecord);
     FIXUPREG(Esp, resumeSp);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #undef FIXUPREG
 }
 
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 BOOL HandleHardwareException(PAL_SEHException* ex);
 BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 static ExceptionTracker* GetTrackerMemory()
 {
@@ -200,7 +200,7 @@ static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRe
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 static LONG volatile g_termination_triggered = 0;
 
 void HandleTerminationRequest(int terminationExitCode)
@@ -231,7 +231,7 @@ void InitializeExceptionHandling()
     // Initialize the lock used for synchronizing access to the stacktrace in the exception object
     g_StackTraceArrayLock.Init(LOCK_TYPE_DEFAULT, TRUE);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // Register handler of hardware exceptions like null reference in PAL
     PAL_SetHardwareExceptionHandler(HandleHardwareException, IsSafeToHandleHardwareException);
 
@@ -240,7 +240,7 @@ void InitializeExceptionHandling()
 
     // Register handler for termination requests (e.g. SIGTERM)
     PAL_SetTerminationRequestHandler(HandleTerminationRequest);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 }
 
 struct UpdateObjectRefInResumeContextCallbackState
@@ -455,11 +455,11 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
         pAbortContext = GetThread()->GetAbortContext();
     }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #define HANDLE_NULL_CONTEXT_POINTER _ASSERTE(false)
-#else // TARGET_UNIX
+#else // FEATURE_PAL
 #define HANDLE_NULL_CONTEXT_POINTER
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #define UPDATEREG(reg)                                                                      \
     do {                                                                                    \
@@ -482,14 +482,14 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
     } while (0)
 
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
     UPDATEREG(Ebx);
     UPDATEREG(Esi);
     UPDATEREG(Edi);
     UPDATEREG(Ebp);
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
     UPDATEREG(Rbx);
     UPDATEREG(Rbp);
@@ -502,7 +502,7 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
     UPDATEREG(R14);
     UPDATEREG(R15);
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     UPDATEREG(R4);
     UPDATEREG(R5);
@@ -513,7 +513,7 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
     UPDATEREG(R10);
     UPDATEREG(R11);
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 
     UPDATEREG(X19);
     UPDATEREG(X20);
@@ -801,9 +801,9 @@ UINT_PTR ExceptionTracker::FinishSecondPass(
 
         STRESS_LOG1(LF_EH, LL_INFO10, "resume under control: ip: %p\n", uResumePC);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         pContextRecord->Rcx = uResumePC;
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         // On ARM & ARM64, we save off the original PC in Lr. This is the same as done
         // in HandleManagedFault for H/W generated exceptions.
         pContextRecord->Lr = uResumePC;
@@ -1088,7 +1088,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             }
         }
 
-#ifndef TARGET_UNIX // Watson is on Windows only
+#ifndef FEATURE_PAL // Watson is on Windows only
         // Setup bucketing details for nested exceptions (rethrow and non-rethrow) only if we are in the first pass
         if (!(dwExceptionFlags & EXCEPTION_UNWINDING))
         {
@@ -1098,7 +1098,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
                 SetStateForWatsonBucketing((STState == ExceptionTracker::STS_FirstRethrowFrame), pPrevEHTracker->GetThrowableAsHandle());
             }
         }
-#endif //!TARGET_UNIX
+#endif //!FEATURE_PAL
 
         CLRUnwindStatus                     status;
         
@@ -1127,7 +1127,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
             SetLastError(dwLastError);
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
             //
             // At this point (the end of the 1st pass) we don't know where
             // we are going to resume to.  So, we pass in an address, which
@@ -1160,7 +1160,7 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
             // via the custom unwinder.
             return ExceptionStackUnwind;
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
         }
         else if (SecondPassComplete == status)
         {
@@ -1488,10 +1488,10 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     }
     else
     {
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         // See the comment above the call to InitRegDisplay for this assertion.
         _ASSERTE(pDispatcherContext->ControlPc == GetIP(pDispatcherContext->ContextRecord));
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #ifdef ESTABLISHER_FRAME_ADDRESS_IS_CALLER_SP
         // Simply setup the callerSP during the second pass in the caller context.
@@ -1523,7 +1523,7 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     }
 #endif // ADJUST_PC_UNWOUND_TO_CALL
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     // Remove the Thumb bit
     ControlPCForEHSearch = ThumbCodeToDataPointer<DWORD_PTR, DWORD_PTR>(ControlPCForEHSearch);
 #endif
@@ -3307,7 +3307,7 @@ EXTERN_C DWORD_PTR STDCALL CallEHFilterFunclet(Object *pThrowable, TADDR CallerS
 
 static inline UINT_PTR CastHandlerFn(HandlerFn *pfnHandler)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     return DataPointerToThumbCode<UINT_PTR, HandlerFn *>(pfnHandler);
 #else
     return (UINT_PTR)pfnHandler;
@@ -3316,11 +3316,11 @@ static inline UINT_PTR CastHandlerFn(HandlerFn *pfnHandler)
 
 static inline UINT_PTR *GetFirstNonVolatileRegisterAddress(PCONTEXT pContextRecord)
 {
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     return (UINT_PTR*)&(pContextRecord->R4);
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     return (UINT_PTR*)&(pContextRecord->X19);
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     return (UINT_PTR*)&(pContextRecord->Edi);
 #else
     PORTABILITY_ASSERT("GetFirstNonVolatileRegisterAddress");
@@ -3330,9 +3330,9 @@ static inline UINT_PTR *GetFirstNonVolatileRegisterAddress(PCONTEXT pContextReco
 
 static inline TADDR GetFrameRestoreBase(PCONTEXT pContextRecord)
 {
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     return GetSP(pContextRecord);
-#elif defined(TARGET_X86)
+#elif defined(_TARGET_X86_)
     return pContextRecord->Ebp;
 #else
     PORTABILITY_ASSERT("GetFrameRestoreBase");
@@ -3602,13 +3602,13 @@ void ExceptionTracker::PopTrackers(
 
     while (pTracker)
     {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         // When we are about to pop off a tracker, it should
         // have a stack range setup.
         // It is not true on PAL where the scanned stack range needs to
         // be reset after unwinding a sequence of native frames.
         _ASSERTE(!pTracker->m_ScannedStackRange.IsEmpty());
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
         ExceptionTracker*   pPrev   = pTracker->m_pPrevNestedInfo;
 
@@ -3699,11 +3699,11 @@ ExceptionTracker* ExceptionTracker::GetOrCreateTracker(
     {
         fTransitionFromSecondToFirstPass = fIsFirstPass && !pTracker->IsInFirstPass();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         // We don't check this on PAL where the scanned stack range needs to
         // be reset after unwinding a sequence of native frames.
         CONSISTENCY_CHECK(!pTracker->m_ScannedStackRange.IsEmpty());
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
         if (pTracker->m_ExceptionFlags.IsRethrown())
         {
@@ -4392,7 +4392,7 @@ static void DoEHLog(
 }
 #endif // _DEBUG
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
@@ -4814,7 +4814,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
     throw std::move(ex);
 }
 
-#if defined(TARGET_AMD64) || defined(TARGET_X86)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
 
 /*++
 Function :
@@ -4967,11 +4967,11 @@ DWORD64 GetModRMOperandValue(BYTE rex, BYTE* ip, PCONTEXT pContext, bool is8Bit,
             // Check for Displacement only addressing mode for x86
             if ((mod == 0) && (rm == 5))
             {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
                 result = (DWORD64)ip + sizeof(INT32) + *(INT32*)ip;
 #else
                 result = (DWORD64)(*(DWORD*)ip);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
             }
             else
             {
@@ -5140,7 +5140,7 @@ bool IsDivByZeroAnIntegerOverflow(PCONTEXT pContext)
     // must have been an overflow.
     return divisor != 0;
 }
-#endif // TARGET_AMD64 || TARGET_X86
+#endif // _TARGET_AMD64_ || _TARGET_X86_
 
 BOOL IsSafeToCallExecutionManager()
 {
@@ -5219,7 +5219,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             return TRUE;
         }
 
-#if defined(TARGET_AMD64) || defined(TARGET_X86)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
         // It is possible that an overflow was mapped to a divide-by-zero exception. 
         // This happens when we try to divide the maximum negative value of a
         // signed integer with -1. 
@@ -5232,7 +5232,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             // The exception was an integer overflow, so augment the exception code.
             ex->GetExceptionRecord()->ExceptionCode = EXCEPTION_INT_OVERFLOW;
         }
-#endif // TARGET_AMD64 || TARGET_X86
+#endif // _TARGET_AMD64_ || _TARGET_X86_
 
         // Create frame necessary for the exception handling
         FrameWithCookie<FaultingExceptionFrame> fef;
@@ -5280,7 +5280,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             // See https://static.docs.arm.com/ddi0487/db/DDI0487D_b_armv8_arm.pdf#page=6916&zoom=100,0,152
             // at aarch64/exceptions/debug/AArch64.SoftwareBreakpoint
             // However, the rest of the code expects that it points to an instruction after the break.
-#if defined(__linux__) && (defined(TARGET_ARM) || defined(TARGET_ARM64))
+#if defined(__linux__) && (defined(_TARGET_ARM_) || defined(_TARGET_ARM64_))
             if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
             {
                 SetIP(ex->GetContextRecord(), GetIP(ex->GetContextRecord()) + CORDbg_BREAK_INSTRUCTION_SIZE);
@@ -5314,9 +5314,9 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
     return FALSE;
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 void ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord, UINT_PTR ReturnValue, UINT_PTR TargetIP, UINT_PTR TargetFrameSp)
 {
     PVOID TargetFrame = (PVOID)TargetFrameSp;
@@ -5332,7 +5332,7 @@ void ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord, UINT_PTR ReturnValue, UINT_
     // doesn't return
     UNREACHABLE();
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 void TrackerAllocator::Init()
 {
@@ -5464,7 +5464,7 @@ void TrackerAllocator::FreeTrackerMemory(ExceptionTracker* pTracker)
     FastInterlockExchangePointer(&(pTracker->m_pThread), NULL);
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // This is Windows specific implementation as it is based upon the notion of collided unwind that is specific
 // to Windows 64bit.
 //
@@ -5497,7 +5497,7 @@ void FixupDispatcherContext(DISPATCHER_CONTEXT* pDispatcherContext, CONTEXT* pCo
 
     pDispatcherContext->ControlPc             = (UINT_PTR) GetIP(pDispatcherContext->ContextRecord);
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // Since this routine is used to fixup contexts for async exceptions,
     // clear the CONTEXT_UNWOUND_TO_CALL flag since, semantically, frames
     // where such exceptions have happened do not have callsites. On a similar
@@ -5517,15 +5517,15 @@ void FixupDispatcherContext(DISPATCHER_CONTEXT* pDispatcherContext, CONTEXT* pCo
     // be fixing it at their end, in their implementation of collided unwind.
     pDispatcherContext->ContextRecord->ContextFlags &= ~CONTEXT_DEBUG_REGISTERS;
     
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // But keep the architecture flag set (its part of CONTEXT_DEBUG_REGISTERS)
     pDispatcherContext->ContextRecord->ContextFlags |= CONTEXT_ARM;
-#else // TARGET_ARM64
+#else // _TARGET_ARM64_
     // But keep the architecture flag set (its part of CONTEXT_DEBUG_REGISTERS)
     pDispatcherContext->ContextRecord->ContextFlags |= CONTEXT_ARM64;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
     INDEBUG(pDispatcherContext->FunctionEntry = (PT_RUNTIME_FUNCTION)INVALID_POINTER_CD);
     INDEBUG(pDispatcherContext->ImageBase     = INVALID_POINTER_CD);
@@ -5743,7 +5743,7 @@ FixContextHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
     // (which was broken when we whacked the IP to get control over the thread)
     return ExceptionCollidedUnwind;
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef _DEBUG
 // IsSafeToUnwindFrameChain:
@@ -5837,7 +5837,7 @@ void CleanUpForSecondPass(Thread* pThread, bool fIsSO, LPVOID MemoryStackFpForFr
     }
 }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 
 // This is a personality routine for TheUMEntryPrestub and UMThunkStub Unix asm stubs.
 // An exception propagating through these stubs is an unhandled exception.
@@ -5860,7 +5860,7 @@ UnhandledExceptionHandlerUnix(
     return _URC_FATAL_PHASE1_ERROR;
 }
 
-#else // TARGET_UNIX
+#else // FEATURE_PAL
 
 EXTERN_C EXCEPTION_DISPOSITION
 UMThunkUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
@@ -6010,7 +6010,7 @@ CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionReco
     return retVal;
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_COMINTEROP
 EXTERN_C EXCEPTION_DISPOSITION
@@ -6029,7 +6029,7 @@ ReverseComUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 #endif // FEATURE_COMINTEROP
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 EXTERN_C EXCEPTION_DISPOSITION
 FixRedirectContextHandler(
                   IN     PEXCEPTION_RECORD   pExceptionRecord
@@ -6063,7 +6063,7 @@ FixRedirectContextHandler(
     // (which was broken when we whacked the IP to get control over the thread)
     return ExceptionCollidedUnwind;
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 #endif // DACCESS_COMPILE
 
 void ExceptionTracker::StackRange::Reset()
@@ -6119,7 +6119,7 @@ void ExceptionTracker::StackRange::CombineWith(StackFrame sfCurrent, StackRange*
     }
     else
     {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         // When the current range is empty, copy the low bound too. Otherwise a degenerate range would get
         // created and tests for stack frame in the stack range would always fail.
         // TODO: Check if we could enable it for non-PAL as well.
@@ -6127,7 +6127,7 @@ void ExceptionTracker::StackRange::CombineWith(StackFrame sfCurrent, StackRange*
         {
             m_sfLowBound = pPreviousRange->m_sfLowBound;
         }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
         m_sfHighBound = pPreviousRange->m_sfHighBound;
     }
 }
@@ -6795,7 +6795,7 @@ StackFrame ExceptionTracker::FindParentStackFrameHelper(CrawlFrame* pCF,
 
             // Check if the caller IP is in mscorwks.  If it is not, then it is an out-of-line finally.
             // Normally, the caller of a finally is ExceptionTracker::CallHandler().
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
             fIsCallerInVM = !ExecutionManager::IsManagedCode(callerIP);
 #else
 #if defined(DACCESS_COMPILE)
@@ -6804,7 +6804,7 @@ StackFrame ExceptionTracker::FindParentStackFrameHelper(CrawlFrame* pCF,
             HMODULE_TGT hEE = g_pMSCorEE;
 #endif // !DACCESS_COMPILE
             fIsCallerInVM = IsIPInModule(hEE, callerIP);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
             if (!fIsCallerInVM)
             {
@@ -7088,16 +7088,16 @@ void ExceptionTracker::ReleaseResources()
     }
     m_StackTraceInfo.FreeStackTrace();
 
-#ifndef TARGET_UNIX 
+#ifndef FEATURE_PAL 
     // Clear any held Watson Bucketing details
     GetWatsonBucketTracker()->ClearWatsonBucketDetails();
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     if (m_fOwnsExceptionPointers)
     {
         PAL_FreeExceptionRecords(m_ptrs.ExceptionRecord, m_ptrs.ContextRecord);
         m_fOwnsExceptionPointers = FALSE;
     }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 #endif // DACCESS_COMPILE
 }
 

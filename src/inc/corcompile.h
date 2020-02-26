@@ -18,11 +18,11 @@
 #ifndef _COR_COMPILE_H_
 #define _COR_COMPILE_H_
 
-#if !defined(TARGET_X86) || defined(TARGET_UNIX)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
 #endif
-#endif  // !TARGET_X86 || TARGET_UNIX
+#endif  // !_TARGET_X86_ || FEATURE_PAL
 
 #include <cor.h>
 #include <corhdr.h>
@@ -60,7 +60,7 @@ typedef DPTR(struct CORCOMPILE_VIRTUAL_SECTION_INFO)
 typedef DPTR(struct CORCOMPILE_IMPORT_SECTION)
     PTR_CORCOMPILE_IMPORT_SECTION;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
 typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 
@@ -68,7 +68,7 @@ typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 // Chained unwind info. Used for cold methods.
 #define RUNTIME_FUNCTION_INDIRECT 0x80000000
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 // The stride is choosen as maximum value that still gives good page locality of RUNTIME_FUNCTION table touches (only one page of 
 // RUNTIME_FUNCTION table is going to be touched during most IP2MD lookups).
@@ -144,7 +144,7 @@ enum CorCompileImportFlags
 #define CORCOMPILE_TAG_TOKEN(token)             ((SIZE_T)(((token)<<1)|CORCOMPILE_TOKEN_TAG))
 #define CORCOMPILE_UNTAG_TOKEN(token)           ((((SIZE_T)(token))&~CORCOMPILE_TOKEN_TAG)>>1)
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 // Tagging of code pointers on ARM uses inverse logic because of the thumb bit.
 #define CORCOMPILE_IS_PCODE_TAGGED(token)       ((((SIZE_T)(token)) & 0x00000001) == 0x00000000)
 #define CORCOMPILE_TAG_PCODE(token)             ((SIZE_T)(((token)<<1)|0x80000000))
@@ -155,7 +155,7 @@ enum CorCompileImportFlags
 
 inline BOOL CORCOMPILE_IS_FIXUP_TAGGED(SIZE_T fixup, PTR_CORCOMPILE_IMPORT_SECTION pSection)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Tagging of code pointers on ARM has to use inverse logic because of the thumb bit
     if (pSection->Flags & CORCOMPILE_IMPORT_FLAGS_PCODE)
     {
@@ -534,7 +534,7 @@ struct CORCOMPILE_CODE_MANAGER_ENTRY
     ULONG ColdUntrainedMethodOffset;
 };
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
 #define _PRECODE_EXTERNAL_METHOD_THUNK      0x41
 #define _PRECODE_VIRTUAL_IMPORT_THUNK       0x42
@@ -553,7 +553,7 @@ struct CORCOMPILE_CODE_MANAGER_ENTRY
         WORD                padding;
     };
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 
     struct  CORCOMPILE_VIRTUAL_IMPORT_THUNK
     {
@@ -588,7 +588,7 @@ struct CORCOMPILE_CODE_MANAGER_ENTRY
         PCODE               m_pTarget;
     };
 	
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     struct  CORCOMPILE_VIRTUAL_IMPORT_THUNK
     {
         // Array of words to do the following:
@@ -876,11 +876,11 @@ struct CORCOMPILE_DEPENDENCY
 
 /*********************************************************************************/
 // Flags used to encode HelperTable
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
 #define HELPER_TABLE_ENTRY_LEN      16
 #else
 #define HELPER_TABLE_ENTRY_LEN      8
-#endif //defined(TARGET_ARM64)
+#endif //defined(_TARGET_ARM64_)
 
 #define HELPER_TABLE_ALIGN          8
 #define CORCOMPILE_HELPER_PTR       0x80000000 // The entry is pointer to the helper (jump thunk otherwise)

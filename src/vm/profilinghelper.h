@@ -73,9 +73,9 @@ public:
     static void LogProfInfo(int iStringResourceID, ...);
     static void LogNoInterfaceError(REFIID iidRequested, LPCWSTR wszClsid);
     INDEBUG(static BOOL ShouldInjectProfAPIFault(ProfAPIFaultFlags faultFlag);)
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     static HRESULT GetCurrentProcessUserSid(PSID * ppsid);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH
     // ----------------------------------------------------------------------------

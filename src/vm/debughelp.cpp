@@ -23,11 +23,11 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     }
     CONTRACTL_END;
 
-#if !defined(DACCESS_COMPILE) && defined(TARGET_UNIX)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_PAL)
 
     return PAL_ProbeMemory((PVOID)start, len, FALSE);
 
-#else // !DACCESS_COMPILE && TARGET_UNIX
+#else // !DACCESS_COMPILE && FEATURE_PAL
 
     //
     // To accomplish this in a no-throw way, we have to touch each and every page
@@ -92,7 +92,7 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     }
 
     return 1;
-#endif // !DACCESS_COMPILE && TARGET_UNIX
+#endif // !DACCESS_COMPILE && FEATURE_PAL
 }
 
 
@@ -207,7 +207,7 @@ void *DumpEnvironmentBlock(void)
     return WszGetEnvironmentStrings();
 }
 
-#if defined(TARGET_X86) && !defined(TARGET_UNIX)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 /*******************************************************************/
 // Dump the SEH chain to stderr
 void PrintSEHChain(void)
@@ -227,7 +227,7 @@ void PrintSEHChain(void)
         pEHR = pEHR->Next;
     }
 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 /*******************************************************************/
 MethodDesc* IP2MD(ULONG_PTR IP)
@@ -600,7 +600,7 @@ int DumpCurrentStack()
     }
     CONTRACTL_END;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     BYTE* top = (BYTE *)GetCurrentSP();
 
         // go back at most 64K, it will stop if we go off the
@@ -609,7 +609,7 @@ int DumpCurrentStack()
 #else
     _ASSERTE(!"@NYI - DumpCurrentStack(DebugHelp.cpp)");
     return 0;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 /*******************************************************************/
@@ -1012,7 +1012,7 @@ void PrintDomainName(size_t ob)
     }
 }
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
 #include "gcdump.h"
 

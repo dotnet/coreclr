@@ -329,9 +329,9 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     do {
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&context, &nonVolContextPtrs);
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
 #ifdef DACCESS_COMPILE
         HRESULT hr = DacVirtualUnwind(threadId, &context, &nonVolContextPtrs);
         if (FAILED(hr))
@@ -347,7 +347,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
         }
 #endif // DACCESS_COMPILE
         pvControlPc = GetIP(&context);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
         if (funCallDepth > 0)
         {
@@ -380,7 +380,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
         }
     } while (true);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     unwoundstate->captureX19_X29[0] = context.X19;
     unwoundstate->captureX19_X29[1] = context.X20;
     unwoundstate->captureX19_X29[2] = context.X21;
@@ -499,7 +499,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->Pc = pRD->ControlPC;
     pRD->pCurrentContext->Sp = pRD->SP;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     pRD->pCurrentContext->X19 = m_MachState.ptrX19_X29[0] ? *m_MachState.ptrX19_X29[0] : m_MachState.captureX19_X29[0];
     pRD->pCurrentContext->X20 = m_MachState.ptrX19_X29[1] ? *m_MachState.ptrX19_X29[1] : m_MachState.captureX19_X29[1];
     pRD->pCurrentContext->X21 = m_MachState.ptrX19_X29[2] ? *m_MachState.ptrX19_X29[2] : m_MachState.captureX19_X29[2];
@@ -512,7 +512,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->X28 = m_MachState.ptrX19_X29[9] ? *m_MachState.ptrX19_X29[9] : m_MachState.captureX19_X29[9];
     pRD->pCurrentContext->Fp = m_MachState.ptrX19_X29[10] ? *m_MachState.ptrX19_X29[10] : m_MachState.captureX19_X29[10];
     pRD->pCurrentContext->Lr = NULL; // Unwind again to get Caller's PC
-#else // TARGET_UNIX
+#else // FEATURE_PAL
     pRD->pCurrentContext->X19 = *m_MachState.ptrX19_X29[0];
     pRD->pCurrentContext->X20 = *m_MachState.ptrX19_X29[1];
     pRD->pCurrentContext->X21 = *m_MachState.ptrX19_X29[2];

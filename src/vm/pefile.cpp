@@ -225,7 +225,7 @@ static void ValidatePEFileMachineType(PEFile *peFile)
 
     if (actualMachineType != IMAGE_FILE_MACHINE_NATIVE && actualMachineType != IMAGE_FILE_MACHINE_NATIVE_NI)
     {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // v4.0 64-bit compatibility workaround. The 64-bit v4.0 CLR's Reflection.Load(byte[]) api does not detect cpu-matches. We should consider fixing that in
         // the next SxS release. In the meantime, this bypass will retain compat for 64-bit v4.0 CLR for target platforms that existed at the time.
         //
@@ -276,7 +276,7 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         RETURN;
     }
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (!HasNativeImage() && !GetILimage()->Has32BitNTHeaders())
     {
         // Tried to load 64-bit assembly on 32-bit platform.
@@ -334,13 +334,13 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         {
             if (GetILimage()->IsFile())
             {
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
                 if (GetILimage()->IsILOnly())
                 {
                     GetILimage()->Load();
                 }
                 else
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
                 {
                     GetILimage()->LoadFromMapped();
                 }
@@ -961,7 +961,7 @@ void PEFile::SetNativeImage(PEImage *image)
     m_nativeImage->Load();
     m_nativeImage->AllocateLazyCOWPages();
 
-#if defined(TARGET_AMD64) && !defined(CROSSGEN_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
     static ConfigDWORD configNGenReserveForJumpStubs;
     int percentReserveForJumpStubs = configNGenReserveForJumpStubs.val(CLRConfig::INTERNAL_NGenReserveForJumpStubs);
     if (percentReserveForJumpStubs != 0)
@@ -2324,7 +2324,7 @@ void PEAssembly::PathToUrl(SString &string)
 
     SString::Iterator i = string.Begin();
 
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
     if (i[0] == W('\\'))
     {
         // Network path
@@ -2363,7 +2363,7 @@ void PEAssembly::UrlToPath(SString &string)
     SString::Iterator i = string.Begin();
 
     SString sss2(SString::Literal, W("file://"));
-#if !defined(TARGET_UNIX)
+#if !defined(PLATFORM_UNIX)
     SString sss3(SString::Literal, W("file:///"));
     if (string.MatchCaseInsensitive(i, sss3))
         string.Delete(i, 8);
@@ -2382,7 +2382,7 @@ void PEAssembly::UrlToPath(SString &string)
 
 BOOL PEAssembly::FindLastPathSeparator(const SString &path, SString::Iterator &i)
 {
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
     SString::Iterator slash = i;
     SString::Iterator backSlash = i;
     BOOL foundSlash = path.FindBack(slash, '/');
@@ -2398,7 +2398,7 @@ BOOL PEAssembly::FindLastPathSeparator(const SString &path, SString::Iterator &i
     return TRUE;
 #else
     return path.FindBack(i, '\\');
-#endif //TARGET_UNIX
+#endif //PLATFORM_UNIX
 }
 
 

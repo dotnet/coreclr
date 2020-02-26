@@ -6,7 +6,7 @@
 #include "unixasmmacros.inc"
 #include "asmconstants.h"
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 // Offset of the return address from the ActivationHandler in the ActivationHandlerWrapper
 .globl C_FUNC(ActivationHandlerReturnOffset)
 C_FUNC(ActivationHandlerReturnOffset):
@@ -27,4 +27,4 @@ LOCAL_LABEL(ActivationHandlerReturn):
     ret
 NESTED_END ActivationHandlerWrapper, _TEXT
 
-#endif // HOST_64BIT
+#endif // BIT64

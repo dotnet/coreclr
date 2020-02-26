@@ -478,9 +478,9 @@ typedef struct _HeapList
     size_t              maxCodeHeapSize;// Size of the entire contiguous block of memory
     size_t              reserveForJumpStubs; // Amount of memory reserved for jump stubs in this block
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     BYTE        CLRPersonalityRoutine[JUMP_ALLOCATE_SIZE];                 // jump thunk to personality routine
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     UINT32      CLRPersonalityRoutine[JUMP_ALLOCATE_SIZE/sizeof(UINT32)];  // jump thunk to personality routine    
 #endif
 
@@ -533,7 +533,7 @@ public:
 #endif
 };
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 // On non X86 platforms, the OS defined UnwindInfo (accessed from RUNTIME_FUNCTION
 // structures) to  support the ability unwind the stack.   Unfortunatey the pre-Win8 
 // APIs defined a callback API for publishing this data dynamically that ETW does 
@@ -594,7 +594,7 @@ private:
     int                 cDeletedEntries;    // Number of slots we removed. 
 };
 
-#endif // defined(HOST_64BIT)
+#endif // defined(BIT64)
 
 //-----------------------------------------------------------------------------
 // The ExecutionManager uses RangeSection as the abstraction of a contiguous
@@ -636,9 +636,9 @@ struct RangeSection
     //    PTR_Module      pZapModule;   // valid if RANGE_SECTION_HEAP is not set
     // };
     TADDR           pHeapListOrZapModule;
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     PTR_UnwindInfoTable pUnwindInfoTable; // Points to unwind information for this memory range. 
-#endif // defined(HOST_64BIT)
+#endif // defined(BIT64)
 };
 
 /*****************************************************************************/
@@ -1168,7 +1168,7 @@ private :
     CUnorderedArray<DomainCodeHeapList *, 5> m_DynamicDomainCodeHeaps;
 #endif
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 private:
     //
     // List of reserved memory blocks to be used for jump stub allocation if no suitable memory block is found 
@@ -1191,7 +1191,7 @@ public:
 public:
     ICorJitCompiler *   m_jit;
     HINSTANCE           m_JITCompiler;
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     HINSTANCE           m_JITCompilerOther; // Stores the handle of the legacy JIT, if one is loaded.
 #endif
 
@@ -1281,7 +1281,7 @@ public:
         BOOL Acquired();
     };
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     static ULONG          GetCLRPersonalityRoutineValue()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1289,7 +1289,7 @@ public:
             (size_t)((ULONG)offsetof(HeapList, CLRPersonalityRoutine)));
         return offsetof(HeapList, CLRPersonalityRoutine);
     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
     static EEJitManager * GetEEJitManager()
     {
@@ -1463,7 +1463,7 @@ private:
         static count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
-#ifdef HOST_64BIT
+#ifdef BIT64
             return (count_t) ((size_t) k ^ ((size_t) k >> 32));
 #else
             return (count_t)(size_t)k;
@@ -1851,9 +1851,9 @@ public:
     EECodeInfo  GetMainFunctionInfo();
     ULONG               GetFixedStackSize();
     
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     BOOL        HasFrameRegister();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #else // WIN64EXCEPTIONS
     ULONG       GetFixedStackSize()
@@ -1863,14 +1863,14 @@ public:
     }
 #endif // WIN64EXCEPTIONS
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     void         GetOffsetsFromUnwindInfo(ULONG* pRSPOffset, ULONG* pRBPOffset);
 
 #if defined(_DEBUG) && defined(HAVE_GCCOVER)
     // Find first funclet inside (pvFuncletStart, pvFuncletStart + cbCode)
     static LPVOID findNextFunclet (LPVOID pvFuncletStart, SIZE_T cbCode, LPVOID *ppvFuncletEnd);
 #endif // _DEBUG && HAVE_GCCOVER
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 private:
     PCODE               m_codeAddress;
@@ -1882,10 +1882,10 @@ private:
     PTR_RUNTIME_FUNCTION m_pFunctionEntry;
 #endif // WIN64EXCEPTIONS
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // Simple helper to return a pointer to the UNWIND_INFO given the offset to the unwind info.
     UNWIND_INFO * GetUnwindInfoHelper(ULONG unwindInfoOffset);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 };
 
 #include "codeman.inl"

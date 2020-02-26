@@ -122,7 +122,7 @@ def generateDummyFiles(etwmanifest, out_dirname, extern, dryRun):
                 impl.write(stdprolog_cpp + "\n")
 
                 impl.write("""
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 #include "pal_mstypes.h"
 #include "pal_error.h"
 #include "pal.h"

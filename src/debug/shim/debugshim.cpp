@@ -213,7 +213,7 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
                     _ASSERTE(pFlags == NULL || *pFlags == 0);
                 }
             }
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
             else
             {
                 // On Linux/MacOS the DAC module handle needs to be re-created using the DAC PAL instance
@@ -233,7 +233,7 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
                     hr = E_HANDLE;
                 }
             }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
         }
 
         // If no errors so far and "OpenVirtualProcessImpl2" doesn't exist
@@ -278,7 +278,7 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
 
     if (pDacModulePath != NULL)
     {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         free(pDacModulePath);
 #else
         CoTaskMemFree(pDacModulePath);
@@ -287,7 +287,7 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
 
     if (pDbiModulePath != NULL)
     {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         free(pDbiModulePath);
 #else
         CoTaskMemFree(pDbiModulePath);
@@ -410,7 +410,7 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
                                      __out_z __inout_ecount(dwDacNameCharCount) WCHAR* pDacName,
                                      DWORD  dwDacNameCharCount)
 {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     WORD imageFileMachine = 0;
     DWORD resourceSectionRVA = 0;
     HRESULT hr = GetMachineAndResourceSectionRVA(pDataTarget, moduleBaseAddress, &imageFileMachine, &resourceSectionRVA);
@@ -463,35 +463,35 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
         HRESULT hrGetResource = E_FAIL; 
      
         // First check for the resource which has type = RC_DATA = 10, name = "CLRDEBUGINFO<host_os><host_arch>", language = 0        
-#if defined (HOST_WINDOWS) && defined(HOST_X86)
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_X86_)
         const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSX86");
 #endif
 
-#if !defined (HOST_WINDOWS) && defined(HOST_X86)
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_X86_)
         const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSX86");
 #endif
 
-#if defined (HOST_WINDOWS) && defined(HOST_AMD64)
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_AMD64_)
         const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSAMD64");
 #endif
 
-#if !defined (HOST_WINDOWS) && defined(HOST_AMD64)
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_AMD64_)
         const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSAMD64");
 #endif
 
-#if defined (HOST_WINDOWS) && defined(HOST_ARM64)
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM64_)
         const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSARM64");
 #endif
 
-#if !defined (HOST_WINDOWS) && defined(HOST_ARM64)
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM64_)
         const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSARM64");
 #endif
 
-#if defined (HOST_WINDOWS) && defined(HOST_ARM)
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM_)
         const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSARM");
 #endif
 
-#if !defined (HOST_WINDOWS) && defined(HOST_ARM)
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM_)
         const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSARM");
 #endif        
 
@@ -500,12 +500,12 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
         useCrossPlatformNaming = SUCCEEDED(hrGetResource);        
 
         
-#if defined(HOST_WINDOWS) && (defined(HOST_X86) || defined(HOST_AMD64) || defined(HOST_ARM))
-  #if defined(HOST_X86)
+#if defined(HOST_IS_WINDOWS_OS) && (defined(_HOST_X86_) || defined(_HOST_AMD64_) || defined(_HOST_ARM_))
+  #if defined(_HOST_X86_)
     #define _HOST_MACHINE_TYPE IMAGE_FILE_MACHINE_I386
-  #elif defined(HOST_AMD64)
+  #elif defined(_HOST_AMD64_)
     #define _HOST_MACHINE_TYPE IMAGE_FILE_MACHINE_AMD64
-  #elif defined(HOST_ARM)
+  #elif defined(_HOST_ARM_)
     #define _HOST_MACHINE_TYPE IMAGE_FILE_MACHINE_ARMNT
   #endif
 
@@ -596,7 +596,7 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
     *pdwDacSizeOfImage = 0;
 
     return S_OK;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 }
 
 // Formats the long name for DAC
@@ -606,18 +606,18 @@ HRESULT CLRDebuggingImpl::FormatLongDacModuleName(__out_z __inout_ecount(cchBuff
                                                   VS_FIXEDFILEINFO * pVersion)
 {
 
-#ifndef HOST_WINDOWS
+#ifndef HOST_IS_WINDOWS_OS
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 #endif
 
-#if defined(HOST_X86)
+#if defined(_HOST_X86_)
     const WCHAR* pHostArch = W("x86");
-#elif defined(HOST_AMD64)
+#elif defined(_HOST_AMD64_)
     const WCHAR* pHostArch = W("amd64");
-#elif defined(HOST_ARM)
+#elif defined(_HOST_ARM_)
     const WCHAR* pHostArch = W("arm");
-#elif defined(HOST_ARM64)
+#elif defined(_HOST_ARM64_)
     const WCHAR* pHostArch = W("arm64");
 #else
     _ASSERTE(!"Unknown host arch");

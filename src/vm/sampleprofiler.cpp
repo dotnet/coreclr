@@ -11,9 +11,9 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #include <mmsystem.h>
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 
 const unsigned long NUM_NANOSECONDS_IN_1_MS = 1000000;
 
@@ -29,13 +29,13 @@ unsigned long SampleProfiler::s_samplingRateInNs = NUM_NANOSECONDS_IN_1_MS; // 1
 bool SampleProfiler::s_timePeriodIsSet = FALSE;
 int32_t SampleProfiler::s_RefCount = 0;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 PVOID SampleProfiler::s_timeBeginPeriodFn = NULL;
 PVOID SampleProfiler::s_timeEndPeriodFn = NULL;
 HINSTANCE SampleProfiler::s_hMultimediaLib = NULL;
 
 typedef MMRESULT(WINAPI *TimePeriodFnPtr)(UINT uPeriod);
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 
 void SampleProfiler::Initialize(EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
@@ -77,7 +77,7 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProvid
 
     const bool fSuccess = LoadDependencies();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     _ASSERTE(fSuccess);
     // TODO: Stress log on failure?
 #else
@@ -269,11 +269,11 @@ void SampleProfiler::PlatformSleep(unsigned long nanoseconds)
     }
     CONTRACTL_END;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     PAL_nanosleep(nanoseconds);
-#else  //TARGET_UNIX
+#else  //FEATURE_PAL
     ClrSleepEx(s_samplingRateInNs / NUM_NANOSECONDS_IN_1_MS, FALSE);
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 }
 
 void SampleProfiler::SetTimeGranularity()
@@ -286,7 +286,7 @@ void SampleProfiler::SetTimeGranularity()
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Attempt to set the systems minimum timer period to the sampling rate
     // If the sampling rate is lower than the current system setting (16ms by default),
     // this will cause the OS to wake more often for scheduling descsion, allowing us to take samples
@@ -299,7 +299,7 @@ void SampleProfiler::SetTimeGranularity()
             s_timePeriodIsSet = TRUE;
         }
     }
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 }
 
 void SampleProfiler::ResetTimeGranularity()
@@ -312,7 +312,7 @@ void SampleProfiler::ResetTimeGranularity()
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // End the modifications we had to the timer period in Enable
     if (s_timeEndPeriodFn != NULL)
     {
@@ -321,7 +321,7 @@ void SampleProfiler::ResetTimeGranularity()
             s_timePeriodIsSet = FALSE;
         }
     }
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 }
 
 bool SampleProfiler::LoadDependencies()
@@ -334,7 +334,7 @@ bool SampleProfiler::LoadDependencies()
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     if (s_RefCount > 0)
         return true; // Already loaded.
 
@@ -349,7 +349,7 @@ bool SampleProfiler::LoadDependencies()
     return s_hMultimediaLib != NULL && s_timeBeginPeriodFn != NULL && s_timeEndPeriodFn != NULL;
 #else
     return FALSE;
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 }
 
 void SampleProfiler::UnloadDependencies()
@@ -362,7 +362,7 @@ void SampleProfiler::UnloadDependencies()
     }
     CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     if (s_hMultimediaLib != NULL)
     {
         FreeLibrary(s_hMultimediaLib);
@@ -370,7 +370,7 @@ void SampleProfiler::UnloadDependencies()
         s_timeBeginPeriodFn = NULL;
         s_timeEndPeriodFn = NULL;
     }
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 }
 
 #endif // FEATURE_PERFTRACING

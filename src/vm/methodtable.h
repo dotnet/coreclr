@@ -239,7 +239,7 @@ typedef DPTR(GuidInfo) PTR_GuidInfo;
 // GenericsDictInfo is stored at negative offset of the dictionary
 struct GenericsDictInfo
 {
-#ifdef HOST_64BIT
+#ifdef BIT64
     DWORD m_dwPadding;               // Just to keep the size a multiple of 8
 #endif
 
@@ -354,7 +354,7 @@ struct MethodTableWriteableData
     // GC (like AD unload)
     Volatile<DWORD> m_dwLastVerifedGCCnt;
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     DWORD m_dwPadding;               // Just to keep the size a multiple of 8
 #endif
 

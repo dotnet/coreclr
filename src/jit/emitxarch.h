@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 
 /************************************************************************/
 /*           Public inline informational methods                        */
@@ -99,12 +99,12 @@ bool AreUpper32BitsZero(regNumber reg);
 
 bool hasRexPrefix(code_t code)
 {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     const code_t REX_PREFIX_MASK = 0xFF00000000LL;
     return (code & REX_PREFIX_MASK) != 0;
-#else  // !TARGET_AMD64
+#else  // !_TARGET_AMD64_
     return false;
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 }
 
 // 3-byte VEX prefix starts with byte 0xC4
@@ -524,14 +524,14 @@ void emitIns_Call(EmitCallType          callType,
                   bool                  isJump   = false);
 // clang-format on
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 // Is the last instruction emitted a call instruction?
 bool emitIsLastInsCall();
 
 // Insert a NOP at the end of the the current instruction group if the last emitted instruction was a 'call',
 // because the next instruction group will be an epilog.
 void emitOutputPreEpilogNOP();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 /*****************************************************************************
  *
@@ -561,4 +561,4 @@ inline bool emitIsUncondJump(instrDesc* jmp)
     return (ins == INS_jmp);
 }
 
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_

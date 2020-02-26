@@ -152,12 +152,12 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
     for (int i = 1; i < argc; i++)
     {
         bool isASwitch = (argv[i][0] == '-');
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         if (argv[i][0] == '/') // Also accept "/" on Windows
         {
             isASwitch = true;
         }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
         // Process a switch
         if (isASwitch)

@@ -111,7 +111,7 @@ DataTargetAdapter::GetPlatform(
 
     switch(ulMachineType)
     {
-#ifdef TARGET_UNIX        
+#ifdef FEATURE_PAL        
     case IMAGE_FILE_MACHINE_I386:
         ulExpectedPointerSize = 4;
         platform = CORDB_PLATFORM_POSIX_X86;
@@ -136,7 +136,7 @@ DataTargetAdapter::GetPlatform(
         _ASSERTE_MSG(false, "Not supported platform.");
         return E_NOTIMPL;
         
-#else   // TARGET_UNIX        
+#else   // FEATURE_PAL        
     case IMAGE_FILE_MACHINE_I386:
         ulExpectedPointerSize = 4;
         platform = CORDB_PLATFORM_WINDOWS_X86;
@@ -161,7 +161,7 @@ DataTargetAdapter::GetPlatform(
         ulExpectedPointerSize = 8;
         platform = CORDB_PLATFORM_WINDOWS_ARM64;
         break;        
-#endif  // TARGET_UNIX
+#endif  // FEATURE_PAL
         
     default:
         // No other platforms are current supported

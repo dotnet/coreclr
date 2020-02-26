@@ -266,14 +266,14 @@ STDAPI BinderHasNativeHeader(PEImage *pPEImage, BOOL* result)
     {
         *result = false;
 
-#if defined(TARGET_UNIX)
+#if defined(FEATURE_PAL)
         // PAL_LOADLoadPEFile may fail while loading IL masquerading as NI.
         // This will result in a ThrowHR(E_FAIL).  Suppress the error.
         if(hr == E_FAIL)
         {
             hr = S_OK;
         }
-#endif // defined(TARGET_UNIX)
+#endif // defined(FEATURE_PAL)
     }
 
     return hr;

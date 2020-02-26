@@ -484,11 +484,11 @@ GcInfoEncoder::GcInfoEncoder(
     m_StackBaseRegister = NO_STACK_BASE_REGISTER;
     m_SizeOfEditAndContinuePreservedArea = NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA;
     m_ReversePInvokeFrameSlot = NO_REVERSE_PINVOKE_FRAME;
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     m_WantsReportOnlyLeaf = false;
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     m_HasTailCalls = false;
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
     m_IsVarArg = false;
     m_pLastInterruptibleRange = NULL;
     
@@ -496,13 +496,13 @@ GcInfoEncoder::GcInfoEncoder(
     m_IsSlotTableFrozen = FALSE;
 #endif //_DEBUG
 
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
     // If the compiler doesn't set the GCInfo, report RT_Unset.
     // This is used for compatibility with JITs that aren't updated to use the new API.
     m_ReturnKind = RT_Unset;
 #else
     m_ReturnKind = RT_Illegal;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     m_CodeLength = 0;
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     m_SizeOfStackOutgoingAndScratchArea = -1;
@@ -691,7 +691,7 @@ void GcInfoEncoder::SetCodeLength( UINT32 length )
 void GcInfoEncoder::SetSecurityObjectStackSlot( INT32 spOffset )
 {
     _ASSERTE( spOffset != NO_SECURITY_OBJECT );
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     _ASSERTE( spOffset < 0x10 && "The security object cannot reside in an input variable!" );
 #endif
     _ASSERTE( m_SecurityObjectStackSlot == NO_SECURITY_OBJECT || m_SecurityObjectStackSlot == spOffset );
@@ -753,17 +753,17 @@ void GcInfoEncoder::SetSizeOfEditAndContinuePreservedArea( UINT32 slots )
     m_SizeOfEditAndContinuePreservedArea = slots;
 }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 void GcInfoEncoder::SetWantsReportOnlyLeaf()
 {
     m_WantsReportOnlyLeaf = true;
 }
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 void GcInfoEncoder::SetHasTailCalls()
 {
     m_HasTailCalls = true;
 }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
 void GcInfoEncoder::SetSizeOfStackOutgoingAndScratchArea( UINT32 size )
@@ -923,7 +923,7 @@ void GcInfoEncoder::FinalizeSlotIds()
 
 bool GcInfoEncoder::IsAlwaysScratch(GcSlotDesc &slotDesc)
 {
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
     _ASSERTE( m_SizeOfStackOutgoingAndScratchArea != (UINT32)-1 );
     if(slotDesc.IsRegister())
@@ -942,7 +942,7 @@ bool GcInfoEncoder::IsAlwaysScratch(GcSlotDesc &slotDesc)
     else
         return FALSE;
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
     _ASSERTE( m_SizeOfStackOutgoingAndScratchArea != (UINT32)-1 );
     if(slotDesc.IsRegister())
@@ -1006,11 +1006,11 @@ void GcInfoEncoder::Build()
         !hasContextParamType && (m_InterruptibleRanges.Count() == 0) && !hasReversePInvokeFrame &&
         ((m_StackBaseRegister == NO_STACK_BASE_REGISTER) || (NORMALIZE_STACK_BASE_REGISTER(m_StackBaseRegister) == 0))) &&
         (m_SizeOfEditAndContinuePreservedArea == NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) && 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         !m_WantsReportOnlyLeaf &&
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         !m_HasTailCalls &&
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
         !IsStructReturnKind(m_ReturnKind);
 
     // All new code is generated for the latest GCINFO_VERSION.
@@ -1032,11 +1032,11 @@ void GcInfoEncoder::Build()
         GCINFO_WRITE(m_Info1, ((m_PSPSymStackSlot != NO_PSP_SYM) ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, m_contextParamType, 2, FlagsSize);
         GCINFO_WRITE(m_Info1, ((m_StackBaseRegister != NO_STACK_BASE_REGISTER) ? 1 : 0), 1, FlagsSize);
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         GCINFO_WRITE(m_Info1, (m_WantsReportOnlyLeaf ? 1 : 0), 1, FlagsSize);
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         GCINFO_WRITE(m_Info1, (m_HasTailCalls ? 1 : 0), 1, FlagsSize);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
         GCINFO_WRITE(m_Info1, ((m_SizeOfEditAndContinuePreservedArea != NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, (hasReversePInvokeFrame ? 1 : 0), 1, FlagsSize);
 

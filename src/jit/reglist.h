@@ -9,7 +9,7 @@
 #include "tinyarray.h"
 
 // The "regList" type is a small set of registerse
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 typedef TinyArray<unsigned short, regNumber, REGNUM_BITS> regList;
 #else
 // The regList is unused for all other targets.

@@ -71,7 +71,7 @@ include_directories(include)
 # Compile options
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  add_definitions(-DTARGET_OSX)
+  add_definitions(-D_TARGET_MAC64)
   add_definitions(-DXSTATE_SUPPORTED)
   set(PLATFORM_SOURCES
     arch/amd64/activationhandlerwrapper.S

@@ -59,13 +59,13 @@ OBJECTREF* CrawlFrame::GetAddrOfSecurityObject()
     {
         _ASSERTE(pFunc);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         if (isCachedMethod)
         {
             return pSecurityObject;
         }
         else
-#endif // TARGET_X86
+#endif // _TARGET_X86_
         {
             return (static_cast <OBJECTREF*>(GetCodeManager()->GetAddrOfSecurityObject(this)));
         }
@@ -165,7 +165,7 @@ OBJECTREF CrawlFrame::GetThisPointer()
 
     // As discussed in the specification comment at the declaration, the precondition, unfortunately,
     // differs by architecture.  @TODO: fix this.
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     _ASSERTE_MSG((pFunc->IsSharedByGenericInstantiations() && pFunc->AcquiresInstMethodTableFromThis())
                  || pFunc->IsSynchronized(),
                  "Precondition");
@@ -189,13 +189,13 @@ OBJECTREF CrawlFrame::GetThisPointer()
         //<TODO>@TODO: What about other calling conventions?
 //        _ASSERT(pFunc()->GetCallSig()->CALLING CONVENTION);</TODO>
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         // @TODO: PORT: we need to find the this pointer without triggering a GC
         //              or find a way to make this method GC_TRIGGERS
         return NULL;
 #else
         return (dac_cast<PTR_FramedMethodFrame>(pFrame))->GetThis();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
     }
 }
 
@@ -208,7 +208,7 @@ OBJECTREF CrawlFrame::GetThisPointer()
 TADDR CrawlFrame::GetAmbientSPFromCrawlFrame()
 {
     SUPPORTS_DAC;
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // we set nesting level to zero because it won't be used for esp-framed methods, 
     // and zero is at least valid for ebp based methods (where we won't use the ambient esp anyways) 
     DWORD nestingLevel = 0; 
@@ -220,7 +220,7 @@ TADDR CrawlFrame::GetAmbientSPFromCrawlFrame()
         GetCodeManState() 
         ); 
     
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     return GetRegisterSet()->pCurrentContext->Sp;
 #else
     return NULL;
@@ -261,7 +261,7 @@ PTR_VOID CrawlFrame::GetParamTypeArg()
             return NULL;
         }
 
-#ifdef HOST_64BIT
+#ifdef BIT64
         if (!pFunc->IsSharedByGenericInstantiations() ||
             !(pFunc->RequiresInstMethodTableArg() || pFunc->RequiresInstMethodDescArg()))
         {
@@ -269,7 +269,7 @@ PTR_VOID CrawlFrame::GetParamTypeArg()
             // and actually has a param type arg
             return NULL;
         }
-#endif // HOST_64BIT
+#endif // BIT64
 
         _ASSERTE(pFrame);
         _ASSERTE(pFunc);
@@ -351,7 +351,7 @@ bool CrawlFrame::IsGcSafe()
     return GetCodeManager()->IsGcSafe(&codeInfo, GetRelOffset());
 }
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 bool CrawlFrame::HasTailCalls()
 {
     CONTRACTL {
@@ -362,7 +362,7 @@ bool CrawlFrame::HasTailCalls()
 
     return GetCodeManager()->HasTailCalls(&codeInfo);
 }
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 inline void CrawlFrame::GotoNextFrame()
 {
@@ -606,17 +606,17 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
 
     if (pCodeInfo == NULL)
     {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         pFunctionEntry = RtlLookupFunctionEntry(uControlPc,
                                             ARM_ONLY((DWORD*))(&uImageBase),
                                             NULL);
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
         EECodeInfo codeInfo;
 
         codeInfo.Init(uControlPc);
         pFunctionEntry = codeInfo.GetFunctionEntry();
         uImageBase = (UINT_PTR)codeInfo.GetModuleBase();
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     }
     else
     {
@@ -627,7 +627,7 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
         // expects this indirection to be resolved, so we use RUNTIME_FUNCTION of the hot code even
         // if we are in cold code.
 
-#if defined(_DEBUG) && !defined(TARGET_UNIX)
+#if defined(_DEBUG) && !defined(FEATURE_PAL)
         UINT_PTR            uImageBaseFromOS;
         PT_RUNTIME_FUNCTION pFunctionEntryFromOS;
 
@@ -638,7 +638,7 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
         // Note that he address returned from the OS is different from the one we have computed
         // when unwind info is registered using RtlAddGrowableFunctionTable. Compare RUNTIME_FUNCTION content.
         _ASSERTE( (uImageBase == uImageBaseFromOS) && (memcmp(pFunctionEntry, pFunctionEntryFromOS, sizeof(RUNTIME_FUNCTION)) == 0) );
-#endif // _DEBUG && !TARGET_UNIX
+#endif // _DEBUG && !FEATURE_PAL
     }
 
     if (pFunctionEntry)
@@ -672,7 +672,7 @@ PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
 {
     PCODE uControlPc;
 
-#if defined(_DEBUG) && !defined(TARGET_UNIX)
+#if defined(_DEBUG) && !defined(FEATURE_PAL)
     UINT_PTR uImageBase;
 
     PT_RUNTIME_FUNCTION pFunctionEntry  = RtlLookupFunctionEntry((UINT_PTR)GetIP(pContext),
@@ -680,14 +680,14 @@ PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
                                                                 NULL);
 
     CONSISTENCY_CHECK(NULL == pFunctionEntry);
-#endif // _DEBUG && !TARGET_UNIX
+#endif // _DEBUG && !FEATURE_PAL
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 
     uControlPc = *(ULONGLONG*)pContext->Rsp;
     pContext->Rsp += sizeof(ULONGLONG);
 
-#elif defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 
     uControlPc = TADDR(pContext->Lr);
 
@@ -717,16 +717,16 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
     CONTRACTL_END;
 
     PCODE           uControlPc = GetIP(pContext);
-#ifdef HOST_64BIT
+#ifdef BIT64
     UINT64              EstablisherFrame;
-#else  // HOST_64BIT
+#else  // BIT64
     DWORD               EstablisherFrame;
-#endif // HOST_64BIT
+#endif // BIT64
     PVOID               HandlerData;
 
     if (NULL == pFunctionEntry)
     {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         pFunctionEntry  = RtlLookupFunctionEntry(uControlPc,
                                                  ARM_ONLY((DWORD*))(&uImageBase),
                                                  NULL);
@@ -775,9 +775,9 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
         }
 #endif // FEATURE_WRITEBARRIER_COPY
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         uControlPc = VirtualUnwindCallFrame(pContext);
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
 
 #ifdef VSD_STUB_CAN_THROW_AV
         if (IsIPinVirtualStub(uControlPc))
@@ -801,7 +801,7 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
         {
             break;
         }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     }
 
     return uControlPc;
@@ -903,7 +903,7 @@ StackWalkAction Thread::MakeStackwalkerCallback(
 }
 
 
-#if !defined(DACCESS_COMPILE) && defined(TARGET_X86) && !defined(WIN64EXCEPTIONS)
+#if !defined(DACCESS_COMPILE) && defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
 #define STACKWALKER_MAY_POP_FRAMES
 #endif
 
@@ -1369,14 +1369,14 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
         }
 #endif // PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         // special processing on x86; see below for more information
         TADDR curEBP = GetRegdisplayFP(m_crawl.pRD);
 
         CONTEXT    tmpCtx;
         REGDISPLAY tmpRD;
         CopyRegDisplay(m_crawl.pRD, &tmpRD, &tmpCtx);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
         //
         // The basic idea is to loop the frame chain until we find an explicit frame whose address is below 
@@ -1407,7 +1407,7 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
             // this check is sufficient on WIN64
             if (dac_cast<TADDR>(m_crawl.pFrame) >= curSP) 
             {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
                 // check the IP
                 if (m_crawl.pFrame->GetReturnAddress() != curPc)
                 {
@@ -1422,9 +1422,9 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
                         break;
                     }
                 }
-#else  // !TARGET_X86
+#else  // !_TARGET_X86_
                 break;
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
             }
 
             // if the REGDISPLAY represents the managed stack frame at a M2U transition boundary,
@@ -1749,7 +1749,7 @@ ProcessFuncletsForGCReporting:
                     // Check if we are in the mode of enumerating GC references (or not)
                     if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                     {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
                         // For interleaved exception handling on non-windows systems, we need to find out if the current frame
                         // was a caller of an already executed exception handler based on the previous exception trackers.
                         // The handler funclet frames are already gone from the stack, so the exception trackers are the
@@ -1811,7 +1811,7 @@ ProcessFuncletsForGCReporting:
                                 fSkippingFunclet = true;
                             }
                         }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
                         fRecheckCurrentFrame = false;
                         // Do we already have a reference to a funclet parent?
@@ -2331,7 +2331,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
 
     if (m_frameState == SFITER_SKIPPED_FRAME_FUNCTION)
     {
-#if !defined(TARGET_X86) && defined(_DEBUG)
+#if !defined(_TARGET_X86_) && defined(_DEBUG)
         // make sure we're not skipping a different transition
         if (m_crawl.pFrame->NeedsUpdateRegDisplay())
         {
@@ -2349,7 +2349,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
                 CONSISTENCY_CHECK(GetControlPC(m_crawl.pRD) == m_crawl.pFrame->GetReturnAddress());
             }
         }
-#endif // !defined(TARGET_X86) && defined(_DEBUG)
+#endif // !defined(_TARGET_X86_) && defined(_DEBUG)
 
 #if defined(STACKWALKER_MAY_POP_FRAMES)
         if (m_flags & POPFRAMES)
@@ -2421,7 +2421,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
     {
         // Now find out if we need to leave monitors
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         //
         // For non-x86 platforms, the JIT generates try/finally to leave monitors; for x86, the VM handles the monitor
         //
@@ -2466,7 +2466,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             END_GCX_ASSERT_COOP;
         }
 #endif // STACKWALKER_MAY_POP_FRAMES
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #if !defined(ELIMINATE_FEF)
         // FaultingExceptionFrame is special case where it gets
@@ -2966,7 +2966,7 @@ void StackFrameIterator::ProcessCurrentFrame(void)
                 _ASSERTE (m_crawl.isCachedMethod != m_crawl.stackWalkCache.IsEmpty());
 
                 m_crawl.pSecurityObject = NULL;
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
                 if (m_crawl.isCachedMethod && m_crawl.stackWalkCache.m_CacheEntry.HasSecurityObject())
                 {
                     // pCallback will use this to save time on GetAddrOfSecurityObject
@@ -2975,7 +2975,7 @@ void StackFrameIterator::ProcessCurrentFrame(void)
                                                 m_crawl.pRD, 
                                                 &stackwalkCacheUnwindInfo);
                 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
             }
 #endif // DACCESS_COMPILE
 
@@ -3085,10 +3085,10 @@ BOOL StackFrameIterator::CheckForSkippedFrames(void)
             m_crawl.pFunc->AsDynamicMethodDesc()->HasMDContextArg();
 
         if (fHandleSkippedFrames 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
             || // On x86 we have already reported the InlinedCallFrame, don't report it again.
             (InlinedCallFrame::FrameHasActiveCall(m_crawl.pFrame) && !fReportInteropMD)
-#endif // TARGET_X86
+#endif // _TARGET_X86_
             )
         {
             m_crawl.GotoNextFrame();
@@ -3297,10 +3297,10 @@ void StackFrameIterator::PostProcessingForNoFrameTransition()
 } // StackFrameIterator::PostProcessingForNoFrameTransition()
 
 
-#if defined(TARGET_AMD64) && !defined(DACCESS_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(DACCESS_COMPILE)
 static CrstStatic g_StackwalkCacheLock;                // Global StackwalkCache lock; only used on AMD64
 EXTERN_C void moveOWord(LPVOID src, LPVOID target);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 /*
     copies 64-bit *src to *target, atomically accessing the data
@@ -3310,7 +3310,7 @@ inline static void atomicMoveCacheEntry(UINT64* src, UINT64* target)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // the most negative value is used a sort of integer infinity
     // value, so it have to be avoided
     _ASSERTE(*src != 0x8000000000000000);
@@ -3321,7 +3321,7 @@ inline static void atomicMoveCacheEntry(UINT64* src, UINT64* target)
         mov eax, target
         fistp qword ptr [eax]
     }
-#elif defined(TARGET_AMD64) && !defined(DACCESS_COMPILE)
+#elif defined(_TARGET_AMD64_) && !defined(DACCESS_COMPILE)
     // On AMD64 there's no way to move 16 bytes atomically, so we need to take a lock before calling moveOWord().
     CrstHolder ch(&g_StackwalkCacheLock);
     moveOWord(src, target);
@@ -3385,9 +3385,9 @@ StackwalkCache::StackwalkCache()
 // static
 void StackwalkCache::Init()
 {
-#if defined(TARGET_AMD64) && !defined(DACCESS_COMPILE)
+#if defined(_TARGET_AMD64_) && !defined(DACCESS_COMPILE)
     g_StackwalkCacheLock.Init(CrstSecurityStackwalkCache, CRST_UNSAFE_ANYMODE);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 }
 
 /*
@@ -3411,7 +3411,7 @@ BOOL StackwalkCache::Lookup(UINT_PTR IP)
        GC_NOTRIGGER;
     } CONTRACTL_END;
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     _ASSERTE(Enabled());
     _ASSERTE(IP);
 
@@ -3429,9 +3429,9 @@ BOOL StackwalkCache::Lookup(UINT_PTR IP)
 #endif
 
     return (IP == m_CacheEntry.IP);
-#else // TARGET_X86
+#else // _TARGET_X86_
     return FALSE;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 /*

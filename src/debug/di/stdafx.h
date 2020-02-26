@@ -54,7 +54,7 @@
 #include "utilcode.h"
 #endif
 
-#ifndef TARGET_ARM
+#ifndef _TARGET_ARM_
 #define DbiGetThreadContext(hThread, lpContext) ::GetThreadContext(hThread, (CONTEXT*)(lpContext))
 #define DbiSetThreadContext(hThread, lpContext) ::SetThreadContext(hThread, (CONTEXT*)(lpContext))
 #else

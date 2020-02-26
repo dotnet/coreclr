@@ -1,7 +1,7 @@
 if(WIN32)
   #use static crt
   add_definitions(-MT) 
-  add_definitions(-DHOST_WINDOWS)
+  add_definitions(-DHOST_IS_WINDOWS_OS)
 endif(WIN32)
 
 if(CLR_CMAKE_HOST_UNIX)

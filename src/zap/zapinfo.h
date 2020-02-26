@@ -166,7 +166,7 @@ class ZapInfo
 
     ZapUnwindInfo *             m_pUnwindInfo;
     ZapUnwindInfo *             m_pUnwindInfoFragments;
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     ZapUnwindInfo *             m_pChainedColdUnwindInfo;
 #endif
 #endif // WIN64EXCEPTIONS

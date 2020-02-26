@@ -3,11 +3,11 @@
 // See the LICENSE file in the project root for more information.
 //////////////////////////////////////////////////////////////////////////////
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
 #include "emitfmtsxarch.h"
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 #include "emitfmtsarm.h"
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
 #include "emitfmtsarm64.h"
 #else
 #error Unsupported or unset target architecture

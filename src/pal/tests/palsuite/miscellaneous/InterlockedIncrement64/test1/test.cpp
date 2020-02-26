@@ -37,7 +37,7 @@ int __cdecl main(int argc, char *argv[])
 /*
 **  Run only on 64 bit platforms
 */
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 
     InterlockedIncrement64(&TheValue);
     TheReturn = InterlockedIncrement64(&TheValue);
@@ -56,7 +56,7 @@ int __cdecl main(int argc, char *argv[])
              "have been %d, but it returned %ll.",TheValue,TheReturn);          
     }
 
-#endif  //defined(HOST_64BIT)
+#endif  //defined(BIT64)
     PAL_Terminate();
     return PASS; 
 } 

@@ -283,20 +283,20 @@ unsigned emitter::emitTotalIGEmitAdd;
 unsigned emitter::emitTotalIDescSmallCnt;
 unsigned emitter::emitTotalIDescCnt;
 unsigned emitter::emitTotalIDescJmpCnt;
-#if !defined(TARGET_ARM64)
+#if !defined(_TARGET_ARM64_)
 unsigned emitter::emitTotalIDescLblCnt;
-#endif // !defined(TARGET_ARM64)
+#endif // !defined(_TARGET_ARM64_)
 unsigned emitter::emitTotalIDescCnsCnt;
 unsigned emitter::emitTotalIDescDspCnt;
 unsigned emitter::emitTotalIDescCnsDspCnt;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 unsigned emitter::emitTotalIDescAmdCnt;
 unsigned emitter::emitTotalIDescCnsAmdCnt;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 unsigned emitter::emitTotalIDescCGCACnt;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 unsigned emitter::emitTotalIDescRelocCnt;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 unsigned emitter::emitSmallDspCnt;
 unsigned emitter::emitLargeDspCnt;
@@ -371,40 +371,40 @@ void emitterStaticStats(FILE* fout)
     // fprintf(fout, "Size   of _idAddrUnion= %2u\n", sizeof(((emitter::instrDesc*)0)->_idAddrUnion));
 
     fprintf(fout, "Size   of instrDescJmp    = %2u\n", sizeof(emitter::instrDescJmp));
-#if !defined(TARGET_ARM64)
+#if !defined(_TARGET_ARM64_)
     fprintf(fout, "Size   of instrDescLbl    = %2u\n", sizeof(emitter::instrDescLbl));
-#endif // !defined(TARGET_ARM64)
+#endif // !defined(_TARGET_ARM64_)
     fprintf(fout, "Size   of instrDescCns    = %2u\n", sizeof(emitter::instrDescCns));
     fprintf(fout, "Size   of instrDescDsp    = %2u\n", sizeof(emitter::instrDescDsp));
     fprintf(fout, "Size   of instrDescCnsDsp = %2u\n", sizeof(emitter::instrDescCnsDsp));
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     fprintf(fout, "Size   of instrDescAmd    = %2u\n", sizeof(emitter::instrDescAmd));
     fprintf(fout, "Size   of instrDescCnsAmd = %2u\n", sizeof(emitter::instrDescCnsAmd));
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     fprintf(fout, "Size   of instrDescCGCA   = %2u\n", sizeof(emitter::instrDescCGCA));
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     fprintf(fout, "Size   of instrDescReloc  = %2u\n", sizeof(emitter::instrDescReloc));
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     fprintf(fout, "\n");
     fprintf(fout, "SC_IG_BUFFER_SIZE             = %2u\n", SC_IG_BUFFER_SIZE);
     fprintf(fout, "SMALL_IDSC_SIZE per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / SMALL_IDSC_SIZE);
     fprintf(fout, "instrDesc per IG buffer       = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDesc));
     fprintf(fout, "instrDescJmp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescJmp));
-#if !defined(TARGET_ARM64)
+#if !defined(_TARGET_ARM64_)
     fprintf(fout, "instrDescLbl per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescLbl));
-#endif // !defined(TARGET_ARM64)
+#endif // !defined(_TARGET_ARM64_)
     fprintf(fout, "instrDescCns per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCns));
     fprintf(fout, "instrDescDsp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescDsp));
     fprintf(fout, "instrDescCnsDsp per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsDsp));
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     fprintf(fout, "instrDescAmd per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescAmd));
     fprintf(fout, "instrDescCnsAmd per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsAmd));
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     fprintf(fout, "instrDescCGCA per IG buffer   = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCGCA));
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     fprintf(fout, "instrDescReloc per IG buffer  = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescReloc));
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     fprintf(fout, "\n");
     fprintf(fout, "GCInfo::regPtrDsc:\n");
@@ -510,28 +510,28 @@ void emitterStats(FILE* fout)
                 100.0 * emitter::emitTotalIDescCnt / emitter::emitTotalInsCnt);
         fprintf(fout, "Total instrDescJmp:    %8u (%5.2f%%)\n", emitter::emitTotalIDescJmpCnt,
                 100.0 * emitter::emitTotalIDescJmpCnt / emitter::emitTotalInsCnt);
-#if !defined(TARGET_ARM64)
+#if !defined(_TARGET_ARM64_)
         fprintf(fout, "Total instrDescLbl:    %8u (%5.2f%%)\n", emitter::emitTotalIDescLblCnt,
                 100.0 * emitter::emitTotalIDescLblCnt / emitter::emitTotalInsCnt);
-#endif // !defined(TARGET_ARM64)
+#endif // !defined(_TARGET_ARM64_)
         fprintf(fout, "Total instrDescCns:    %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsCnt,
                 100.0 * emitter::emitTotalIDescCnsCnt / emitter::emitTotalInsCnt);
         fprintf(fout, "Total instrDescDsp:    %8u (%5.2f%%)\n", emitter::emitTotalIDescDspCnt,
                 100.0 * emitter::emitTotalIDescDspCnt / emitter::emitTotalInsCnt);
         fprintf(fout, "Total instrDescCnsDsp: %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsDspCnt,
                 100.0 * emitter::emitTotalIDescCnsDspCnt / emitter::emitTotalInsCnt);
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         fprintf(fout, "Total instrDescAmd:    %8u (%5.2f%%)\n", emitter::emitTotalIDescAmdCnt,
                 100.0 * emitter::emitTotalIDescAmdCnt / emitter::emitTotalInsCnt);
         fprintf(fout, "Total instrDescCnsAmd: %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsAmdCnt,
                 100.0 * emitter::emitTotalIDescCnsAmdCnt / emitter::emitTotalInsCnt);
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
         fprintf(fout, "Total instrDescCGCA:   %8u (%5.2f%%)\n", emitter::emitTotalIDescCGCACnt,
                 100.0 * emitter::emitTotalIDescCGCACnt / emitter::emitTotalInsCnt);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         fprintf(fout, "Total instrDescReloc:  %8u (%5.2f%%)\n", emitter::emitTotalIDescRelocCnt,
                 100.0 * emitter::emitTotalIDescRelocCnt / emitter::emitTotalInsCnt);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
         fprintf(fout, "\n");
     }
 
@@ -1096,10 +1096,10 @@ void emitter::emitBegFN(bool hasFramePtr
     emitEpilogSize = 0;
     emitEpilogCnt  = 0;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     emitExitSeqBegLoc.Init();
     emitExitSeqSize = INT_MAX;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
     emitPlaceholderList = emitPlaceholderLast = nullptr;
 
@@ -1331,8 +1331,8 @@ void* emitter::emitAllocAnyInstr(size_t sz, emitAttr opsz)
 #endif
 
 #ifdef PSEUDORANDOM_NOP_INSERTION
-    // TODO-ARM-Bug?: PSEUDORANDOM_NOP_INSERTION is not defined for TARGET_ARM
-    //     ARM - This is currently broken on TARGET_ARM
+    // TODO-ARM-Bug?: PSEUDORANDOM_NOP_INSERTION is not defined for _TARGET_ARM_
+    //     ARM - This is currently broken on _TARGET_ARM_
     //     When nopSize is odd we misalign emitCurIGsize
     //
     if (!emitComp->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) && !emitInInstrumentation &&
@@ -1349,7 +1349,7 @@ void* emitter::emitAllocAnyInstr(size_t sz, emitAttr opsz)
             emitInInstrumentation = false;
             idnop->idInsFmt(IF_NONE);
             idnop->idIns(INS_nop);
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
             idnop->idCodeSize(nopSize);
 #else
 #error "Undefined target for pseudorandom NOP insertion"
@@ -1383,7 +1383,7 @@ void* emitter::emitAllocAnyInstr(size_t sz, emitAttr opsz)
     // These fields should have been zero-ed by the above
     assert(id->idReg1() == regNumber(0));
     assert(id->idReg2() == regNumber(0));
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     assert(id->idCodeSize() == 0);
 #endif
 
@@ -1441,9 +1441,9 @@ void* emitter::emitAllocAnyInstr(size_t sz, emitAttr opsz)
 
     // Amd64: ip-relative addressing is supported even when not generating relocatable ngen code
     if (EA_IS_DSP_RELOC(opsz)
-#ifndef TARGET_AMD64
+#ifndef _TARGET_AMD64_
         && emitComp->opts.compReloc
-#endif //TARGET_AMD64
+#endif //_TARGET_AMD64_
         )
     {
         /* Mark idInfo()->idDspReloc to remember that the            */
@@ -1623,9 +1623,9 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
 #endif // FEATURE_EH_FUNCLETS
         )
     {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         emitOutputPreEpilogNOP();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
         emitAdd = true;
     }
@@ -2140,7 +2140,7 @@ bool emitter::emitHasEpilogEnd()
 
 #endif // JIT32_GCENCODER
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 
 /*****************************************************************************
  *
@@ -2154,7 +2154,7 @@ void emitter::emitStartExitSeq()
     emitExitSeqBegLoc.CaptureLocation(this);
 }
 
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************
  *
@@ -2200,11 +2200,11 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
             assert(offsHi >= 0);
         }
         else
-#if defined(TARGET_ARM) && defined(PROFILING_SUPPORTED)
+#if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
             if (!emitComp->compIsProfilerHookNeeded())
 #endif
         {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             // doesn't have to be all negative on amd
             printf("-%04X ... %04X\n", -offsLo, offsHi);
 #else
@@ -2212,7 +2212,7 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
             assert(offsHi <= 0);
 #endif
         }
-#if defined(TARGET_ARM) && defined(PROFILING_SUPPORTED)
+#if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
         else
         {
             // Under profiler due to prespilling of arguments, offHi need not be < 0
@@ -2375,7 +2375,7 @@ bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 
         case CORINFO_HELP_PROF_FCN_LEAVE:
         case CORINFO_HELP_PROF_FCN_ENTER:
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_TAILCALL:
 #endif
         case CORINFO_HELP_LLSH:
@@ -2388,7 +2388,7 @@ bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 //  case CORINFO_HELP_ULDIV:
 //  case CORINFO_HELP_ULMOD:
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         case CORINFO_HELP_ASSIGN_REF_EAX:
         case CORINFO_HELP_ASSIGN_REF_ECX:
         case CORINFO_HELP_ASSIGN_REF_EBX:
@@ -2459,12 +2459,12 @@ void* emitter::emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMas
     emitThisGCrefRegs = emitInitGCrefRegs = gcrefRegs;
     emitThisByrefRegs = emitInitByrefRegs = byrefRegs;
 
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
     if (isFinallyTarget)
     {
         emitCurIG->igFlags |= IGF_FINALLY_TARGET;
     }
-#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
 #ifdef DEBUG
     if (EMIT_GC_VERBOSE)
@@ -2483,7 +2483,7 @@ void* emitter::emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMas
     return emitCurIG;
 }
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
 
 // Does the argument location point to an IG at the end of a function or funclet?
 // We can ignore the codePos part of the location, since it doesn't affect the
@@ -2826,11 +2826,11 @@ void emitter::emitWalkIDs(emitLocation* locFrom, emitProcessInstrFunc_t processF
 void emitter::emitGenerateUnwindNop(instrDesc* id, void* context)
 {
     Compiler* comp = (Compiler*)context;
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     comp->unwindNop(id->idCodeSize());
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     comp->unwindNop();
-#endif // defined(TARGET_ARM64)
+#endif // defined(_TARGET_ARM64_)
 }
 
 /*****************************************************************************
@@ -2844,9 +2844,9 @@ void emitter::emitUnwindNopPadding(emitLocation* locFrom, Compiler* comp)
     emitWalkIDs(locFrom, emitGenerateUnwindNop, comp);
 }
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
 /*****************************************************************************
  *
@@ -2869,7 +2869,7 @@ unsigned emitter::emitGetInstructionSize(emitLocation* emitLoc)
     return id->idCodeSize();
 }
 
-#endif // defined(TARGET_ARM)
+#endif // defined(_TARGET_ARM_)
 
 /*****************************************************************************/
 #ifdef DEBUG
@@ -3226,12 +3226,12 @@ void emitter::emitDispIGflags(unsigned flags)
     {
         printf(", byref");
     }
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
     if (flags & IGF_FINALLY_TARGET)
     {
         printf(", ftarget");
     }
-#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
     if (flags & IGF_FUNCLET_PROLOG)
     {
         printf(", funclet prolog");
@@ -3509,9 +3509,9 @@ size_t emitter::emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp)
         /* The instruction size estimate wasn't accurate; remember this */
 
         ig->igFlags |= IGF_UPD_ISZ;
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         id->idCodeSize(csz);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 // This is done as part of emitSetShortJump();
 // insSize isz = emitInsSize(id->idInsFmt());
 // id->idInsSize(isz);
@@ -3592,9 +3592,9 @@ void emitter::emitJumpDistBind()
                                   // to a small jump. If it is small enough, we will iterate in hopes of
                                   // converting those jumps we missed converting the first (or second...) time.
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     UNATIVE_OFFSET minMediumExtra; // Same as 'minShortExtra', but for medium-sized jumps.
-#endif                             // TARGET_ARM
+#endif                             // _TARGET_ARM_
 
     UNATIVE_OFFSET adjIG;
     UNATIVE_OFFSET adjLJ;
@@ -3630,9 +3630,9 @@ AGAIN:
     adjIG         = 0;
     minShortExtra = (UNATIVE_OFFSET)-1;
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     minMediumExtra = (UNATIVE_OFFSET)-1;
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     for (jmp = emitJumpList; jmp; jmp = jmp->idjNext)
     {
@@ -3645,12 +3645,12 @@ AGAIN:
         NATIVE_OFFSET  nsd = 0; // small  jump max. neg distance
         NATIVE_OFFSET  psd = 0; // small  jump max. pos distance
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         UNATIVE_OFFSET msz = 0; // medium jump size
         NATIVE_OFFSET  nmd = 0; // medium jump max. neg distance
         NATIVE_OFFSET  pmd = 0; // medium jump max. pos distance
         NATIVE_OFFSET  mextra;  // How far beyond the medium jump range is this jump offset?
-#endif                          // TARGET_ARM
+#endif                          // _TARGET_ARM_
 
         NATIVE_OFFSET  extra;           // How far beyond the short jump range is this jump offset?
         UNATIVE_OFFSET srcInstrOffs;    // offset of the source instruction of the jump
@@ -3661,7 +3661,7 @@ AGAIN:
         UNATIVE_OFFSET oldSize;
         UNATIVE_OFFSET sizeDif;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         assert(jmp->idInsFmt() == IF_LABEL || jmp->idInsFmt() == IF_RWR_LABEL || jmp->idInsFmt() == IF_SWR_LABEL);
 
         /* Figure out the smallest size we can end up with */
@@ -3681,9 +3681,9 @@ AGAIN:
                 psd = JMP_DIST_SMALL_MAX_POS;
             }
         }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         assert((jmp->idInsFmt() == IF_T2_J1) || (jmp->idInsFmt() == IF_T2_J2) || (jmp->idInsFmt() == IF_T1_I) ||
                (jmp->idInsFmt() == IF_T1_K) || (jmp->idInsFmt() == IF_T1_M) || (jmp->idInsFmt() == IF_T2_M1) ||
                (jmp->idInsFmt() == IF_T2_N1) || (jmp->idInsFmt() == IF_T1_J3) || (jmp->idInsFmt() == IF_LARGEJMP));
@@ -3722,9 +3722,9 @@ AGAIN:
         {
             assert(!"Unknown jump instruction");
         }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         /* Figure out the smallest size we can end up with */
 
         if (emitIsCondJump(jmp))
@@ -3757,7 +3757,7 @@ AGAIN:
         {
             assert(!"Unknown jump instruction");
         }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
 /* Make sure the jumps are properly ordered */
 
@@ -3817,7 +3817,7 @@ AGAIN:
         // If this is a jump via register, the instruction size does not change, so we are done.
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
         // JIT code and data will be allocated together for arm64 so the relative offset to JIT data is known.
         // In case such offset can be encodeable for `ldr` (+-1MB), shorten it.
         if (jmp->idAddr()->iiaIsJitDataOffset())
@@ -3912,7 +3912,7 @@ AGAIN:
         // We should not be jumping/branching across funclets/functions
         emitCheckFuncletBranch(jmp, jmpIG);
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         /* Done if this is not a variable-sized jump */
 
         if ((jmp->idIns() == INS_push) || (jmp->idIns() == INS_mov) || (jmp->idIns() == INS_call) ||
@@ -3921,14 +3921,14 @@ AGAIN:
             continue;
         }
 #endif
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         if ((jmp->idIns() == INS_push) || (jmp->idIns() == INS_mov) || (jmp->idIns() == INS_movt) ||
             (jmp->idIns() == INS_movw))
         {
             continue;
         }
 #endif
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         // There is only one size of unconditional branch; we don't support functions larger than 2^28 bytes (our branch
         // range).
         if (emitIsUncondJump(jmp))
@@ -3954,10 +3954,10 @@ AGAIN:
         /* Note that the destination is always the beginning of an IG, so no need for an offset inside it */
         dstOffs = tgtIG->igOffs;
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         srcEncodingOffs =
             srcInstrOffs + 4; // For relative branches, ARM PC is always considered to be the instruction address + 4
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         srcEncodingOffs =
             srcInstrOffs; // For relative branches, ARM64 PC is always considered to be the instruction address
 #else
@@ -4073,7 +4073,7 @@ AGAIN:
             minShortExtra = (unsigned)extra;
         }
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
         // If we're here, we couldn't convert to a small jump.
         // Handle conversion to medium-sized conditional jumps.
@@ -4145,7 +4145,7 @@ AGAIN:
                 minMediumExtra = (unsigned)mextra;
         }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
         /*****************************************************************************
          * We arrive here if the jump must stay long, at least for now.
@@ -4176,15 +4176,15 @@ AGAIN:
         assert(oldSize >= jsz);
         sizeDif = oldSize - jsz;
 
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         jmp->idCodeSize(jsz);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
 #if 0
         // This is done as part of emitSetShortJump():
         insSize isz = emitInsSize(jmp->idInsFmt());
         jmp->idInsSize(isz);
 #endif
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         // The size of IF_LARGEJMP/IF_LARGEADR/IF_LARGELDC are 8 or 12.
         // All other code size is 4.
         assert((sizeDif == 4) || (sizeDif == 8));
@@ -4194,7 +4194,7 @@ AGAIN:
 
         goto NEXT_JMP;
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
 
     /*****************************************************************************/
     /* Handle conversion to medium jump                                          */
@@ -4221,7 +4221,7 @@ AGAIN:
 
         goto NEXT_JMP;
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     /*****************************************************************************/
 
@@ -4283,7 +4283,7 @@ AGAIN:
         /* Is there a chance of other jumps becoming short? */
         CLANG_FORMAT_COMMENT_ANCHOR;
 #ifdef DEBUG
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         if (EMITVERBOSE)
             printf("Total shrinkage = %3u, min extra short jump size = %3u, min extra medium jump size = %u\n", adjIG,
                    minShortExtra, minMediumExtra);
@@ -4296,9 +4296,9 @@ AGAIN:
 #endif
 
         if ((minShortExtra <= adjIG)
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
             || (minMediumExtra <= adjIG)
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
                 )
         {
             jmp_iteration++;
@@ -4334,7 +4334,7 @@ void emitter::emitCheckFuncletBranch(instrDesc* jmp, insGroup* jmpIG)
     // meets one of those criteria...
     assert(jmp->idIsBound());
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     // An lea of a code address (for constant data stored with the code)
     // is treated like a jump for emission purposes but is not really a jump so
     // we don't have to check anything here.
@@ -4344,22 +4344,22 @@ void emitter::emitCheckFuncletBranch(instrDesc* jmp, insGroup* jmpIG)
     }
 #endif
 
-#ifdef TARGET_ARMARCH
+#ifdef _TARGET_ARMARCH_
     if (jmp->idAddr()->iiaHasInstrCount())
     {
         // Too hard to figure out funclets from just an instruction count
         // You're on your own!
         return;
     }
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // No interest if it's not jmp.
     if (emitIsLoadLabel(jmp) || emitIsLoadConstant(jmp))
     {
         return;
     }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
     insGroup* tgtIG = jmp->idAddr()->iiaIGlabel;
     assert(tgtIG);
@@ -4559,18 +4559,18 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         emitEpilogSize = 0;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         emitExitSeqSize = 0;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     }
 
     /* Return the size of the epilog to the caller */
 
     *epilogSize = emitEpilogSize;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     *epilogSize += emitExitSeqSize;
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
 #ifdef DEBUG
     if (EMIT_INSTLIST_VERBOSE)
@@ -4592,7 +4592,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     CorJitAllocMemFlag allocMemFlag = CORJIT_ALLOCMEM_DEFAULT_CODE_ALIGN;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     //
     // These are the heuristics we use to decide whether or not to force the
     // code to be 16-byte aligned.
@@ -4626,7 +4626,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         allocMemFlag = static_cast<CorJitAllocMemFlag>(allocMemFlag | CORJIT_ALLOCMEM_FLG_RODATA_16BYTE_ALIGN);
     }
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // For arm64, we want to allocate JIT data always adjacent to code similar to what native compiler does.
     // This way allows us to use a single `ldr` to access such data like float constant/jmp table.
     if (emitTotalColdCodeSize > 0)
@@ -5076,7 +5076,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     {
         for (instrDescJmp* jmp = emitJumpList; jmp != nullptr; jmp = jmp->idjNext)
         {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             assert(jmp->idInsFmt() == IF_LABEL || jmp->idInsFmt() == IF_RWR_LABEL || jmp->idInsFmt() == IF_SWR_LABEL);
 #endif
             insGroup* tgt = jmp->idAddr()->iiaIGlabel;
@@ -5090,7 +5090,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
             {
                 BYTE* adr = jmp->idjTemp.idjAddr;
                 int   adj = jmp->idjOffs - tgt->igOffs;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
                 // On Arm, the offset is encoded in unit of 2 bytes.
                 adj >>= 1;
 #endif
@@ -5098,7 +5098,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 #if DEBUG_EMIT
                 if ((jmp->idDebugOnlyInfo()->idNum == (unsigned)INTERESTING_JUMP_NUM) || (INTERESTING_JUMP_NUM == 0))
                 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
                     printf("[5] This output is broken for ARM, since it doesn't properly decode the jump offsets of "
                            "the instruction at adr\n");
 #endif
@@ -5125,13 +5125,13 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
                 {
                     // Patch Forward Short Jump
                     CLANG_FORMAT_COMMENT_ANCHOR;
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
                     *(BYTE*)adr -= (BYTE)adj;
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
                     // The following works because the jump offset is in the low order bits of the instruction.
                     // Presumably we could also just call "emitOutputLJ(NULL, adr, jmp)", like for long jumps?
                     *(short int*)adr -= (short)adj;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
                     assert(!jmp->idAddr()->iiaHasInstrCount());
                     emitOutputLJ(NULL, adr, jmp);
 #else
@@ -5142,9 +5142,9 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
                 {
                     // Patch Forward non-Short Jump
                     CLANG_FORMAT_COMMENT_ANCHOR;
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
                     *(int*)adr -= adj;
-#elif defined(TARGET_ARMARCH)
+#elif defined(_TARGET_ARMARCH_)
                     assert(!jmp->idAddr()->iiaHasInstrCount());
                     emitOutputLJ(NULL, adr, jmp);
 #else
@@ -5220,7 +5220,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 // See specification comment at the declaration.
 void emitter::emitGenGCInfoIfFuncletRetTarget(insGroup* ig, BYTE* cp)
 {
-#if FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
     // We only emit this GC information on targets where finally's are implemented via funclets,
     // and the finally is invoked, during non-exceptional execution, via a branch with a predefined
     // link register, rather than a "true call" for which we would already generate GC info.  Currently,
@@ -5237,7 +5237,7 @@ void emitter::emitGenGCInfoIfFuncletRetTarget(insGroup* ig, BYTE* cp)
             emitRecordGCcall(cp, /*callInstrSize*/ 1);
         }
     }
-#endif // FEATURE_EH_FUNCLETS && defined(TARGET_ARM)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 }
 
 /*****************************************************************************
@@ -5639,7 +5639,7 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
                 // Append the appropriate address to the destination
                 BYTE* target = emitOffsetToPtr(lab->igOffs);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
                 target = (BYTE*)((size_t)target | 1); // Or in thumb bit
 #endif
                 bDst[i] = (target_size_t)target;
@@ -5766,7 +5766,7 @@ void emitter::emitDispDataSec(dataSecDsc* section)
                 }
                 else
                 {
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
                     // We have a 32-BIT target
                     if (emitComp->opts.disDiffable)
                     {
@@ -5776,7 +5776,7 @@ void emitter::emitDispDataSec(dataSecDsc* section)
                     {
                         printf("dd\t%08Xh", reinterpret_cast<uint32_t>(emitOffsetToPtr(ig->igOffs)));
                     }
-#else  // TARGET_64BIT
+#else  // _TARGET_64BIT_
                     // We have a 64-BIT target
                     if (emitComp->opts.disDiffable)
                     {
@@ -5786,7 +5786,7 @@ void emitter::emitDispDataSec(dataSecDsc* section)
                     {
                         printf("dq\t%016llXh", reinterpret_cast<uint64_t>(emitOffsetToPtr(ig->igOffs)));
                     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
                 }
 
                 if (!emitComp->opts.disDiffable)
@@ -6355,10 +6355,10 @@ unsigned char emitter::emitOutputByte(BYTE* dst, ssize_t val)
     {
         printf("; emit_byte 0%02XH\n", val & 0xFF);
     }
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // if we're emitting code bytes, ensure that we've already emitted the rex prefix!
     assert(((val & 0xFF00000000LL) == 0) || ((val & 0xFFFFFFFF00000000LL) == 0xFFFFFFFF00000000LL));
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 #endif
 
     return sizeof(unsigned char);
@@ -6378,10 +6378,10 @@ unsigned char emitter::emitOutputWord(BYTE* dst, ssize_t val)
     {
         printf("; emit_word 0%02XH,0%02XH\n", (val & 0xFF), (val >> 8) & 0xFF);
     }
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // if we're emitting code bytes, ensure that we've already emitted the rex prefix!
     assert(((val & 0xFF00000000LL) == 0) || ((val & 0xFFFFFFFF00000000LL) == 0xFFFFFFFF00000000LL));
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 #endif
 
     return sizeof(short);
@@ -6401,10 +6401,10 @@ unsigned char emitter::emitOutputLong(BYTE* dst, ssize_t val)
     {
         printf("; emit_long 0%08XH\n", (int)val);
     }
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     // if we're emitting code bytes, ensure that we've already emitted the rex prefix!
     assert(((val & 0xFF00000000LL) == 0) || ((val & 0xFFFFFFFF00000000LL) == 0xFFFFFFFF00000000LL));
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 #endif
 
     return sizeof(int);
@@ -6422,11 +6422,11 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, ssize_t val)
 #ifdef DEBUG
     if (emitComp->opts.dspEmit)
     {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
         printf("; emit_size_t 0%016llXH\n", val);
-#else  // TARGET_AMD64
+#else  // _TARGET_AMD64_
         printf("; emit_size_t 0%08XH\n", val);
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
     }
 #endif // DEBUG
 
@@ -6445,7 +6445,7 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, ssize_t val)
 //    Same as wrapped function.
 //
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 unsigned char emitter::emitOutputByte(BYTE* dst, size_t val)
 {
     return emitOutputByte(dst, (ssize_t)val);
@@ -6485,7 +6485,7 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, unsigned __int64 val)
 {
     return emitOutputSizeT(dst, (ssize_t)val);
 }
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 
 /*****************************************************************************
  *
@@ -7018,7 +7018,7 @@ void emitter::emitNxtIG(bool emitAdd)
 
 target_ssize_t emitter::emitGetInsSC(instrDesc* id)
 {
-#ifdef TARGET_ARM // should it be TARGET_ARMARCH? Why do we need this? Note that on ARM64 we store scaled immediates
+#ifdef _TARGET_ARM_ // should it be _TARGET_ARMARCH_? Why do we need this? Note that on ARM64 we store scaled immediates
                     // for some formats
     if (id->idIsLclVar())
     {
@@ -7026,13 +7026,13 @@ target_ssize_t emitter::emitGetInsSC(instrDesc* id)
 
         regNumber baseReg;
         int       offs = id->idAddr()->iiaLclVar.lvaOffset();
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
         int adr =
             emitComp->lvaFrameAddress(varNum, id->idIsLclFPBase(), &baseReg, offs, CodeGen::instIsFP(id->idIns()));
         int dsp = adr + offs;
         if ((id->idIns() == INS_sub) || (id->idIns() == INS_subw))
             dsp = -dsp;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
         // TODO-ARM64-Cleanup: this is currently unreachable. Do we need it?
         bool FPbased;
         int  adr = emitComp->lvaFrameAddress(varNum, &FPbased);
@@ -7043,7 +7043,7 @@ target_ssize_t emitter::emitGetInsSC(instrDesc* id)
         return dsp;
     }
     else
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
         if (id->idIsLargeCns())
     {
         return ((instrDescCns*)id)->idcCnsVal;
@@ -7054,14 +7054,14 @@ target_ssize_t emitter::emitGetInsSC(instrDesc* id)
     }
 }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
 BYTE* emitter::emitGetInsRelocValue(instrDesc* id)
 {
     return ((instrDescReloc*)id)->idrRelocVal;
 }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 /*****************************************************************************/
 #if EMIT_TRACK_STACK_DEPTH
@@ -7476,7 +7476,7 @@ void emitter::emitRecordRelocation(void* location,            /* IN */
 #endif // defined(LATE_DISASM)
 }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 /*****************************************************************************
  *  A helper for handling a Thumb-Mov32 of position-independent (PC-relative) value
  *
@@ -7497,7 +7497,7 @@ void emitter::emitHandlePCRelativeMov32(void* location, /* IN */
         emitRecordRelocation(location, target, IMAGE_REL_BASED_THUMB_MOV32);
     }
 }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 /*****************************************************************************
  *  A helper for recording a call site with the EE.
@@ -7669,22 +7669,22 @@ regMaskTP emitter::emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper)
     switch (helper)
     {
         case CORINFO_HELP_ASSIGN_BYREF:
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
             // This helper only trashes ECX.
             result = RBM_ECX;
             break;
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
             // This uses and defs RDI and RSI.
             result = RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
             break;
-#elif defined(TARGET_ARMARCH)
+#elif defined(_TARGET_ARMARCH_)
             result = RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
             break;
 #else
             assert(!"unknown arch");
 #endif
 
-#if defined(TARGET_XARCH) || defined(TARGET_ARM)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM_)
         case CORINFO_HELP_PROF_FCN_ENTER:
             result = RBM_PROFILER_ENTER_TRASH;
             break;
@@ -7692,25 +7692,25 @@ regMaskTP emitter::emitGetGCRegsKilledByNoGCCall(CorInfoHelpFunc helper)
         case CORINFO_HELP_PROF_FCN_LEAVE:
             result = RBM_PROFILER_LEAVE_TRASH;
             break;
-#if defined(TARGET_XARCH)
+#if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_TAILCALL:
             result = RBM_PROFILER_TAILCALL_TRASH;
             break;
-#endif // defined(TARGET_XARCH)
-#endif // defined(TARGET_XARCH) || defined(TARGET_ARM)
+#endif // defined(_TARGET_XARCH_)
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM_)
 
-#if defined(TARGET_ARMARCH)
+#if defined(_TARGET_ARMARCH_)
         case CORINFO_HELP_ASSIGN_REF:
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
             result = RBM_CALLEE_GCTRASH_WRITEBARRIER;
             break;
-#endif // defined(TARGET_ARMARCH)
+#endif // defined(_TARGET_ARMARCH_)
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
             result = RBM_INIT_PINVOKE_FRAME_TRASH;
             break;
-#endif // defined(TARGET_X86)
+#endif // defined(_TARGET_X86_)
 
         default:
             result = RBM_CALLEE_TRASH_NOGC;

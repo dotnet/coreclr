@@ -28,7 +28,7 @@
 // from Contract.h to allow their inclusion in any part of the system.
 //
 
-#if defined(_DEBUG) && defined(TARGET_X86)
+#if defined(_DEBUG) && defined(_TARGET_X86_)
 #define METHOD_CANNOT_BE_FOLDED_DEBUG                               \
     static int _noFold = 0;                                         \
     _noFold++;
@@ -36,7 +36,7 @@
 #define METHOD_CANNOT_BE_FOLDED_DEBUG
 #endif
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
 //
 // currently, only x86 has a static contract analysis tool, so let's not
@@ -111,7 +111,7 @@
 
 #endif
 
-#else // TARGET_X86
+#else // _TARGET_X86_
 
 #define ANNOTATION_TRY_BEGIN                { }
 #define ANNOTATION_TRY_END                  { }
@@ -170,7 +170,7 @@
 #define ANNOTATION_DEBUG_ONLY               { }
 #endif
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #define STATIC_CONTRACT_THROWS              ANNOTATION_FN_THROWS
 #define STATIC_CONTRACT_NOTHROW             ANNOTATION_FN_NOTHROW
@@ -285,7 +285,7 @@ typedef StaticContract::ScanThrowMarkerStandard ScanThrowMarker;
 
 
 // we use BlockMarker's only for SCAN
-#if defined(_DEBUG) && defined(TARGET_X86) && !defined(DACCESS_COMPILE)
+#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(DACCESS_COMPILE)
 
 template <UINT COUNT>
 class BlockMarker

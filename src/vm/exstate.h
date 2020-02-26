@@ -219,7 +219,7 @@ public:
 private:   
     ThreadExceptionFlag      m_flag;
 
-#ifndef TARGET_UNIX        
+#ifndef FEATURE_PAL        
 private:
     EHWatsonBucketTracker    m_UEWatsonBucketTracker;
 public:
@@ -228,7 +228,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return PTR_EHWatsonBucketTracker(PTR_HOST_MEMBER_TADDR(ThreadExceptionState, this, m_UEWatsonBucketTracker));
     }
-#endif // !TARGET_UNIX        
+#endif // !FEATURE_PAL        
 
 private:
 
@@ -269,7 +269,7 @@ private:
                                    EXCEPTION_REGISTRATION_RECORD* pEstablisherFrame,
                                    DWORD exceptionCode);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     friend LPVOID COMPlusEndCatchWorker(Thread * pThread);
 #endif
 
@@ -277,10 +277,10 @@ private:
 
     friend StackWalkAction COMPlusUnwindCallback(CrawlFrame *pCf, ThrowCallbackType *pData);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     friend void ResumeAtJitEH(CrawlFrame* pCf, BYTE* startPC, EE_ILEXCEPTION_CLAUSE *EHClausePtr, 
                                    DWORD nestingLevel, Thread *pThread, BOOL unwindStack);
-#endif // TARGET_X86                                   
+#endif // _TARGET_X86_                                   
 
     friend _EXCEPTION_HANDLER_DECL(COMPlusNestedExceptionHandler);
 
@@ -319,7 +319,7 @@ private:
 
 extern BOOL IsWatsonEnabled();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // This preprocessor definition is used to capture watson buckets
 // at AppDomain transition boundary in END_DOMAIN_TRANSITION macro.
 //
@@ -359,8 +359,8 @@ extern BOOL IsWatsonEnabled();
                 SetupWatsonBucketsForNonPreallocatedExceptions(throwable);                                                                  \
             }                                                                                                                               \
         }                                                                   
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
 #define CAPTURE_BUCKETS_AT_TRANSITION(pThread, oThrowable)
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #endif // __ExState_h__

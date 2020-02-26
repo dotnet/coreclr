@@ -460,7 +460,7 @@ int test11(int num, ...)
 /*
 **  Run only on 64 bit platforms
 */
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 	Trace("Testing for 64 Bit Platforms \n");
 	if(memcmp(OutBuffer, 
               convert("Pal 00000000000123AB and foo Testing"),

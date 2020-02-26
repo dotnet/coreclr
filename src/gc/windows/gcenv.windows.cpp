@@ -97,7 +97,7 @@ void InitNumaNodeInfo()
     return;
 }
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
 // Calculate greatest common divisor
 DWORD GCD(DWORD u, DWORD v)
 {
@@ -156,7 +156,7 @@ bool InitLargePagesPrivilege()
 
 bool InitCPUGroupInfoArray()
 {
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     BYTE *bBuffer = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pSLPIEx = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pRecord = NULL;
@@ -229,7 +229,7 @@ bool InitCPUGroupInfoArray()
 
 bool InitCPUGroupInfoRange()
 {
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD begin   = 0;
     WORD nr_proc = 0;
 
@@ -251,7 +251,7 @@ void InitCPUGroupInfo()
 {
     g_fEnableGCCPUGroups = false;
 
-#if (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     if (!GCConfig::GetGCCpuGroup())
         return;
 
@@ -263,7 +263,7 @@ void InitCPUGroupInfo()
 
     // only enable CPU groups if more than one group exists
     g_fEnableGCCPUGroups = g_nGroups > 1;
-#endif // TARGET_AMD64 || TARGET_ARM64
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
 
     // Determine if the process is affinitized to a single processor (or if the system has a single processor)
     DWORD_PTR processAffinityMask, systemAffinityMask;
@@ -518,7 +518,7 @@ void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uin
 {
     assert(g_fEnableGCCPUGroups);
 
-#if !defined(FEATURE_REDHAWK) && (defined(TARGET_AMD64) || defined(TARGET_ARM64))
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     WORD bTemp = 0;
     WORD bDiff = processor_number - bTemp;
 
@@ -908,7 +908,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
         }
     }
 
-#ifdef HOST_X86
+#ifdef _X86_
     int dwBuffer[4];
 
     __cpuid(dwBuffer, 0);
@@ -922,7 +922,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
             if (dwBuffer[2] == 'letn') 
             {
                 maxTrueSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
-#ifdef HOST_64BIT
+#ifdef BIT64
                 if (maxCpuId >= 2)
                 {
                     // If we're running on a Prescott or greater core, EM64T tests
@@ -1008,7 +1008,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
     maxSize = maxTrueSize = GetLogicalProcessorCacheSizeFromOS() ; // Returns the size of the highest level processor cache
 #endif
 
-#if defined(HOST_ARM64)
+#if defined(_ARM64_)
     // Bigger gen0 size helps arm64 targets
     maxSize = maxTrueSize * 3;
 #endif

@@ -389,20 +389,20 @@ A comment for code within an `#ifdef` should also appear within the `#ifdef`. Fo
 
 Right:
 ```c++
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // This case only happens on ARM...
     if (...)
         ...
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 ```
 
 Wrong:
 ```c++
 // This case only happens on ARM...
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     if (...)
         ...
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 ```
 
 # <a name="8"/>8 Naming Conventions

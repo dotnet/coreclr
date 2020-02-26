@@ -194,7 +194,7 @@ namespace
                     ty = pSig->GetRetTypeHandleThrowing();
 
                 _ASSERTE((*src) != NULL || Nullable::IsNullableType(ty));
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
                 // Unboxing on non-Windows ABIs must be special cased
                 COMPlusThrowHR(COR_E_NOTSUPPORTED);
 #else
@@ -289,7 +289,7 @@ namespace
                     break;
                 }
 
-#if !defined(HOST_64BIT) && BIGENDIAN
+#if !defined(BIT64) && BIGENDIAN
                 if (fEndianessFixup)
                     ret <<= 32;
 #endif

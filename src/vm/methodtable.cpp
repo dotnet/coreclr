@@ -138,7 +138,7 @@ class MethodDataCache
     UINT32 m_cEntries;
     UINT32 m_iLastTouched;
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     UINT32 pad;      // insures that we are a multiple of 8-bytes
 #endif
 };  // class MethodDataCache
@@ -1034,7 +1034,7 @@ void MethodTable::FixupExtraInterfaceInfo(DataImage *pImage)
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
 // Define a macro that generates a mask for a given bit in a TADDR correctly on either 32 or 64 bit platforms.
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define SELECT_TADDR_BIT(_index) (1ULL << (_index))
 #else
 #define SELECT_TADDR_BIT(_index) (1U << (_index))
@@ -3858,7 +3858,7 @@ OBJECTREF MethodTable::FastBox(void** data)
     return ref;
 }
 
-#if TARGET_X86 || TARGET_AMD64
+#if _TARGET_X86_ || _TARGET_AMD64_
 //==========================================================================================
 static void FastCallFinalize(Object *obj, PCODE funcPtr, BOOL fCriticalCall)
 {
@@ -3868,7 +3868,7 @@ static void FastCallFinalize(Object *obj, PCODE funcPtr, BOOL fCriticalCall)
 
     BEGIN_CALL_TO_MANAGEDEX(fCriticalCall ? EEToManagedCriticalCall : EEToManagedDefault);
 
-#if defined(TARGET_X86)    
+#if defined(_TARGET_X86_)    
 
     __asm
     {
@@ -3877,16 +3877,16 @@ static void FastCallFinalize(Object *obj, PCODE funcPtr, BOOL fCriticalCall)
         INDEBUG(nop)            // Mark the fact that we can call managed code
     }
 
-#else // TARGET_X86
+#else // _TARGET_X86_
 
     FastCallFinalizeWorker(obj, funcPtr);
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     END_CALL_TO_MANAGED();
 }
 
-#endif // TARGET_X86 || TARGET_AMD64
+#endif // _TARGET_X86_ || _TARGET_AMD64_
 
 void CallFinalizerOnThreadObject(Object *obj)
 {
@@ -3997,7 +3997,7 @@ void MethodTable::CallFinalizer(Object *obj)
     }
 #endif
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
 #ifdef DEBUGGING_SUPPORTED
     if (CORDebuggerTraceCall())
@@ -4006,7 +4006,7 @@ void MethodTable::CallFinalizer(Object *obj)
 
     FastCallFinalize(obj, funcPtr, fCriticalFinalizer);
 
-#else // defined(TARGET_X86) || defined(TARGET_AMD64)
+#else // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
     PREPARE_NONVIRTUAL_CALLSITE_USING_CODE(funcPtr);
 
@@ -4021,7 +4021,7 @@ void MethodTable::CallFinalizer(Object *obj)
 
     CALL_MANAGED_METHOD_NORET(args);
 
-#endif // (defined(TARGET_X86) && defined(TARGET_AMD64)
+#endif // (defined(_TARGET_X86_) && defined(_TARGET_AMD64_)
 
 #ifdef STRESS_LOG
     if (fCriticalFinalizer)
@@ -9851,7 +9851,7 @@ void MethodTable::SetSlot(UINT32 slotNumber, PCODE slotCode)
 
     // IBC logging is not needed here - slots in ngen images are immutable.
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Ensure on ARM that all target addresses are marked as thumb code.
     _ASSERTE(IsThumbCode(slotCode));
 #endif

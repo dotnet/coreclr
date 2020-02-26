@@ -119,10 +119,10 @@ bool verbMerge::DirectoryFilterDirectories(WIN32_FIND_DATAW* findData)
 // 3. hidden directories
 // 4. "." or ".."
 
-#ifndef TARGET_UNIX // FILE_ATTRIBUTE_REPARSE_POINT is not defined in the PAL
+#ifndef FEATURE_PAL // FILE_ATTRIBUTE_REPARSE_POINT is not defined in the PAL
         if ((findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
             return false;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
         if ((findData->dwFileAttributes & FILE_ATTRIBUTE_SYSTEM) != 0)
             return false;
         if ((findData->dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0)
@@ -204,18 +204,18 @@ int verbMerge::FilterDirectory(LPCWSTR                      searchPattern,
     // NOTE: this function only works on Windows 7 and later.
     WIN32_FIND_DATAW findData;
     HANDLE           hSearch;
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // PAL doesn't have FindFirstFileEx(). So just use FindFirstFile(). The only reason we use
     // the Ex version is potentially better performance (don't populate short name; use large fetch),
     // not functionality.
     hSearch = FindFirstFileW(searchPattern, &findData);
-#else  // !TARGET_UNIX
+#else  // !FEATURE_PAL
     hSearch = FindFirstFileExW(searchPattern,
                                FindExInfoBasic, // We don't care about the short names
                                &findData,
                                FindExSearchNameMatch, // standard name matching
                                NULL, FIND_FIRST_EX_LARGE_FETCH);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     if (hSearch == INVALID_HANDLE_VALUE)
     {

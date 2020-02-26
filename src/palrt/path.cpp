@@ -241,7 +241,7 @@ void NearRootFixups(LPWSTR lpszPath, BOOL fUNC)
     if (lpszPath[0] == W('\0'))
     {
         // Fix up.
-#ifndef TARGET_UNIX        
+#ifndef PLATFORM_UNIX        
         lpszPath[0] = CH_WHACK;
 #else
         lpszPath[0] = CH_SLASH;
@@ -305,7 +305,7 @@ STDAPI_(BOOL) PathCanonicalizeW(LPWSTR lpszDst, LPCWSTR lpszSrc)
         if (cchPC == 1 && IsPathSeparator(*lpchSrc))   // Check for slashes.
         {
             // Just copy them.
-#ifndef TARGET_UNIX            
+#ifndef PLATFORM_UNIX            
             *lpchDst = CH_WHACK;
 #else
             *lpchDst = CH_SLASH;

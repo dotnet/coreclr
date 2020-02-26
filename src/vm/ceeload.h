@@ -98,13 +98,13 @@ extern VerboseLevel g_CorCompileVerboseLevel;
 #define GUID_TO_TYPE_HASH_BUCKETS 16
             
 // The native symbol reader dll name
-#if defined(HOST_AMD64)
+#if defined(_AMD64_)
 #define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.amd64.dll")
-#elif defined(HOST_X86)
+#elif defined(_X86_)
 #define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.x86.dll")
-#elif defined(HOST_ARM)
+#elif defined(_ARM_)
 #define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm.dll")
-#elif defined(HOST_ARM64)
+#elif defined(_ARM64_)
 // Use diasymreader until the package has an arm64 version - issue #7360
 //#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm64.dll")
 #define NATIVE_SYMBOL_READER_DLL W("diasymreader.dll")
@@ -206,12 +206,12 @@ enum {
     kLookupMapIndexStride   = 0x10,                         // The range of table entries covered by one index entry (power of two for faster hash lookup)
     kBitsPerRVA             = sizeof(DWORD) * 8,            // Bits in an (uncompressed) table value RVA (RVAs
                                                             // currently still 32-bit even on 64-bit platforms)
-#ifdef HOST_64BIT
+#ifdef BIT64
     kFlagBits               = 3,                            // Number of bits at the bottom of a value
                                                             // pointer that may be used for flags
-#else // HOST_64BIT
+#else // BIT64
     kFlagBits               = 2,
-#endif // HOST_64BIT
+#endif // BIT64
 
 };
 

@@ -9,7 +9,7 @@
 #include "common.h"
 #include "gmscpu.h"
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #define USE_EXTERNAL_UNWINDER
 #endif
 

@@ -278,9 +278,9 @@ private:
 
 #if defined(DEBUG)
     UINT32 m_maximumSignalCount;
-#endif // _DEBUG && !TARGET_UNIX
+#endif // _DEBUG && !FEATURE_PAL
 
-    // When TARGET_UNIX is defined, this is a handle to an instance of the PAL's LIFO semaphore. When TARGET_UNIX is not
+    // When FEATURE_PAL is defined, this is a handle to an instance of the PAL's LIFO semaphore. When FEATURE_PAL is not
     // defined, this is a handle to an I/O completion port.
     HANDLE m_handle;
 };

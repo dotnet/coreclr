@@ -10,9 +10,9 @@
 
 
 
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
 #error Should only include "cgenx86.h" for X86 builds
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #ifndef __cgenx86_h__
 #define __cgenx86_h__
@@ -553,7 +553,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 // #define JIT_GetSharedGCStaticBaseNoCtor
 // #define JIT_GetSharedNonGCStaticBaseNoCtor
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #define JIT_ChkCastClass            JIT_ChkCastClass
 #define JIT_ChkCastClassSpecial     JIT_ChkCastClassSpecial
 #define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass
@@ -561,6 +561,6 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
 #define JIT_NewCrossContext         JIT_NewCrossContext
 #define JIT_Stelem_Ref              JIT_Stelem_Ref
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #endif // __cgenx86_h__

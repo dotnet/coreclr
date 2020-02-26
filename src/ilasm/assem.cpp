@@ -15,10 +15,10 @@
 #define DECLARE_DATA
 
 #include "assembler.h"
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #include "coreclrloader.h"
 CoreCLRLoader *g_loader;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 MetaDataGetDispenserFunc metaDataGetDispenser;
 
 void indexKeywords(Indx* indx); // defined in asmparse.y
@@ -231,7 +231,7 @@ Assembler::~Assembler()
         m_pDisp = NULL;
     }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     if (g_loader != NULL)
     {
         g_loader->Finish();
@@ -243,7 +243,7 @@ Assembler::~Assembler()
 
 BOOL Assembler::Init()
 {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     g_loader = CoreCLRLoader::Create(g_pszExeFile);
     if (g_loader == NULL)
     {
@@ -252,7 +252,7 @@ BOOL Assembler::Init()
     metaDataGetDispenser = (MetaDataGetDispenserFunc)g_loader->LoadFunction("MetaDataGetDispenser");
 #else
     metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     if (m_pCeeFileGen != NULL) {
         if (m_pCeeFile)
             m_pCeeFileGen->DestroyCeeFile(&m_pCeeFile);

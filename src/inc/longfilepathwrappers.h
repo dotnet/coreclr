@@ -63,7 +63,7 @@ CopyFileWrapper(
     _In_ BOOL bFailIfExists
     );
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 BOOL
 CopyFileExWrapper(
     _In_        LPCWSTR lpExistingFileName,
@@ -74,7 +74,7 @@ CopyFileExWrapper(
     _Inout_opt_ LPBOOL pbCancel,
     _In_        DWORD dwCopyFlags
     );
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 
 BOOL
 MoveFileExWrapper(

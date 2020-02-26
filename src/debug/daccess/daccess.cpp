@@ -46,7 +46,7 @@ HINSTANCE g_thisModule;
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
 
 EXTERN_C
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
 BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
@@ -91,7 +91,7 @@ BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             DeleteCriticalSection(&g_dacCritSec);
         }
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         TLS_FreeMasterSlotIndex();
 #endif
         g_procInitialized = false;
@@ -2338,7 +2338,7 @@ namespace serialization { namespace bin {
 
     static const size_t ErrOverflow = (size_t)(-1);
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
     // Template class is_blittable
     template <typename _Ty, typename Enable = void>
@@ -2389,11 +2389,11 @@ namespace serialization { namespace bin {
     template <typename T>
     class Traits<T, typename std::enable_if<is_blittable<T>::value>::type>
     {
-#else // TARGET_UNIX
+#else // FEATURE_PAL
     template <typename T>
     class Traits
     {
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     public:
         //
         // raw_size() returns the size in bytes of the binary representation of a
@@ -2555,7 +2555,7 @@ namespace serialization { namespace bin {
 
     };
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     //
     // Specialization for SString-derived classes (like SStrings)
     //
@@ -2564,7 +2564,7 @@ namespace serialization { namespace bin {
         : public Traits<SString>
     {
     };
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     //
     // Convenience functions to allow argument type deduction
@@ -3707,7 +3707,7 @@ ClrDataAccess::GetRuntimeNameByAddress(
 
     EX_TRY
     {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         address &= ~THUMB_CODE; //workaround for windbg passing in addresses with the THUMB mode bit set
 #endif
         status = RawGetMethodName(address, flags, bufLen, symbolLen, symbolBuf,
@@ -5532,26 +5532,26 @@ ClrDataAccess::Initialize(void)
 
     // Determine our platform based on the pre-processor macros set when we were built
 
-#ifdef TARGET_UNIX
-    #if defined(TARGET_X86)
+#ifdef FEATURE_PAL
+    #if defined(DBG_TARGET_X86)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
-    #elif defined(TARGET_AMD64)
+    #elif defined(DBG_TARGET_AMD64)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_AMD64;
-    #elif defined(TARGET_ARM)
+    #elif defined(DBG_TARGET_ARM)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM;
-    #elif defined(TARGET_ARM64)
+    #elif defined(DBG_TARGET_ARM64)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM64;
     #else
         #error Unknown Processor.
     #endif
 #else
-    #if defined(TARGET_X86)
+    #if defined(DBG_TARGET_X86)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_X86;
-    #elif defined(TARGET_AMD64)
+    #elif defined(DBG_TARGET_AMD64)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_AMD64;
-    #elif defined(TARGET_ARM)
+    #elif defined(DBG_TARGET_ARM)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_ARM;
-    #elif defined(TARGET_ARM64)
+    #elif defined(DBG_TARGET_ARM64)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_ARM64;
     #else
         #error Unknown Processor.
@@ -5727,12 +5727,12 @@ ClrDataAccess::GetJitHelperName(
     };
     static_assert_no_msg(COUNTOF(s_rgHelperNames) == CORINFO_HELP_COUNT);
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     if (!dynamicHelpersOnly)
 #else
     if (!dynamicHelpersOnly && g_runtimeLoadedBaseAddress <= address &&
             address < g_runtimeLoadedBaseAddress + g_runtimeVirtualSize)
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     {
         // Read the whole table from the target in one shot for better performance
         VMHELPDEF * pTable = static_cast<VMHELPDEF *>(
@@ -5775,7 +5775,7 @@ ClrDataAccess::RawGetMethodName(
     /* [size_is][out] */ __out_ecount_opt(bufLen) WCHAR symbolBuf[  ],
     /* [out] */ CLRDATA_ADDRESS* displacement)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     _ASSERTE((address & THUMB_CODE) == 0);
     address &= ~THUMB_CODE;
 #endif
@@ -5851,7 +5851,7 @@ ClrDataAccess::RawGetMethodName(
 #endif
             PCODE alignedAddress = AlignDown(TO_TADDR(address), PRECODE_ALIGNMENT);
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             alignedAddress += THUMB_CODE;
 #endif
 
@@ -7031,7 +7031,7 @@ bool ClrDataAccess::TargetConsistencyAssertsEnabled()
 //
 HRESULT ClrDataAccess::VerifyDlls()
 {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Provide a knob for disabling this check if we really want to try and proceed anyway with a
     // DAC mismatch.  DAC behavior may be arbitrarily bad - globals probably won't be at the same
     // address, data structures may be laid out differently, etc.
@@ -7152,7 +7152,7 @@ HRESULT ClrDataAccess::VerifyDlls()
         // Return a specific hresult indicating this problem
         return CORDBG_E_MISMATCHED_CORWKS_AND_DACWKS_DLLS;
     }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     return S_OK;
 }
@@ -7430,7 +7430,7 @@ BOOL ClrDataAccess::IsExceptionFromManagedCode(EXCEPTION_RECORD* pExceptionRecor
     return flag;
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 //----------------------------------------------------------------------------
 //
@@ -7470,7 +7470,7 @@ HRESULT ClrDataAccess::GetWatsonBuckets(DWORD dwThreadId, GenericModeBlock * pGM
     return hr;
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 //----------------------------------------------------------------------------
 //
@@ -7574,7 +7574,7 @@ BOOL OutOfProcessExceptionEventGetProcessIdAndThreadId(HANDLE hProcess, HANDLE h
 {
     _ASSERTE((pPId != NULL) && (pThreadId != NULL));
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // UNIXTODO: mikem 1/13/15 Need appropriate PAL functions for getting ids
     *pPId = (DWORD)(SIZE_T)hProcess;
     *pThreadId = (DWORD)(SIZE_T)hThread;
@@ -7607,7 +7607,7 @@ BOOL OutOfProcessExceptionEventGetProcessIdAndThreadId(HANDLE hProcess, HANDLE h
 
     *pPId = (*pGetProcessIdOfThread)(hThread);
     *pThreadId = (*pGetThreadId)(hThread);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     return TRUE;
 }
 
@@ -7624,7 +7624,7 @@ typedef struct _WER_RUNTIME_EXCEPTION_INFORMATION
 #endif // !defined(WER_RUNTIME_EXCEPTION_INFORMATION)
 
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 //----------------------------------------------------------------------------
 //
@@ -7911,7 +7911,7 @@ STDAPI OutOfProcessExceptionEventSignatureCallback(__in PDWORD pContext,
     return S_OK;
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 //----------------------------------------------------------------------------
 //

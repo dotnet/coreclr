@@ -145,9 +145,9 @@
 
 #include "utilcode.h"
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #include "securitywrapper.h"
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 // Normally, this would go in profilepriv.inl, but it's not easily inlineable because of
@@ -600,7 +600,7 @@ HRESULT ProfilingAPIUtility::ProfilerCLSIDFromString(
     }
     else
     {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         WCHAR *szFrom, *szTo;
 
 #ifdef _PREFAST_
@@ -622,10 +622,10 @@ HRESULT ProfilingAPIUtility::ProfilerCLSIDFromString(
 #pragma warning(pop)
 #endif /*_PREFAST_*/
 
-#else // !TARGET_UNIX
-        // ProgID not supported on TARGET_UNIX
+#else // !FEATURE_PAL
+        // ProgID not supported on FEATURE_PAL
         hr = E_INVALIDARG;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     }
 
     if (FAILED(hr))
@@ -706,9 +706,9 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
 
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_PROFILER, &wszClsid));
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_PROFILER_PATH_32, &wszProfilerDLL));
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_PROFILER_PATH_64, &wszProfilerDLL));
 #endif
     if(wszProfilerDLL == NULL)
@@ -736,7 +736,7 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
         return S_FALSE;
     }
     
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // If the environment variable doesn't exist, profiling is not enabled.
     if (wszProfilerDLL == NULL)
     {
@@ -747,7 +747,7 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
 
         return S_FALSE;
     }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     
     CLSID clsid;
     hr = ProfilingAPIUtility::ProfilerCLSIDFromString(wszClsid, &clsid);
@@ -1494,7 +1494,7 @@ void ProfilingAPIUtility::TerminateProfiling()
     }
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 // ----------------------------------------------------------------------------
 // ProfilingAPIUtility::GetCurrentProcessUserSid
@@ -1555,6 +1555,6 @@ HRESULT ProfilingAPIUtility::GetCurrentProcessUserSid(PSID * ppsid)
     return S_OK;
 }
 
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #endif // PROFILING_SUPPORTED

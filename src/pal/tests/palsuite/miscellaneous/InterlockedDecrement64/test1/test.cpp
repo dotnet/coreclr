@@ -36,7 +36,7 @@ int __cdecl main(int argc, char *argv[])
 /*
 **  Run only on 64 bit platforms
 */
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     /* Compare START_VALUE with BaseVariableToManipulate, they're equal, 
        so exchange 
     */
@@ -56,7 +56,7 @@ int __cdecl main(int argc, char *argv[])
         Fail("ERROR: The function should have returned the new value of %d "
              "but instead returned %ll.",TheValue,TheReturn);    
     }
-#endif  //defined(HOST_64BIT)
+#endif  //defined(BIT64)
     PAL_Terminate();
     return PASS; 
 } 

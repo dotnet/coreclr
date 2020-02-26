@@ -249,9 +249,9 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
     }
     EX_CATCH_RETHROW_ONLY_COR_E_OPERATIONCANCELLED
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_runtimeLoadedBaseAddress.EnumMem(); )
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     // These are the structures that are pointed by global pointers and we care.
     // Some may reside in heap and some may reside as a static byte array in mscorwks.dll
@@ -1930,7 +1930,7 @@ ClrDataAccess::EnumMemoryRegions(IN ICLRDataEnumMemoryRegionsCallback* callback,
             status = EnumMemoryRegionsWrapper(CLRDATA_ENUM_MEM_MINI);
         }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         // For all dump types, we need to capture the chain to the IMAGE_DIRECTORY_ENTRY_DEBUG
         // contents, so that DAC can validate against the TimeDateStamp even if the
         // debugger can't find the main CLR module on disk.

@@ -66,7 +66,7 @@ class StringArrayList;
 #define _DEBUG_IMPL 1
 #endif
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
 // Under ARM we generate code only with Thumb encoding. In order to ensure we execute such code in the correct
 // mode we must ensure the low-order bit is set in any code address we'll call as a sub-routine. In C++ this
@@ -102,13 +102,13 @@ inline ResultType ThumbCodeToDataPointer(SourceType pCode)
     return (ResultType)(((UINT_PTR)pCode) & ~THUMB_CODE);
 }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 // Convert from a PCODE to the corresponding PINSTR.  On many architectures this will be the identity function;
 // on ARM, this will mask off the THUMB bit.
 inline TADDR PCODEToPINSTR(PCODE pc)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     return ThumbCodeToDataPointer<TADDR,PCODE>(pc);
 #else
     return dac_cast<PCODE>(pc);
@@ -119,7 +119,7 @@ inline TADDR PCODEToPINSTR(PCODE pc)
 // on ARM, this will raise the THUMB bit.
 inline PCODE PINSTRToPCODE(TADDR addr)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     return DataPointerToThumbCode<PCODE,TADDR>(addr);
 #else
     return dac_cast<PCODE>(addr);
@@ -490,7 +490,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 /********************************************************************************/
 /* portability helpers */
 
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
 #define IN_TARGET_64BIT(x)     x
 #define IN_TARGET_32BIT(x)
 #else

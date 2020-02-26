@@ -28,7 +28,7 @@
 #include "appdomain.hpp"
 #include "appdomain.inl"
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #include "utilcode.h"
 #endif
 
@@ -734,7 +734,7 @@ UINT64 QCALLTYPE ThreadNative::GetCurrentOSThreadId()
     UINT64 threadId;
 
     BEGIN_QCALL;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     threadId = (UINT64) GetCurrentThreadId();
 #else
     threadId = (UINT64) PAL_GetCurrentOSThreadId();
@@ -1283,7 +1283,7 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
     
     Thread* pThread = &(*thread);
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     // Set on Windows 10 Creators Update and later machines the unmanaged thread name as well. That will show up in ETW traces and debuggers which is very helpful
     // if more and more threads get a meaningful name
     if (len > 0 && name != NULL && pThread->GetThreadHandle() != INVALID_HANDLE_VALUE)

@@ -206,20 +206,20 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->Rip = pRD->ControlPC = m_MachState.m_Rip;
     pRD->pCurrentContext->Rsp = pRD->SP = m_MachState.m_Rsp;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = (m_MachState.m_Ptrs.p##regname != NULL) ? \
         *m_MachState.m_Ptrs.p##regname : m_MachState.m_Unwound.regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
-#else // TARGET_UNIX
+#else // FEATURE_PAL
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *m_MachState.m_Ptrs.p##regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = m_MachState.m_Ptrs.p##regname;
     ENUM_CALLEE_SAVED_REGISTERS();

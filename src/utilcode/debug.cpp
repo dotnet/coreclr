@@ -87,7 +87,7 @@ void DoRaiseExceptionOnAssert(DWORD chance)
 #if !defined(DACCESS_COMPILE)
     if (chance)
     {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         PAL_TRY_NAKED
         {
             RaiseException(EXCEPTION_INTERNAL_ASSERT, 0, 0, NULL);
@@ -96,10 +96,10 @@ void DoRaiseExceptionOnAssert(DWORD chance)
         {
         }
         PAL_ENDTRY_NAKED
-#else // TARGET_UNIX
+#else // FEATURE_PAL
         // For PAL always raise the exception.
         RaiseException(EXCEPTION_INTERNAL_ASSERT, 0, 0, NULL);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     }
 #endif // !DACCESS_COMPILE
 }
@@ -222,7 +222,7 @@ VOID LogAssert(
     STRESS_LOG2(LF_ASSERT, LL_ALWAYS, "ASSERT:%s, line:%d\n", szFile, iLine);
 
     SYSTEMTIME st;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     GetLocalTime(&st);
 #else
     GetSystemTime(&st);
@@ -260,7 +260,7 @@ BOOL LaunchJITDebugger()
     STATIC_CONTRACT_DEBUG_ONLY;
 
     BOOL fSuccess = FALSE;
-#ifndef TARGET_UNIX    
+#ifndef FEATURE_PAL    
     EX_TRY
     {
         SString debugger;
@@ -297,7 +297,7 @@ BOOL LaunchJITDebugger()
     {
     }
     EX_END_CATCH(SwallowAllExceptions);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     return fSuccess;
 }
 
@@ -559,7 +559,7 @@ bool _DbgBreakCheckNoThrow(
     return result;
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // Get the timestamp from the PE file header.  This is useful
 unsigned DbgGetEXETimeStamp()
 {
@@ -584,7 +584,7 @@ unsigned DbgGetEXETimeStamp()
 
     return cache;
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 // Called from within the IfFail...() macros.  Set a breakpoint here to break on
 // errors.
@@ -615,7 +615,7 @@ VOID DebBreakHr(HRESULT hr)
   #endif
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 CHAR g_szExprWithStack2[10480];
 #endif
 void *dbgForceToMemory;     // dummy pointer that pessimises enregistration
@@ -684,7 +684,7 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
     else
     {
         char *szExprToDisplay = (char*)szExpr;
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         BOOL fGotStackTrace = TRUE;
 #else
         BOOL fGotStackTrace = FALSE;
@@ -703,7 +703,7 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
         }
         EX_END_CATCH(SwallowAllExceptions);
 #endif  // DACCESS_COMPILE
-#endif  // TARGET_UNIX
+#endif  // FEATURE_PAL
         
         if (_DbgBreakCheckNoThrow(szFile, iLine, szExprToDisplay, !fGotStackTrace))
         {
@@ -731,7 +731,7 @@ bool GetStackTraceAtContext(SString & s, CONTEXT * pContext)
 
     FAULT_NOT_FATAL();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     EX_TRY
     {
         const int cTotal = cfrMaxAssertStackLevels - 1;
@@ -750,7 +750,7 @@ bool GetStackTraceAtContext(SString & s, CONTEXT * pContext)
         // Nothing to do here.
     }
     EX_END_CATCH(SwallowAllExceptions);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     return fSuccess;
 } // GetStackTraceAtContext
@@ -821,7 +821,7 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
     
     // Give assert in output for easy access.
     ClrGetModuleFileName(0, modulePath);
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     buffer.Printf(W("CLR: Assert failure(PID %d [0x%08x], Thread: %d [0x%x]): %hs\n")
                 W("    File: %hs, Line: %d Image:\n"),
                 GetCurrentProcessId(), GetCurrentProcessId(),
@@ -832,9 +832,9 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
     WszOutputDebugString(buffer);
     // Write out the error to the console
     _putws(buffer);
-#else // TARGET_UNIX
+#else // FEATURE_PAL
     // UNIXTODO: Do this for Unix.
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
     // Log to the stress log. Note that we can't include the szExpr b/c that 
     // may not be a string literal (particularly for formatt-able asserts).
     STRESS_LOG2(LF_ASSERT, LL_ALWAYS, "ASSERT:%s, line:%d\n", szFile, iLine);

@@ -9,9 +9,9 @@
 #include "profilerdiagnosticprotocolhelper.h"
 #include "diagnosticsprotocol.h"
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #include "pal.h"
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_AUTO_TRACE
 #include "autotrace.h"
@@ -76,7 +76,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
                 EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
             case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
                 DumpDiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;

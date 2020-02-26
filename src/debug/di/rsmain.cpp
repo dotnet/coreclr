@@ -487,7 +487,7 @@ void CordbCommonBase::InitializeCommon()
             unsigned level = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LogLevel, LL_INFO1000);
             unsigned bytesPerThread = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_StressLogSize, STRESSLOG_CHUNK_SIZE * 2);
             unsigned totalBytes = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_TotalStressLogSize, STRESSLOG_CHUNK_SIZE * 1024);
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
             StressLog::Initialize(facilities, level, bytesPerThread, totalBytes, GetModuleInst());
 #else
             StressLog::Initialize(facilities, level, bytesPerThread, totalBytes, NULL);
@@ -517,7 +517,7 @@ void CordbCommonBase::InitializeCommon()
 // setting this since V1.0 and removing it may be a breaking change.
 void CordbCommonBase::AddDebugPrivilege()
 {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     HANDLE hToken;
     TOKEN_PRIVILEGES Privileges;
     BOOL fSucc;
@@ -2011,7 +2011,7 @@ HRESULT Cordb::EnumerateProcesses(ICorDebugProcessEnum **ppProcesses)
 //
 typedef LONG NTSTATUS;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 typedef BOOL (*NTQUERYSYSTEMINFORMATION)(SYSTEM_INFORMATION_CLASS SystemInformationClass,
                                          PVOID SystemInformation,
                                          ULONG SystemInformationLength,

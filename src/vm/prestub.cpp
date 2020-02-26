@@ -313,7 +313,7 @@ PCODE MethodDesc::PrepareInitialCode()
     PrepareCodeConfig config(NativeCodeVersion(this), TRUE, TRUE);
     PCODE pCode = PrepareCode(&config);
 
-#if defined(FEATURE_GDBJIT) && defined(TARGET_UNIX) && !defined(CROSSGEN_COMPILE)
+#if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
     NotifyGdb::MethodPrepared(this);
 #endif
 
@@ -1368,10 +1368,10 @@ void CreateInstantiatingILStubTargetSig(MethodDesc *pBaseMD,
     SigPointer pReturn = msig.GetReturnProps();
     pReturn.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder);
 
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
     // The hidden context parameter
     stubSigBuilder->AppendElementType(ELEMENT_TYPE_I);            
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     // Copy rest of the arguments
     msig.NextArg();
@@ -1381,10 +1381,10 @@ void CreateInstantiatingILStubTargetSig(MethodDesc *pBaseMD,
         pArgs.ConvertToInternalExactlyOne(msig.GetModule(), &typeContext, stubSigBuilder);
     }
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // The hidden context parameter
     stubSigBuilder->AppendElementType(ELEMENT_TYPE_I);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 Stub * CreateUnboxingILStubForSharedGenericValueTypeMethods(MethodDesc* pTargetMD)
@@ -1428,7 +1428,7 @@ Stub * CreateUnboxingILStubForSharedGenericValueTypeMethods(MethodDesc* pTargetM
     pCode->EmitLoadThis();
     pCode->EmitLDFLDA(tokRawData);
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // 2.2 Push the rest of the arguments for x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
@@ -1444,7 +1444,7 @@ Stub * CreateUnboxingILStubForSharedGenericValueTypeMethods(MethodDesc* pTargetM
     pCode->EmitSUB();
     pCode->EmitLDIND_I();
 
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
     // 2.4 Push the rest of the arguments for not x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
@@ -1534,25 +1534,25 @@ Stub * CreateInstantiatingILStub(MethodDesc* pTargetMD, void* pHiddenArg)
         pCode->EmitLoadThis();
     }
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // 2.2 Push the rest of the arguments for x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
         pCode->EmitLDARG(i);
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     // 2.3 Push the hidden context param
     // InstantiatingStub
     pCode->EmitLDC((TADDR)pHiddenArg);
 
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
     // 2.4 Push the rest of the arguments for not x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
         pCode->EmitLDARG(i);
     }
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     // 2.5 Push the target address
     pCode->EmitLDC((TADDR)pTargetMD->GetMultiCallableAddrOfCode(CORINFO_ACCESS_ANY));
@@ -1669,7 +1669,7 @@ Stub * MakeInstantiatingStubWorker(MethodDesc *pMD)
 }
 #endif // defined(FEATURE_SHARE_GENERIC_CODE)
 
-#if defined (HAS_COMPACT_ENTRYPOINTS) && defined (TARGET_ARM)
+#if defined (HAS_COMPACT_ENTRYPOINTS) && defined (_TARGET_ARM_)
 
 extern "C" MethodDesc * STDCALL PreStubGetMethodDescForCompactEntryPoint (PCODE pCode)
 {
@@ -1682,7 +1682,7 @@ extern "C" MethodDesc * STDCALL PreStubGetMethodDescForCompactEntryPoint (PCODE 
     return MethodDescChunk::GetMethodDescFromCompactEntryPoint(pCode, FALSE);
 }
 
-#endif // defined (HAS_COMPACT_ENTRYPOINTS) && defined (TARGET_ARM)
+#endif // defined (HAS_COMPACT_ENTRYPOINTS) && defined (_TARGET_ARM_)
 
 //=============================================================================
 // This function generates the real code for a method and installs it into
@@ -2074,7 +2074,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     _ASSERTE((pStub != NULL) ^ (pCode != NULL));
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     //
     // We are seeing memory reordering race around fixups (see DDB 193514 and related bugs). We get into
     // situation where the patched precode is visible by other threads, but the resolved fixups 
@@ -2127,9 +2127,9 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 // use the prestub.
 //==========================================================================
 
-#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 static PCODE g_UMThunkPreStub;
-#endif // TARGET_X86 && !FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 #ifndef DACCESS_COMPILE 
 
@@ -2156,9 +2156,9 @@ void InitPreStubManager(void)
         return;
     }
 
-#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     g_UMThunkPreStub = GenerateUMThunkPrestub()->GetEntryPoint();
-#endif // TARGET_X86 && !FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     ThePreStubManager::Init();
 }
@@ -2167,18 +2167,18 @@ PCODE TheUMThunkPreStub()
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     return g_UMThunkPreStub;
-#else  // TARGET_X86 && !FEATURE_STUBS_AS_IL
+#else  // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
     return GetEEFuncEntryPoint(TheUMEntryPrestub);
-#endif // TARGET_X86 && !FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 }
 
 PCODE TheVarargNDirectStub(BOOL hasRetBuffArg)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(TARGET_X86) && !defined(TARGET_ARM64)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
     if (hasRetBuffArg)
     {
         return GetEEFuncEntryPoint(VarargPInvokeStub_RetBuffArg);
@@ -2212,7 +2212,7 @@ static PCODE PatchNonVirtualExternalMethod(MethodDesc * pMD, PCODE pCode, PTR_CO
     {
         CORCOMPILE_EXTERNAL_METHOD_THUNK * pThunk = (CORCOMPILE_EXTERNAL_METHOD_THUNK *)pIndirection;
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
         INT64 oldValue = *(INT64*)pThunk;
         BYTE* pOldValue = (BYTE*)&oldValue;
 
@@ -2230,12 +2230,12 @@ static PCODE PatchNonVirtualExternalMethod(MethodDesc * pMD, PCODE pCode, PTR_CO
 
             FlushInstructionCache(GetCurrentProcess(), pThunk, 8);
         }
-#elif  defined(TARGET_ARM) || defined(TARGET_ARM64)
+#elif  defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         // Patchup the thunk to point to the actual implementation of the cross module external method
         EnsureWritableExecutablePages(&pThunk->m_pTarget);
         pThunk->m_pTarget = pCode;
 
-        #if defined(TARGET_ARM)
+        #if defined(_TARGET_ARM_)
         // ThumbBit must be set on the target address
         _ASSERTE(pCode & THUMB_CODE);
         #endif
@@ -2298,13 +2298,13 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
     FrameWithCookie<ExternalMethodFrame> frame(pTransitionBlock);
     ExternalMethodFrame * pEMFrame = &frame;
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     // Decode indirection cell from callsite if it is not present
     if (pIndirection == NULL)
     {
         // Asssume that the callsite is call [xxxxxxxx]
         PCODE retAddr = pEMFrame->GetReturnAddress();
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         pIndirection = *(((TADDR *)retAddr) - 1);
 #else
         pIndirection = *(((INT32 *)retAddr) - 1) + retAddr;
@@ -2579,7 +2579,7 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
 }
 
 
-#if !defined(TARGET_X86) && !defined(TARGET_AMD64) && defined(FEATURE_PREJIT)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 //==========================================================================================
 // In NGen image, virtual slots inherited from cross-module dependencies point to jump thunks.
@@ -2630,13 +2630,13 @@ EXTERN_C PCODE VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_VIRTUAL_I
         if (EnsureWritableExecutablePagesNoThrow(&pThunk->m_pTarget, sizeof(pThunk->m_pTarget)))
             pThunk->m_pTarget = pCode;
     }
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
     // The target address should have the thumb bit set
     _ASSERTE(pCode & THUMB_CODE);
 #endif
     return pCode;
 }
-#endif // !defined(TARGET_X86) && !defined(TARGET_AMD64) && defined(FEATURE_PREJIT)
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 #ifdef FEATURE_READYTORUN
 
@@ -2805,7 +2805,7 @@ static PCODE getHelperForStaticBase(Module * pModule, CORCOMPILE_FIXUP_BLOB_KIND
 TADDR GetFirstArgumentRegisterValuePtr(TransitionBlock * pTransitionBlock)
 {
     TADDR pArgument = (TADDR)pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters();
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // x86 is special as always
     pArgument += offsetof(ArgumentRegisters, ECX);
 #endif
@@ -3309,13 +3309,13 @@ extern "C" SIZE_T STDCALL DynamicHelperWorker(TransitionBlock * pTransitionBlock
     INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     // Decode indirection cell from callsite if it is not present
     if (pCell == NULL)
     {
         // Asssume that the callsite is call [xxxxxxxx]
         PCODE retAddr = pFrame->GetReturnAddress();
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         pCell = *(((TADDR **)retAddr) - 1);
 #else
         pCell = (TADDR *)(*(((INT32 *)retAddr) - 1) + retAddr);

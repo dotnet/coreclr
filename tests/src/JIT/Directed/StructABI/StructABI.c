@@ -7,11 +7,11 @@
 #define DLLEXPORT __declspec(dllexport)
 #else
 #define DLLEXPORT __attribute__((visibility("default")))
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define __int64     long
-#else // HOST_64BIT
+#else // BIT64
 #define __int64     long long
-#endif // HOST_64BIT
+#endif // BIT64
 
 #define __int32     int
 #define __int16     short int

@@ -25,7 +25,7 @@
 
 #include <new>
 
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
 #include <pthread.h>
 #endif
 

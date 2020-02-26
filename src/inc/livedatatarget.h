@@ -14,7 +14,7 @@
 // Does not include IXClrData definitions.
 #include <clrdata.h>
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
@@ -101,7 +101,7 @@ private:
     CLRDATA_ADDRESS m_baseAddressOfEngine;
 };
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #endif // _LIVEPROC_DATATARGET_H_
 

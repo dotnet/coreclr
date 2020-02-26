@@ -83,14 +83,14 @@ typedef StackWalkAction (*PSTACKWALKFRAMESCALLBACK)(
 
 struct StackwalkCacheUnwindInfo
 {
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     ULONG RBPOffset;
     ULONG RSPOffsetFromUnwindInfo;
-#else  // !TARGET_AMD64
+#else  // !_TARGET_AMD64_
     size_t securityObjectOffset;    // offset of SecurityObject. 0 if there is no security object
     BOOL fUseEbp;                   // Is EBP modified by the method - either for a frame-pointer or for a scratch-register?
     BOOL fUseEbpAsFrameReg;         // use EBP as the frame pointer?
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 
     inline StackwalkCacheUnwindInfo() { SUPPORTS_DAC; ZeroMemory(this, sizeof(StackwalkCacheUnwindInfo)); }
     StackwalkCacheUnwindInfo(StackwalkCacheEntry * pCacheEntry);
@@ -98,11 +98,11 @@ struct StackwalkCacheUnwindInfo
 
 //************************************************************************
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     #define STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY 0x10
-#else  // !HOST_64BIT
+#else  // !BIT64
     #define STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY 0x8
-#endif // !HOST_64BIT
+#endif // !BIT64
 
 struct 
 DECLSPEC_ALIGN(STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY)
@@ -113,16 +113,16 @@ StackwalkCacheEntry
     //  as StackwalkCacheEntry, it's required for atomicMOVQ using FILD/FISTP instructions
     //
     UINT_PTR IP;
-#if !defined(TARGET_AMD64)
+#if !defined(_TARGET_AMD64_)
     WORD ESPOffset:15;          // stack offset (frame size + pending arguments + etc)
     WORD securityObjectOffset:3;// offset of SecurityObject. 0 if there is no security object
     WORD fUseEbp:1;             // For ESP methods, is EBP touched at all?
     WORD fUseEbpAsFrameReg:1;   // use EBP as the frame register?
     WORD argSize:11;            // size of args pushed on stack
-#else  // TARGET_AMD64
+#else  // _TARGET_AMD64_
     DWORD RSPOffset;
     DWORD RBPOffset;
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     inline BOOL Init(UINT_PTR   IP,
                      UINT_PTR   SPOffset,
@@ -133,7 +133,7 @@ StackwalkCacheEntry
 
         this->IP              = IP;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         this->ESPOffset         = SPOffset;
         this->argSize           = argSize;
         
@@ -147,7 +147,7 @@ StackwalkCacheEntry
         // return success if we fit SPOffset and argSize into
         return ((this->ESPOffset == SPOffset) && 
                 (this->argSize == argSize));
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
         // The size of a stack frame is guaranteed to fit in 4 bytes, so we don't need to check RSPOffset and RBPOffset.
 
         // The actual SP offset may be bigger than the offset we get from the unwind info because of stack allocations.
@@ -158,42 +158,42 @@ StackwalkCacheEntry
         _ASSERTE(FitsIn<DWORD>(pUnwindInfo->RBPOffset + (SPOffset - pUnwindInfo->RSPOffsetFromUnwindInfo)));
         this->RBPOffset  = static_cast<DWORD>(pUnwindInfo->RBPOffset + (SPOffset - pUnwindInfo->RSPOffsetFromUnwindInfo));
         return TRUE;
-#else  // !TARGET_X86 && !TARGET_AMD64
+#else  // !_TARGET_X86_ && !_TARGET_AMD64_
         return FALSE;
-#endif // !TARGET_X86 && !TARGET_AMD64
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_
     }
 
     inline BOOL HasSecurityObject()
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         return securityObjectOffset != 0;
-#else  // !TARGET_X86
+#else  // !_TARGET_X86_
         // On AMD64 we don't save anything by grabbing the security object before it is needed.  This is because
         // we need to crack the GC info in order to find the security object, and to unwind we only need to
         // crack the unwind info.
         return FALSE;
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
     }
 
     inline BOOL IsSafeToUseCache()
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         return (!fUseEbp || fUseEbpAsFrameReg);
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
         return TRUE;
-#else  // !TARGET_X86 && !TARGET_AMD64
+#else  // !_TARGET_X86_ && !_TARGET_AMD64_
         return FALSE;
-#endif // !TARGET_X86 && !TARGET_AMD64
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_
     }
 };
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 static_assert_no_msg(sizeof(StackwalkCacheEntry) == 2 * sizeof(UINT_PTR));
-#endif // TARGET_X86 || TARGET_AMD64
+#endif // _TARGET_X86_ || _TARGET_AMD64_
 
 //************************************************************************
 
@@ -234,13 +234,13 @@ inline StackwalkCacheUnwindInfo::StackwalkCacheUnwindInfo(StackwalkCacheEntry * 
 {
     LIMITED_METHOD_CONTRACT;
     
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     RBPOffset = pCacheEntry->RBPOffset;
-#else  // !TARGET_AMD64
+#else  // !_TARGET_AMD64_
     securityObjectOffset = pCacheEntry->securityObjectOffset;
     fUseEbp = pCacheEntry->fUseEbp;
     fUseEbpAsFrameReg = pCacheEntry->fUseEbpAsFrameReg;
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
 }
 
 #endif  // __STACKWALKTYPES_H__

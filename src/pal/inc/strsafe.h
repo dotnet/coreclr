@@ -29,11 +29,11 @@
 #include <stdarg.h>     // for va_start, etc.
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  HOST_64BIT
+#ifdef  BIT64
 typedef unsigned __int64    size_t;
 #else
 typedef __w64 unsigned int  size_t;
-#endif  // !HOST_64BIT
+#endif  // !BIT64
 #define _SIZE_T_DEFINED
 #endif  // !_SIZE_T_DEFINED
 

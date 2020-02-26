@@ -30,7 +30,7 @@ __attribute__((visibility("default"))) DECLARE_NATIVE_STRING_RESOURCE_TABLE(NATI
 // External prototypes.
 extern HINSTANCE GetModuleInst();
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 //*****************************************************************************
 // Get the MUI ID, on downlevel platforms where MUI is not supported it
@@ -125,7 +125,7 @@ HRESULT GetMUILanguageNames(__inout StringArrayList* pCultureNames)
 }
 #endif // DACCESS_COMPILE
 
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 BOOL CCompRC::s_bIsMscoree = FALSE;
 

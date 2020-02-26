@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "emit.h"
 #include "jitgcinfo.h"
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
 #include "gcinfoencoder.h" //this includes a LOT of other files too
 #endif
 

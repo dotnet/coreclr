@@ -34,7 +34,7 @@
 #include <corcompile.h>
 #endif
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #include "coreclrloader.h"
 #include "resourcestring.h"
 #define NATIVE_STRING_RESOURCE_NAME dasm_rc
@@ -250,7 +250,7 @@ WCHAR* RstrW(unsigned id)
         default:
             break;
     }
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     LoadNativeStringResource(NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME),id, buff, cchBuff, NULL);
 #else
     _ASSERTE(g_hResources != NULL);
@@ -308,7 +308,7 @@ extern CQuickBytes *        g_szBuf_JUMPPT;
 extern CQuickBytes *        g_szBuf_UnquotedProperName;
 extern CQuickBytes *        g_szBuf_ProperName;
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 CoreCLRLoader *g_loader;
 #endif
 MetaDataGetDispenserFunc metaDataGetDispenser;
@@ -318,7 +318,7 @@ GetMetaDataPublicInterfaceFromInternalFunc getMetaDataPublicInterfaceFromInterna
 
 BOOL Init()
 {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     g_loader = CoreCLRLoader::Create(g_pszExeFile);
     if (g_loader == NULL)
     {
@@ -328,12 +328,12 @@ BOOL Init()
     getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)g_loader->LoadFunction("GetMetaDataInternalInterface");
     getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)g_loader->LoadFunction("GetMetaDataInternalInterfaceFromPublic");
     getMetaDataPublicInterfaceFromInternal = (GetMetaDataPublicInterfaceFromInternalFunc)g_loader->LoadFunction("GetMetaDataPublicInterfaceFromInternal");
-#else // TARGET_UNIX
+#else // FEATURE_PAL
     metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
     getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)GetMetaDataInternalInterface;
     getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)GetMetaDataInternalInterfaceFromPublic;
     getMetaDataPublicInterfaceFromInternal = (GetMetaDataPublicInterfaceFromInternalFunc)GetMetaDataPublicInterfaceFromInternal;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     g_szBuf_KEYWORD = new CQuickBytes();
     g_szBuf_COMMENT = new CQuickBytes();
@@ -488,7 +488,7 @@ void Uninit()
         SDELETE(g_szBuf_ProperName);
     }
     
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     if (g_loader != NULL)
     {
         g_loader->Finish();
@@ -7642,7 +7642,7 @@ ReportAndExit:
             fSuccess = TRUE;
         }
         fSuccess = TRUE;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         if(g_pFile) // dump .RES file (if any), if not to console
         {
             WCHAR wzResFileName[2048], *pwc;

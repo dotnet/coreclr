@@ -742,7 +742,7 @@ PAL_ftell(PAL_FILE * f)
     _ASSERTE(f != NULL);
     lRetVal = ftell( f->bsdFilePtr );
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     /* Windows does not set an error if the file pointer's position
     is greater than _I32_MAX. It just returns -1. */
     if (lRetVal > _I32_MAX)

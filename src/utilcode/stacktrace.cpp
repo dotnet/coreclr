@@ -135,7 +135,7 @@ typedef BOOL (__stdcall *pfnImgHlp_StackWalk)(
     PTRANSLATE_ADDRESS_ROUTINE        TranslateAddress
     );
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 typedef DWORD64 (__stdcall *pfnImgHlp_SymGetModuleBase64)(
     IN  HANDLE          hProcess,
     IN  DWORD64         dwAddr
@@ -213,13 +213,13 @@ struct IMGHLPFN_LOAD
 };
 
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 typedef void (*pfn_GetRuntimeStackWalkInfo)(
     IN  ULONG64   ControlPc,
     OUT UINT_PTR* pModuleBase,
     OUT UINT_PTR* pFuncEntry
     );
-#endif // HOST_64BIT
+#endif // BIT64
 
 
 //
@@ -243,9 +243,9 @@ pfnImgHlp_SymLoadModule           _SymLoadModule;
 pfnImgHlp_SymRegisterCallback     _SymRegisterCallback;
 pfnImgHlp_SymSetOptions           _SymSetOptions;
 pfnImgHlp_SymGetOptions           _SymGetOptions;
-#if defined(HOST_64BIT)
+#if defined(BIT64)
 pfn_GetRuntimeStackWalkInfo       _GetRuntimeStackWalkInfo;
-#endif // HOST_64BIT
+#endif // BIT64
 
 IMGHLPFN_LOAD ailFuncList[] =
 {
@@ -469,7 +469,7 @@ void MagicInit()
     //
 
     _SymSetOptions(_SymGetOptions() | SYMOPT_DEFERRED_LOADS|SYMOPT_DEBUG);
-#ifndef HOST_64BIT
+#ifndef BIT64
     _SymRegisterCallback(g_hProcess, SymCallback, 0);
 #endif
 
@@ -574,7 +574,7 @@ DWORD_PTR dwPCAddr
     
     HANDLE hFuncEntry = _SymFunctionTableAccess( hProcess, dwPCAddr );
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     if (hFuncEntry == NULL)
     {
         if (_GetRuntimeStackWalkInfo == NULL)
@@ -587,7 +587,7 @@ DWORD_PTR dwPCAddr
 
         _GetRuntimeStackWalkInfo((ULONG64)dwPCAddr, NULL, (UINT_PTR*)(&hFuncEntry));
     }
-#endif // HOST_64BIT
+#endif // BIT64
 
     return hFuncEntry;
 }
@@ -652,7 +652,7 @@ DWORD_PTR dwAddr
         }
     }
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     if (_GetRuntimeStackWalkInfo == NULL)
     {
         _GetRuntimeStackWalkInfo = (pfn_GetRuntimeStackWalkInfo)
@@ -665,7 +665,7 @@ DWORD_PTR dwAddr
     _GetRuntimeStackWalkInfo((ULONG64)dwAddr, (UINT_PTR*)&moduleBase, NULL);
     if (moduleBase != NULL)
         return moduleBase;
-#endif // HOST_64BIT
+#endif // BIT64
 
     return 0;
 }
@@ -724,7 +724,7 @@ CONTEXT * pContext      // Context to use (or NULL to use current)
         memcpy(&context, pContext, sizeof(CONTEXT));
     }
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     STACKFRAME64 stkfrm;
     memset(&stkfrm, 0, sizeof(STACKFRAME64));
 #else
@@ -741,7 +741,7 @@ CONTEXT * pContext      // Context to use (or NULL to use current)
     stkfrm.AddrFrame.Offset = context.Ebp;  // Frame Pointer
 #endif
 
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
     // If we don't have a user-supplied context, then don't skip any frames.
     // So ignore this function (GetStackBackTrace)
     // ClrCaptureContext on x86 gives us the ESP/EBP/EIP of its caller's caller
@@ -750,7 +750,7 @@ CONTEXT * pContext      // Context to use (or NULL to use current)
     {
         ifrStart += 1;        
     }
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
     for (UINT i = 0; i < ifrStart + cfrTotal; i++)
     {
@@ -791,7 +791,7 @@ CONTEXT * pContext      // Context to use (or NULL to use current)
 *       Actually prints the info into the string for the symbol.
 ****************************************************************************/
 
-#ifdef HOST_64BIT
+#ifdef BIT64
     #define FMT_ADDR_BARE      "%08x`%08x"
 #else
     #define FMT_ADDR_BARE      "%08x"
@@ -948,7 +948,7 @@ void MagicDeinit(void)
     }
 }
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 /****************************************************************************
 * ClrCaptureContext *
 *-------------------*

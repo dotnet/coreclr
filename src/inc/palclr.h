@@ -72,11 +72,11 @@
 // usage pattern is:
 //
 // int get_scratch_register() {
-// #if defined(TARGET_X86)
+// #if defined(_TARGET_X86_)
 //     return eax;
-// #elif defined(TARGET_AMD64)
+// #elif defined(_TARGET_AMD64_)
 //     return rax;
-// #elif defined(TARGET_ARM)
+// #elif defined(_TARGET_ARM_)
 //     return r0;
 // #else
 //     PORTABILITY_ASSERT("scratch register");
@@ -101,7 +101,7 @@
 // The message in these two macros should not contain any keywords like TODO
 // or NYI. It should be just the brief description of the problem.
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 // Finished ports - compile-time errors
 #define PORTABILITY_WARNING(message)    NEED_TO_PORT_THIS_ONE(NEED_TO_PORT_THIS_ONE)
 #define PORTABILITY_ASSERT(message)     NEED_TO_PORT_THIS_ONE(NEED_TO_PORT_THIS_ONE)
@@ -594,7 +594,7 @@
 #define SET_UNALIGNED_VAL64(_pObject, _Value) SET_UNALIGNED_64(_pObject, VAL64((UINT64)_Value))
 #endif
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define VALPTR(x) VAL64(x)
 #define GET_UNALIGNED_PTR(x) GET_UNALIGNED_64(x)
 #define GET_UNALIGNED_VALPTR(x) GET_UNALIGNED_VAL64(x)

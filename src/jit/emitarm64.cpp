@@ -16,7 +16,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -11840,4 +11840,4 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
     return dst->gtRegNum;
 }
 
-#endif // defined(TARGET_ARM64)
+#endif // defined(_TARGET_ARM64_)

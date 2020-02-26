@@ -11,9 +11,9 @@
 #ifndef _GCDESC_H_
 #define _GCDESC_H_
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 typedef uint32_t HALF_SIZE_T;
-#else   // HOST_64BIT
+#else   // BIT64
 typedef uint16_t HALF_SIZE_T;
 #endif
 

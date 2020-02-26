@@ -20,7 +20,7 @@
 #include "gcinfotypes.h"     // For InfoHdr
 
 #ifndef FASTCALL
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #define FASTCALL __fastcall
 #else
 #define FASTCALL
@@ -37,7 +37,7 @@ public:
                                      unsigned       maxEncBytes  = 5, 
                                      bool           dumpCodeOffs = true);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     /*-------------------------------------------------------------------------
      * Dumps the InfoHdr to 'stdout'
      * table            : Start of the GC info block
@@ -59,7 +59,7 @@ public:
      */
 
     size_t   FASTCALL   DumpGCTable (PTR_CBYTE      gcInfoBlock,
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
                                      const InfoHdr& header,
 #endif
                                      unsigned       methodSize,

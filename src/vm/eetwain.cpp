@@ -841,7 +841,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
      // Grab a copy of the context before the EnC update.
     T_CONTEXT oldCtx = *pCtx;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     LOG((LF_CORDB, LL_INFO100, "EECM::FixContextForEnC\n"));
 
     /* Extract the necessary information from the info block header */
@@ -910,7 +910,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
 
     LOG((LF_ENC, LL_INFO100, "EECM::FixContextForEnC: Checks out\n"));
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
     // Strategy for zeroing out the frame on x64:
     // 
@@ -1199,7 +1199,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
          *  EnC_FAIL, as this should be a transacted commit,
          **=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         // Zero out all  the registers as some may hold new variables.
         pCtx->Eax = pCtx->Ecx = pCtx->Edx = pCtx->Ebx =
         pCtx->Esi = pCtx->Edi = 0;
@@ -1219,7 +1219,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
         _ASSERTE( frameHeaderSize <= oldInfo.stackSize );
         _ASSERTE( GetSizeOfFrameHeaderForEnC( &oldInfo ) == frameHeaderSize );
     
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
         // Next few statements zero out all registers that may end up holding new variables.
 
@@ -1294,7 +1294,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
 
             // Sanity-check that the range we're clearing contains all of the stack variables
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
             const ICorDebugInfo::VarLoc &varLoc = newMethodVarsSortedBase[i].loc;
             if( varLoc.vlType == ICorDebugInfo::VLT_STK )
             {
@@ -1314,7 +1314,7 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
                 // and so (since the stack grows towards 0) can't easily determine where the end of 
                 // the local lies.
             }
-#elif defined (TARGET_AMD64)
+#elif defined (_TARGET_AMD64_)
             switch(newMethodVarsSortedBase[i].loc.vlType)
             {
             default:
@@ -1368,9 +1368,9 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
 
         // Clear the local and temporary stack space
 
-#if defined (TARGET_X86)
+#if defined (_TARGET_X86_)
         memset((void*)(size_t)(pCtx->Esp), 0, newInfo.stackSize - frameHeaderSize );
-#elif defined (TARGET_AMD64)
+#elif defined (_TARGET_AMD64_)
         memset((void*)newStackBase, 0, newFixedStackSize - frameHeaderSize);
 
         // On AMD64, after zeroing out the stack, restore the security object and PSPSym...
@@ -1456,7 +1456,7 @@ bool EECodeManager::IsGcSafe( EECodeInfo     *pCodeInfo,
     return gcInfoDecoder.IsInterruptible();
 }
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 bool EECodeManager::HasTailCalls( EECodeInfo     *pCodeInfo)
 {
     CONTRACTL {
@@ -1474,9 +1474,9 @@ bool EECodeManager::HasTailCalls( EECodeInfo     *pCodeInfo)
 
     return gcInfoDecoder.HasTailCalls();
 }
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
-#if defined(TARGET_AMD64) && defined(_DEBUG)
+#if defined(_TARGET_AMD64_) && defined(_DEBUG)
 
 struct FindEndOfLastInterruptibleRegionState
 {
@@ -1553,7 +1553,7 @@ unsigned EECodeManager::FindEndOfLastInterruptibleRegion(unsigned curOffset,
 #endif // #ifndef DACCESS_COMPILE
 }
 
-#endif // TARGET_AMD64 && _DEBUG
+#endif // _TARGET_AMD64_ && _DEBUG
 
 
 #else // !USE_GC_INFO_DECODER
@@ -3195,7 +3195,7 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     _ASSERTE(pCacheEntry);
     _ASSERTE(GetControlPC(pRD) == (PCODE)(pCacheEntry->IP));
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     _ASSERTE(flag == UnwindCurrentStackFrame);
 
     _ASSERTE(!pCacheEntry->fUseEbp || pCacheEntry->fUseEbpAsFrameReg);
@@ -3219,7 +3219,7 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP     += sizeof(void*) + pCacheEntry->argSize;
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     if (pRD->IsCallerContextValid)
     {
         pRD->pCurrentContext->Rbp = pRD->pCallerContext->Rbp;
@@ -3265,14 +3265,14 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
         pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
     }
 
-#else  // !TARGET_X86 && !TARGET_AMD64
+#else  // !_TARGET_X86_ && !_TARGET_AMD64_
     PORTABILITY_ASSERT("EECodeManager::QuickUnwindStackFrame is not implemented on this platform.");
-#endif // !TARGET_X86 && !TARGET_AMD64
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_
 }
 #endif // HAS_QUICKUNWIND
 
 /*****************************************************************************/
-#ifdef TARGET_X86 // UnwindStackFrame
+#ifdef _TARGET_X86_ // UnwindStackFrame
 /*****************************************************************************/
 
 const RegMask CALLEE_SAVED_REGISTERS_MASK[] =
@@ -4116,10 +4116,10 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
     return true;
 }
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #ifdef WIN64EXCEPTIONS
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 size_t EECodeManager::GetResumeSp( PCONTEXT  pContext )
 {
     PCODE currentPc = PCODE(pContext->Eip);
@@ -4163,7 +4163,7 @@ size_t EECodeManager::GetResumeSp( PCONTEXT  pContext )
     const size_t curEBP = (size_t)(pContext->Ebp);
     return GetOutermostBaseFP(curEBP, info);
 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
 #ifndef CROSSGEN_COMPILE
@@ -4185,9 +4185,9 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
                                      CodeManState   *pState,
                                      StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
 {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     return ::UnwindStackFrame(pContext, pCodeInfo, flags, pState, pUnwindInfo);
-#else // TARGET_X86
+#else // _TARGET_X86_
     PORTABILITY_ASSERT("EECodeManager::UnwindStackFrame");
     return false;
 #endif // _TARGET_???_
@@ -4208,7 +4208,7 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     // To avoid unnecessary computation, we only crack the unwind info if pUnwindInfo is not NULL, which only happens
     // if the LIGHTUNWIND flag is passed to StackWalkFramesEx().
     if (pUnwindInfo != NULL)
@@ -4216,7 +4216,7 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
         pCodeInfo->GetOffsetsFromUnwindInfo(&(pUnwindInfo->RSPOffsetFromUnwindInfo), 
                                             &(pUnwindInfo->RBPOffset));
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     _ASSERTE(pCodeInfo != NULL);
     Thread::VirtualUnwindCallFrame(pContext, pCodeInfo);
@@ -4247,7 +4247,7 @@ void promoteVarArgs(PTR_BYTE argsStart, PTR_VASigCookie varArgSig, GCCONTEXT* ct
 
     ArgIterator argit(&msig);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // For the X86 target the JIT does not report any of the fixed args for a varargs method
     // So we report the fixed args via the promoteArgs call below
     bool skipFixedArgs = false;
@@ -4998,11 +4998,11 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
 
     unsigned curOffs = pCodeInfo->GetRelOffset();
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // On ARM, the low-order bit of an instruction pointer indicates Thumb vs. ARM mode.
     // Mask this off; all instructions are two-byte aligned.
     curOffs &= (~THUMB_CODE);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 #ifdef _DEBUG
     // Get the name of the current method 
@@ -5099,11 +5099,11 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
 
         curOffs = relOffsetOverride;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         // On ARM, the low-order bit of an instruction pointer indicates Thumb vs. ARM mode.
         // Mask this off; all instructions are two-byte aligned.
         curOffs &= (~THUMB_CODE);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
         LOG((LF_GCINFO, LL_INFO1000, "Adjusted GC reporting offset to provided override offset. Now reporting GC refs for %s at offset %04x.\n", 
             methodName, curOffs));
@@ -5168,7 +5168,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
         // This does not apply to x86 because of how it handles varargs (it never
         // reports the arguments from the explicit method signature).
         //
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
         //
         // SPECIAL CASE:
         //      IL marshaling stubs have signatures that are marked as vararg, 
@@ -5188,7 +5188,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
         {
             return true;
         }
-#endif // !TARGET_X86
+#endif // !_TARGET_X86_
 
         LOG((LF_GCINFO, LL_INFO100, "Reporting incoming vararg GC refs\n"));
 
@@ -5226,7 +5226,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
 #endif // USE_GC_INFO_DECODER
 #endif // !CROSSGEN_COMPILE
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 /*****************************************************************************
  *
  *  Return the address of the local security object reference
@@ -5245,7 +5245,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObjectFromCachedInfo(PREGDISPLAY pRD,
     // _ASSERTE(stackwalkCacheUnwindInfo->fUseEbpAsFrameReg);
     return (OBJECTREF *) (size_t) (*pRD->GetEbpLocation() - (securityObjectOffset * sizeof(void*)));
 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 OBJECTREF* EECodeManager::GetAddrOfSecurityObject(CrawlFrame *pCF)
@@ -5613,19 +5613,19 @@ PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
             INT32 spOffsetPSPSym = gcInfoDecoder.GetPSPSymStackSlot();
             _ASSERTE(spOffsetPSPSym != NO_PSP_SYM);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             // On AMD64 the spOffsetPSPSym is relative to the "Initial SP": the stack
             // pointer at the end of the prolog before and dynamic allocations, so it
             // can be the same for funclets and the main function.
             // However, we have a caller SP, so we need to convert
             baseStackSlot -= pCodeInfo->GetFixedStackSize();
             
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
             // For funclets we have to do an extra dereference to get the PSPSym first.
             TADDR newBaseStackSlot = *PTR_TADDR(baseStackSlot + spOffsetPSPSym);
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             // On AMD64 the PSPSym stores the "Initial SP": the stack pointer at the end of
             // prolog, before any dynamic allocations.
             // However, the GenericsContext offset is relative to the caller SP for all
@@ -5633,7 +5633,7 @@ PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
             // But we have to be careful to use the main function's EECodeInfo, not the
             // funclet's EECodeInfo because they have different stack sizes!
             newBaseStackSlot += pCodeInfo->GetMainFunctionInfo().GetFixedStackSize();
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
             taSlot = (TADDR)( spOffsetGenericsContext + newBaseStackSlot );
         }
@@ -5991,7 +5991,7 @@ void EECodeManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 #endif // #ifdef DACCESS_COMPILE
 
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 /*
  *  GetAmbientSP
  *
@@ -6088,7 +6088,7 @@ TADDR EECodeManager::GetAmbientSP(PREGDISPLAY     pContext,
 
     return baseSP;
 }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 /*
     Get the number of bytes used for stack parameters.
@@ -6104,7 +6104,7 @@ ULONG32 EECodeManager::GetStackParameterSize(EECodeInfo * pCodeInfo)
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 #if defined(WIN64EXCEPTIONS)
     if (pCodeInfo->IsFunclet())
     {
@@ -6132,6 +6132,6 @@ ULONG32 EECodeManager::GetStackParameterSize(EECodeInfo * pCodeInfo)
 #else
     return 0;
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 

@@ -42,7 +42,7 @@
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 
 // Hot cache lines need to be aligned to cache line size to improve performance
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
 #define MAX_CACHE_LINE_SIZE 128
 #else
 #define MAX_CACHE_LINE_SIZE 64
@@ -99,10 +99,10 @@ FORCEINLINE void FastInterlockAnd(DWORD RAW_KEYWORD(volatile) *p, const int msk)
     InterlockedAnd((LONG *)p, msk);
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // Copied from malloc.h: don't want to bring in the whole header file.
 void * __cdecl _alloca(size_t);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #ifdef _PREFAST_
 // Suppress prefast warning #6255: alloca indicates failure by raising a stack overflow exception
@@ -608,9 +608,9 @@ inline BOOL CLRHosted()
     return g_fHostConfig;
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 HMODULE CLRLoadLibrary(LPCWSTR lpLibFileName);
 
@@ -640,14 +640,14 @@ typedef Wrapper<void *, DoNothing, VoidCLRUnmapViewOfFile> CLRMapViewHolder;
 typedef Wrapper<void *, DoNothing, DoNothing> CLRMapViewHolder;
 #endif
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 #ifndef DACCESS_COMPILE
 FORCEINLINE void VoidPALUnloadPEFile(void *ptr) { PAL_LOADUnloadPEFile(ptr); }
 typedef Wrapper<void *, DoNothing, VoidPALUnloadPEFile> PALPEFileHolder;
 #else
 typedef Wrapper<void *, DoNothing, DoNothing> PALPEFileHolder;
 #endif
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX);
 
@@ -680,7 +680,7 @@ FORCEINLINE void VoidFreeNativeLibrary(NATIVE_LIBRARY_HANDLE h)
 
 typedef Wrapper<NATIVE_LIBRARY_HANDLE, DoNothing<NATIVE_LIBRARY_HANDLE>, VoidFreeNativeLibrary, NULL> NativeLibraryHandleHolder;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 // A holder for memory blocks allocated by Windows.  This holder (and any OS APIs you call
 // that allocate objects on your behalf) should not be used when the CLR is memory-hosted.
@@ -701,7 +701,7 @@ FORCEINLINE void VoidFreeWinAllocatedBlock(LPVOID pv)
 
 typedef Wrapper<LPVOID, DoNothing<LPVOID>, VoidFreeWinAllocatedBlock, NULL> WinAllocatedBlockHolder;
 
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 // For debugging, we can track arbitrary Can't-Stop regions.
 // In V1.0, this was on the Thread object, but we need to track this for threads w/o a Thread object.
@@ -762,7 +762,7 @@ extern void InitializeClrNotifications();
 GPTR_DECL(JITNotification, g_pNotificationTable);
 GVAL_DECL(ULONG32, g_dacNotificationFlags);
 
-#if defined(TARGET_UNIX) && !defined(DACCESS_COMPILE)
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)
 
 inline void
 InitializeJITNotificationTable()
@@ -770,7 +770,7 @@ InitializeJITNotificationTable()
     g_pNotificationTable = new (nothrow) JITNotification[1001];
 }
 
-#endif // TARGET_UNIX && !DACCESS_COMPILE
+#endif // FEATURE_PAL && !DACCESS_COMPILE
 
 class JITNotifications
 {
@@ -974,10 +974,10 @@ public:
 #define FORCEINLINE_NONDEBUG FORCEINLINE
 #endif
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // Extract the file version from an executable.
 HRESULT GetFileVersion(LPCWSTR wszFilePath, ULARGE_INTEGER* pFileVersion);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 #endif /* _H_UTIL */
 

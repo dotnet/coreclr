@@ -1014,7 +1014,7 @@ void DacDbiInterfaceImpl::AdjustRegDisplayForStackParameter(REGDISPLAY *        
                                                             BOOL                     fIsActiveFrame,
                                                             StackAdjustmentDirection direction)
 {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     // If the CONTEXT is active then no adjustment is needed.
     if (!fIsActiveFrame)
     {
@@ -1033,7 +1033,7 @@ void DacDbiInterfaceImpl::AdjustRegDisplayForStackParameter(REGDISPLAY *        
         }
         SetRegdisplaySP(pRD, reinterpret_cast<LPVOID>(sp));
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 }
 
 //---------------------------------------------------------------------------------------
@@ -1149,7 +1149,7 @@ CorDebugInternalFrameType DacDbiInterfaceImpl::GetInternalFrameType(Frame * pFra
 void DacDbiInterfaceImpl::UpdateContextFromRegDisp(REGDISPLAY * pRegDisp,
                                                    T_CONTEXT *  pContext)
 {
-#if defined(TARGET_X86) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
     // Do a partial copy first.
     pContext->ContextFlags = (CONTEXT_INTEGER | CONTEXT_CONTROL);
 
@@ -1171,9 +1171,9 @@ void DacDbiInterfaceImpl::UpdateContextFromRegDisp(REGDISPLAY * pRegDisp,
     {
         *pContext = *pRegDisp->pContext;
     }
-#else // TARGET_X86 && !WIN64EXCEPTIONS
+#else // _TARGET_X86_ && !WIN64EXCEPTIONS
     *pContext = *pRegDisp->pCurrentContext;
-#endif // !TARGET_X86 || WIN64EXCEPTIONS
+#endif // !_TARGET_X86_ || WIN64EXCEPTIONS
 }
 
 //---------------------------------------------------------------------------------------
@@ -1216,7 +1216,7 @@ PTR_CONTEXT DacDbiInterfaceImpl::RetrieveHijackedContext(REGDISPLAY * pRD)
         // Convert the REGDISPLAY to a CONTEXT;
         T_CONTEXT * pContext = NULL;
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
         T_CONTEXT ctx;
         pContext = &ctx;
         UpdateContextFromRegDisp(pRD, pContext);

@@ -112,7 +112,7 @@ typedef DPTR(struct DebuggerIPCControlBlock) PTR_DebuggerIPCControlBlock;
 GPTR_DECL(Debugger,         g_pDebugger);
 GPTR_DECL(EEDebugInterface, g_pEEInterface);
 GVAL_DECL(ULONG,            CLRJitAttachState);
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 GVAL_DECL(HANDLE,           g_hContinueStartupEvent);
 #endif
 extern DebuggerRCThread     *g_pRCThread;
@@ -2882,9 +2882,9 @@ private:
         kRedirectedForDbgThreadControl,
         kRedirectedForUserSuspend,
         kRedirectedForYieldTask,
-#if defined(HAVE_GCCOVER) && defined(TARGET_AMD64)
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
         kRedirectedForGCStress,
-#endif // HAVE_GCCOVER && TARGET_AMD64
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
         kMaxHijackFunctions,
     };
 
@@ -2981,10 +2981,10 @@ void RedirectedHandledJITCaseForDbgThreadControl_StubEnd();
 void RedirectedHandledJITCaseForUserSuspend_Stub();
 void RedirectedHandledJITCaseForUserSuspend_StubEnd();
 
-#if defined(HAVE_GCCOVER) && defined(TARGET_AMD64)
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
 void RedirectedHandledJITCaseForGCStress_Stub();
 void RedirectedHandledJITCaseForGCStress_StubEnd();
-#endif // HAVE_GCCOVER && TARGET_AMD64
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
 };
 
 
@@ -3963,7 +3963,7 @@ HANDLE OpenWin32EventOrThrow(
 // Returns true if the specified IL offset has a special meaning (eg. prolog, etc.)
 bool DbgIsSpecialILOffset(DWORD offset);
 
-#if !defined(TARGET_X86)
+#if !defined(_TARGET_X86_)
 void FixupDispatcherContext(T_DISPATCHER_CONTEXT* pDispatcherContext, T_CONTEXT* pContext, T_CONTEXT* pOriginalContext, PEXCEPTION_ROUTINE pUnwindPersonalityRoutine = NULL);
 #endif
 

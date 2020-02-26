@@ -36,14 +36,14 @@ class AppDomain;
 //  on the stack.  The FEF is used for unwinding.  If not defined, the unwinding
 //  uses the exception context.
 #define USE_FEF // to mark where code needs to be changed to eliminate the FEF
-#if defined(TARGET_X86) && !defined(TARGET_UNIX)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
  #undef USE_FEF // Turn off the FEF use on x86.
  #define ELIMINATE_FEF
 #else
  #if defined(ELIMINATE_FEF)
   #undef ELIMINATE_FEF
  #endif 
-#endif // TARGET_X86 && !TARGET_UNIX
+#endif // _TARGET_X86_ && !FEATURE_PAL
 
 #if defined(WIN64EXCEPTIONS)
 #define RECORD_RESUMABLE_FRAME_SP
@@ -69,9 +69,9 @@ class CrawlFrame
 {
 public:
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     friend StackWalkAction TAStackCrawlCallBack(CrawlFrame* pCf, void* data);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     //************************************************************************
     // Functions available for the callbacks (using the current pCrawlFrame)
@@ -310,9 +310,9 @@ public:
      */
     bool IsGcSafe();
 
-#if defined(TARGET_ARM) || defined(TARGET_ARM64)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     bool HasTailCalls();
-#endif // TARGET_ARM || TARGET_ARM64
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
     PREGDISPLAY GetRegisterSet()
     {

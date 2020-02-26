@@ -850,7 +850,7 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
 
     GCPROTECT_BEGIN(targetException);
 
-#if defined(_DEBUG) && !defined(TARGET_UNIX)
+#if defined(_DEBUG) && !defined(FEATURE_PAL)
     if (IsWatsonEnabled())
     {
         if (!CLRException::IsPreallocatedExceptionObject(targetException))
@@ -886,7 +886,7 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
             }
         }
     }
-#endif // _DEBUG && !TARGET_UNIX
+#endif // _DEBUG && !FEATURE_PAL
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     // Get the corruption severity of the exception that came in through reflection invocation.
@@ -899,7 +899,7 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
 
     OBJECTREF except = InvokeUtil::CreateTargetExcept(&targetException);
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     if (IsWatsonEnabled())
     {
         struct 
@@ -942,7 +942,7 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
         except = gcTIE.oExcept;
         GCPROTECT_END();
     }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     // Since the original exception is inner of target invocation exception,
     // when TIE is seen to be raised for the first time, we will end up

@@ -30,7 +30,7 @@ static DWORD    g_dwSubsystem=(DWORD)-1,g_dwComImageFlags=(DWORD)-1,g_dwFileAlig
 static ULONGLONG   g_stBaseAddress=0;
 static size_t   g_stSizeOfStackReserve=0;
 extern unsigned int g_uConsoleCP;
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 char * g_pszExeFile;
 #endif
 
@@ -216,7 +216,7 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
             //-------------------------------------------------
             for (i = 1; i < argc; i++)
             {
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
                 if(argv[i][0] == L'-')
 #else
                 if((argv[i][0] == L'/') || (argv[i][0] == L'-'))
@@ -691,7 +691,7 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
                         }
                         else
                         {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
                             DWORD dwBinType;
                             if(GetBinaryTypeA(szInputFilename,&dwBinType))
                             {
@@ -778,7 +778,7 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
                                         }
                                         else
                                         {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
                                             DWORD dwBinType;
                                             if(GetBinaryTypeA(szInputFilename,&dwBinType))
                                             {
@@ -906,7 +906,7 @@ extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
 #endif
 
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 int main(int argc, char* str[])
 {
     g_pszExeFile = str[0];
@@ -939,5 +939,5 @@ int main(int argc, char* str[])
 
     return ret;
 }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 

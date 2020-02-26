@@ -20,7 +20,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef TARGET_ARMARCH // This file is ONLY used for ARM and ARM64 architectures
+#ifdef _TARGET_ARMARCH_ // This file is ONLY used for ARM and ARM64 architectures
 
 #include "jit.h"
 #include "sideeffects.h"
@@ -66,7 +66,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         target_ssize_t immVal = (target_ssize_t)childNode->gtIntCon.gtIconVal;
         emitAttr       attr   = emitActualTypeSize(childNode->TypeGet());
         emitAttr       size   = EA_SIZE(attr);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         insFlags flags = parentNode->gtSetFlags() ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
 #endif
 
@@ -74,18 +74,18 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         {
             case GT_ADD:
             case GT_SUB:
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
             case GT_CMPXCHG:
             case GT_LOCKADD:
             case GT_XADD:
                 return comp->compSupports(InstructionSet_Atomics) ? false
                                                                   : emitter::emitIns_valid_imm_for_add(immVal, size);
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
                 return emitter::emitIns_valid_imm_for_add(immVal, flags);
 #endif
                 break;
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
             case GT_EQ:
             case GT_NE:
             case GT_LT:
@@ -109,7 +109,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_JCMP:
                 assert(((parentNode->gtFlags & GTF_JCMP_TST) == 0) ? (immVal == 0) : isPow2(immVal));
                 return true;
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
             case GT_EQ:
             case GT_NE:
             case GT_LT:
@@ -121,9 +121,9 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_OR:
             case GT_XOR:
                 return emitter::emitIns_valid_imm_for_alu(immVal);
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
             case GT_STORE_LCL_FLD:
             case GT_STORE_LCL_VAR:
                 if (immVal == 0)
@@ -264,7 +264,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         }
         srcAddrOrFill = initVal;
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         if ((size != 0) && (size <= INITBLK_UNROLL_LIMIT) && initVal->IsCnsIntOrI())
         {
             // TODO-ARM-CQ: Currently we generate a helper call for every
@@ -297,7 +297,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
         }
         else
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
         {
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
@@ -574,14 +574,14 @@ void Lowering::ContainCheckCallOperands(GenTreeCall* call)
 //
 void Lowering::ContainCheckStoreIndir(GenTreeIndir* node)
 {
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     GenTree* src = node->gtOp.gtOp2;
     if (!varTypeIsFloating(src->TypeGet()) && src->IsIntegralConst(0))
     {
         // an integer zero for 'src' can be contained.
         MakeSrcContained(node, src);
     }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
     ContainCheckIndir(node);
 }
 
@@ -623,7 +623,7 @@ void Lowering::ContainCheckIndir(GenTreeIndir* indirNode)
     bool     makeContained = true;
     if ((addr->OperGet() == GT_LEA) && IsSafeToContainMem(indirNode, addr))
     {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         // ARM floating-point load/store doesn't support a form similar to integer
         // ldr Rdst, [Rbase + Roffset] with offset in a register. The only supported
         // form is vldr Rdst, [Rbase + imm] with a more limited constraint on the imm.
@@ -701,14 +701,14 @@ void Lowering::ContainCheckShiftRotate(GenTreeOp* node)
     GenTree* shiftBy = node->gtOp2;
     assert(node->OperIsShiftOrRotate());
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     GenTree* source = node->gtOp1;
     if (node->OperIs(GT_LSH_HI, GT_RSH_LO))
     {
         assert(source->OperGet() == GT_LONG);
         MakeSrcContained(node, source);
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     if (shiftBy->IsCnsIntOrI())
     {
@@ -746,12 +746,12 @@ void Lowering::ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc)
     {
         MakeSrcContained(storeLoc, op1);
     }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     else if (op1->OperGet() == GT_LONG)
     {
         MakeSrcContained(storeLoc, op1);
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 }
 
 //------------------------------------------------------------------------
@@ -762,7 +762,7 @@ void Lowering::ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc)
 //
 void Lowering::ContainCheckCast(GenTreeCast* node)
 {
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     GenTree*  castOp     = node->CastOp();
     var_types castToType = node->CastToType();
     var_types srcType    = castOp->TypeGet();
@@ -772,7 +772,7 @@ void Lowering::ContainCheckCast(GenTreeCast* node)
         assert(castOp->OperGet() == GT_LONG);
         MakeSrcContained(node, castOp);
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 }
 
 //------------------------------------------------------------------------
@@ -931,4 +931,4 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 }
 #endif // FEATURE_HW_INTRINSICS
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_

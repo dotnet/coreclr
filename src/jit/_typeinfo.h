@@ -30,7 +30,7 @@ enum ti_types
     TI_ONLY_ENUM = TI_METHOD, // Enum values with greater value are completely described by the enumeration.
 };
 
-#if defined(TARGET_64BIT)
+#if defined(_TARGET_64BIT_)
 #define TI_I_IMPL TI_LONG
 #else
 #define TI_I_IMPL TI_INT
@@ -315,7 +315,7 @@ private:
     {
         static_assert(std::is_same<T, CORINFO_CLASS_HANDLE>::value || std::is_same<T, CORINFO_METHOD_HANDLE>::value,
                       "");
-#ifdef HOST_64BIT
+#ifdef _HOST_64BIT_
         return handle == reinterpret_cast<T>(0xcccccccccccccccc);
 #else
         return handle == reinterpret_cast<T>(0xcccccccc);
@@ -346,7 +346,7 @@ public:
     static typeInfo nativeInt()
     {
         typeInfo result = typeInfo(TI_I_IMPL);
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         result.m_flags |= TI_FLAG_NATIVE_INT;
 #endif
         return result;
@@ -397,9 +397,9 @@ public:
     {
         DWORD allFlags = TI_FLAG_DATA_MASK | TI_FLAG_BYREF | TI_FLAG_BYREF_READONLY | TI_FLAG_GENERIC_TYPE_VAR |
                          TI_FLAG_UNINIT_OBJREF;
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         allFlags |= TI_FLAG_NATIVE_INT;
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
         if ((li.m_flags & allFlags) != (ti.m_flags & allFlags))
         {
@@ -436,12 +436,12 @@ public:
         {
             return true;
         }
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         return (nodeTi.IsType(TI_I_IMPL) && tiCompatibleWith(nullptr, verTi, typeInfo::nativeInt(), true)) ||
                (verTi.IsType(TI_I_IMPL) && tiCompatibleWith(nullptr, typeInfo::nativeInt(), nodeTi, true));
-#else  // TARGET_64BIT
+#else  // _TARGET_64BIT_
         return false;
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
     }
 #endif // DEBUG
 
@@ -709,7 +709,7 @@ public:
     // Returns true whether this is an integer or a native int.
     BOOL IsIntOrNativeIntType() const
     {
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
         return (GetType() == TI_INT) || AreEquivalent(*this, nativeInt());
 #else
         return IsType(TI_INT);

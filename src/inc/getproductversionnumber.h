@@ -35,7 +35,7 @@
 void inline GetProductVersionNumber(SString &szFullPath, DWORD * pdwVersionMS, DWORD * pdwVersionLS)
 {
     WRAPPER_NO_CONTRACT;
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
     DWORD dwDummy = 0;
     DWORD dwFileInfoSize = 0;
@@ -71,7 +71,7 @@ void inline GetProductVersionNumber(SString &szFullPath, DWORD * pdwVersionMS, D
 #else
     *pdwVersionMS = 0;
     *pdwVersionLS = 0;
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 }
 
 #endif // __GetProductVersionNumber_h__

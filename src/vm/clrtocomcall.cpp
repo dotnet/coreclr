@@ -1152,12 +1152,12 @@ BOOL ComPlusMethodFrame::TraceFrame(Thread *thread, BOOL fromPatch,
     // Get the call site info
     //
 
-#if defined(HOST_64BIT)
+#if defined(BIT64)
     // Interop debugging is currently not supported on WIN64, so we always return FALSE.
     // The result is that you can't step into an unmanaged frame or step out to one.  You
     // also can't step a breakpoint in one.
     return FALSE;
-#endif // HOST_64BIT
+#endif // BIT64
 
     TADDR ip, returnIP, returnSP;
     GetUnmanagedCallSite(&ip, &returnIP, &returnSP);
@@ -1190,7 +1190,7 @@ BOOL ComPlusMethodFrame::TraceFrame(Thread *thread, BOOL fromPatch,
 }
 #endif //CROSSGEN_COMPILE
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
 #ifndef DACCESS_COMPILE
 
@@ -1258,4 +1258,4 @@ LPVOID ComPlusCall::GetRetThunk(UINT numStackBytes)
 
 #endif // !DACCESS_COMPILE
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_

@@ -56,10 +56,10 @@ SPTR_IMPL (SyncBlockCache, SyncBlockCache, s_pSyncBlockCache);
 
 
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // static
 SLIST_HEADER InteropSyncBlockInfo::s_InteropInfoStandbyList;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 InteropSyncBlockInfo::~InteropSyncBlockInfo()
 {
@@ -75,7 +75,7 @@ InteropSyncBlockInfo::~InteropSyncBlockInfo()
     FreeUMEntryThunkOrInterceptStub();
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 // Deletes all items in code:s_InteropInfoStandbyList.
 void InteropSyncBlockInfo::FlushStandbyList()
 {
@@ -97,7 +97,7 @@ void InteropSyncBlockInfo::FlushStandbyList()
         pEntry = pNextEntry;
     }
 }
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 void InteropSyncBlockInfo::FreeUMEntryThunkOrInterceptStub()
 {
@@ -120,17 +120,17 @@ void InteropSyncBlockInfo::FreeUMEntryThunkOrInterceptStub()
         }
         else
         {
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
             Stub *pInterceptStub = GetInterceptStub();
             if (pInterceptStub != NULL)
             {
                 // There may be multiple chained stubs
                 pInterceptStub->DecRef();
             }
-#else // TARGET_X86
+#else // _TARGET_X86_
             // Intercept stubs are currently not used on other platforms.
             _ASSERTE(GetInterceptStub() == NULL);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
         }
     }
     m_pUMEntryThunkOrInterceptStub = NULL;
@@ -674,9 +674,9 @@ void SyncBlockCache::Start()
 
     SyncBlockCache::GetSyncBlockCache()->m_EphemeralBitmap = bm;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     InitializeSListHead(&InteropSyncBlockInfo::s_InteropInfoStandbyList);
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 }
 
 
@@ -993,7 +993,7 @@ void SyncBlockCache::DeleteSyncBlock(SyncBlock *psb)
         CleanupSyncBlockComData(psb->m_pInteropInfo);
 #endif // FEATURE_COMINTEROP
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
         if (g_fEEShutDown)
         {
             delete psb->m_pInteropInfo;
@@ -1003,9 +1003,9 @@ void SyncBlockCache::DeleteSyncBlock(SyncBlock *psb)
             psb->m_pInteropInfo->~InteropSyncBlockInfo();
             InterlockedPushEntrySList(&InteropSyncBlockInfo::s_InteropInfoStandbyList, (PSLIST_ENTRY)psb->m_pInteropInfo);
         }
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
         delete psb->m_pInteropInfo;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
     }
 
 #ifdef EnC_SUPPORTED
@@ -1903,13 +1903,13 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
     while (TRUE)
     {
 #ifdef _DEBUG
-#ifdef HOST_64BIT
+#ifdef BIT64
         // Give 64bit more time because there isn't a remoting fast path now, and we've hit this assert
         // needlessly in CLRSTRESS. 
         if (i++ > 30000)
 #else            
         if (i++ > 10000)
-#endif // HOST_64BIT            
+#endif // BIT64            
             _ASSERTE(!"ObjHeader::EnterLock timed out");
 #endif
         // get the value so that it doesn't get changed under us.
@@ -2983,7 +2983,7 @@ void SyncBlock::SetEnCInfo(EnCSyncBlockInfo *pEnCInfo)
 #endif // EnC_SUPPORTED
 #endif // !DACCESS_COMPILE
 
-#if defined(HOST_64BIT) && defined(_DEBUG)
+#if defined(BIT64) && defined(_DEBUG)
 void ObjHeader::IllegalAlignPad()
 {
     WRAPPER_NO_CONTRACT;
@@ -2994,6 +2994,6 @@ void ObjHeader::IllegalAlignPad()
 #endif
     _ASSERTE(m_alignpad == 0);
 }
-#endif // HOST_64BIT && _DEBUG
+#endif // BIT64 && _DEBUG
 
 

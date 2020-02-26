@@ -39,7 +39,7 @@ struct CallDescrData
     // Return value
     //
 #ifdef ENREGISTERED_RETURNTYPE_MAXSIZE
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // Use NEON128 to ensure proper alignment for vectors.
     DECLSPEC_ALIGN(16) NEON128 returnValue[ENREGISTERED_RETURNTYPE_MAXSIZE / sizeof(NEON128)];
 #else
@@ -57,7 +57,7 @@ struct CallDescrData
 
 extern "C" void STDCALL CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
-#if !defined(HOST_64BIT) && defined(_DEBUG)
+#if !defined(BIT64) && defined(_DEBUG)
 void CallDescrWorker(CallDescrData * pCallDescrData);
 #else
 #define CallDescrWorker(pCallDescrData) CallDescrWorkerInternal(pCallDescrData)
@@ -494,7 +494,7 @@ void FillInRegTypeMap(int argOffset, CorElementType typ, BYTE * pMap);
 /* Macros used to indicate a call to managed code is starting/ending   */
 /***********************************************************************/
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
 // Install a native exception holder that doesn't catch any exceptions but its presence
 // in a stack range of native frames indicates that there was a call from native to
 // managed code. It is used by the DispatchManagedException to detect the case when
@@ -504,9 +504,9 @@ void FillInRegTypeMap(int argOffset, CorElementType typ, BYTE * pMap);
 #define INSTALL_CALL_TO_MANAGED_EXCEPTION_HOLDER() \
     NativeExceptionHolderNoCatch __exceptionHolder;    \
     __exceptionHolder.Push();                           
-#else // TARGET_UNIX
+#else // FEATURE_PAL
 #define INSTALL_CALL_TO_MANAGED_EXCEPTION_HOLDER()
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 enum EEToManagedCallFlags
 {
@@ -644,7 +644,7 @@ enum DispatchCallSimpleFlags
 
 #ifdef CALLDESCR_ARGREGS
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 
 // Arguments on x86 are passed backward
 #define ARGNUM_0    1

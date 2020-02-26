@@ -19,7 +19,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef TARGET_ARMARCH // This file is ONLY used for ARM and ARM64 architectures
+#ifdef _TARGET_ARMARCH_ // This file is ONLY used for ARM and ARM64 architectures
 
 #include "jit.h"
 #include "sideeffects.h"
@@ -50,7 +50,7 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
     GenTree* index = nullptr;
     int      cns   = 0;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Unaligned loads/stores for floating point values must first be loaded into integer register(s)
     if (indirTree->gtFlags & GTF_IND_UNALIGNED)
     {
@@ -177,7 +177,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             ctrlExprCandidates = RBM_FASTTAILCALL_TARGET;
         }
     }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     else
     {
         buildInternalIntRegisterDefForNode(call);
@@ -188,13 +188,13 @@ int LinearScan::BuildCall(GenTreeCall* call)
         buildInternalIntRegisterDefForNode(call);
     }
 
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
     RegisterType registerType = call->TypeGet();
 
 // Set destination candidates for return value of the call.
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     if (call->IsHelperCall(compiler, CORINFO_HELP_INIT_PINVOKE_FRAME))
     {
         // The ARM CORINFO_HELP_INIT_PINVOKE_FRAME helper uses a custom calling convention that returns with
@@ -202,7 +202,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         dstCandidates = RBM_PINVOKE_TCB;
     }
     else
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
         if (hasMultiRegRetVal)
     {
         assert(retTypeDesc != nullptr);
@@ -262,13 +262,13 @@ int LinearScan::BuildCall(GenTreeCall* call)
                 // Update argReg for the next putarg_reg (if any)
                 argReg = genRegArgNext(argReg);
 
-#if defined(TARGET_ARM)
+#if defined(_TARGET_ARM_)
                 // A double register is modelled as an even-numbered single one
                 if (entry->Current()->TypeGet() == TYP_DOUBLE)
                 {
                     argReg = genRegArgNext(argReg);
                 }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 #endif
                 BuildUse(entry->Current(), genRegMask(entry->Current()->gtRegNum));
                 srcCount++;
@@ -291,7 +291,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             assert(argNode->OperIs(GT_PUTARG_REG));
             assert(argNode->gtRegNum == argReg);
             HandleFloatVarArgs(call, argNode, &callHasFloatRegArgs);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             // The `double` types have been transformed to `long` on armel,
             // while the actual long types have been decomposed.
             // On ARM we may have bitcasts from DOUBLE to LONG.
@@ -303,7 +303,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
                 srcCount += 2;
             }
             else
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
             {
                 BuildUse(argNode, genRegMask(argNode->gtRegNum));
                 srcCount++;
@@ -412,9 +412,9 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
         {
             // We can use a ldp/stp sequence so we need two internal registers for ARM64; one for ARM.
             buildInternalIntRegisterDefForNode(argNode);
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
             buildInternalIntRegisterDefForNode(argNode);
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
             if (putArgChild->OperGet() == GT_OBJ)
             {
@@ -501,7 +501,7 @@ int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
             assert(!node->isContained());
             // The only multi-reg nodes we should see are OperIsMultiRegOp()
             unsigned currentRegCount;
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
             if (node->OperIsMultiRegOp())
             {
                 currentRegCount = node->AsMultiRegOp()->GetRegCount();
@@ -656,14 +656,14 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 
                 buildInternalIntRegisterDefForNode(blkNode);
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
                 if (size >= 2 * REGSIZE_BYTES)
                 {
                     // We will use ldp/stp to reduce code size and improve performance
                     // so we need to reserve an extra internal register
                     buildInternalIntRegisterDefForNode(blkNode);
                 }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
             }
             else
             {
@@ -731,7 +731,7 @@ int LinearScan::BuildCast(GenTreeCast* cast)
     const var_types srcType  = genActualType(src->TypeGet());
     const var_types castType = cast->gtCastType;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     assert(!varTypeIsLong(srcType) || (src->OperIs(GT_LONG) && src->isContained()));
 
     // Floating point to integer casts requires a temporary register.
@@ -755,4 +755,4 @@ int LinearScan::BuildCast(GenTreeCast* cast)
     return srcCount;
 }
 
-#endif // TARGET_ARMARCH
+#endif // _TARGET_ARMARCH_

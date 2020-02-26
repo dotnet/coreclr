@@ -6,12 +6,12 @@
 #ifndef _EMITINL_H_
 #define _EMITINL_H_
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 
 /* static */
 inline bool emitter::instrIs3opImul(instruction ins)
 {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     return ((ins >= INS_imul_AX) && (ins <= INS_imul_DI));
 #else // _TARGET_AMD64
     return ((ins >= INS_imul_AX) && (ins <= INS_imul_15));
@@ -21,7 +21,7 @@ inline bool emitter::instrIs3opImul(instruction ins)
 /* static */
 inline bool emitter::instrIsExtendedReg3opImul(instruction ins)
 {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     return false;
 #else // _TARGET_AMD64
     return ((ins >= INS_imul_08) && (ins <= INS_imul_15));
@@ -47,7 +47,7 @@ inline void emitter::check3opImulValues()
     assert(INS_imul_BP - INS_imul_AX == REG_EBP);
     assert(INS_imul_SI - INS_imul_AX == REG_ESI);
     assert(INS_imul_DI - INS_imul_AX == REG_EDI);
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     assert(INS_imul_08 - INS_imul_AX == REG_R8);
     assert(INS_imul_09 - INS_imul_AX == REG_R9);
     assert(INS_imul_10 - INS_imul_AX == REG_R10);
@@ -102,7 +102,7 @@ inline regNumber emitter::inst3opImulReg(instruction ins)
  *  get stored in different places within the instruction descriptor.
  */
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 
 inline ssize_t emitter::emitGetInsAmd(instrDesc* id)
 {
@@ -206,7 +206,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
     return id->idAddr()->iiaAddrMode.amDisp;
 }
 
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************
  *
@@ -219,7 +219,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
 
     unsigned encodeMask;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     assert(REGNUM_BITS >= 3);
     encodeMask = 0;
 
@@ -232,7 +232,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
 
     id->idReg1((regNumber)encodeMask); // Save in idReg1
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     assert(REGNUM_BITS >= 4);
     encodeMask = 0;
 
@@ -276,7 +276,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
 
     id->idReg2((regNumber)encodeMask); // Save in idReg2
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     assert(REGNUM_BITS >= 4);
     encodeMask = 0;
 
@@ -304,7 +304,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
 
     id->idReg2((regNumber)encodeMask); // Save in idReg2
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     assert(REGNUM_BITS >= 5);
     encodeMask = 0;
 
@@ -346,7 +346,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
     unsigned regmask = 0;
     unsigned encodeMask;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     assert(REGNUM_BITS >= 3);
     encodeMask = id->idReg1();
 
@@ -356,7 +356,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
         regmask |= RBM_EDI;
     if ((encodeMask & 0x04) != 0)
         regmask |= RBM_EBX;
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
     assert(REGNUM_BITS >= 4);
     encodeMask = id->idReg1();
 
@@ -396,7 +396,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
         regmask |= RBM_R15;
     }
 
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     assert(REGNUM_BITS >= 4);
     encodeMask = id->idReg1();
 
@@ -420,7 +420,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
     if ((encodeMask & 0x08) != 0)
         regmask |= RBM_R11;
 
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     assert(REGNUM_BITS >= 5);
     encodeMask = id->idReg1();
 
@@ -455,7 +455,7 @@ inline ssize_t emitter::emitGetInsAmdAny(instrDesc* id)
     return regmask;
 }
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 inline bool insIsCMOV(instruction ins)
 {
     return ((ins >= INS_cmovo) && (ins <= INS_cmovg));

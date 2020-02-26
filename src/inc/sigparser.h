@@ -22,7 +22,7 @@
 // These macros tell us whether the arguments we see as we proceed with the signature walk are mapped
 //   to increasing or decreasing stack addresses. This is valid only for arguments that go on the stack.
 //---------------------------------------------------------------------------------------
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 #define STACK_GROWS_DOWN_ON_ARGS_WALK
 #else
 #define STACK_GROWS_UP_ON_ARGS_WALK
@@ -423,7 +423,7 @@ class SigParser
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
             case ELEMENT_TYPE_R8:
-        #ifdef HOST_64BIT
+        #ifdef BIT64
             case ELEMENT_TYPE_I:
             case ELEMENT_TYPE_U:
         #endif // WIN64
@@ -434,10 +434,10 @@ class SigParser
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
             case ELEMENT_TYPE_R4:
-        #ifndef HOST_64BIT
+        #ifndef BIT64
             case ELEMENT_TYPE_I:
             case ELEMENT_TYPE_U:
-        #endif // HOST_64BIT
+        #endif // BIT64
 
                 *pSize = 4;
                 break;
@@ -968,7 +968,7 @@ inline void* StackElemEndianessFixup(void* pStackElem, UINT cbSize) {
     case 2:
         pRetVal += sizeof(void*)-2;
         break;
-#ifdef HOST_64BIT
+#ifdef BIT64
     case 4:
         pRetVal += sizeof(void*)-4;
         break;

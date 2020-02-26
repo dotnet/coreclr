@@ -19,7 +19,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // See: https://github.com/dotnet/diagnostics/blob/master/src/inc/gcdecoder.cpp
 // ******************************************************************************
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
 /* This file is shared between the VM and JIT/IL and SOS/Strike directories */
 
@@ -621,4 +621,4 @@ const unsigned callPatternTable[80] = {               // # of occurences
     0x07000300, //    1684
 };
 
-#endif // TARGET_X86
+#endif // _TARGET_X86_

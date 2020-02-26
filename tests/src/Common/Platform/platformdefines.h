@@ -80,11 +80,11 @@ typedef unsigned int ULONG, *PULONG;
 #endif // RC_INVOKED
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 
-#ifdef HOST_64BIT
+#ifdef BIT64
 #define __int64     long
-#else // HOST_64BIT
+#else // BIT64
 #define __int64     long long
-#endif // HOST_64BIT
+#endif // BIT64
 
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
 

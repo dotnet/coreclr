@@ -123,7 +123,7 @@ public:
         {
             failedTests->Add(TestCases::SumHFAs);
         }
-#if HOST_64BIT
+#if BIT64
         if (!RunDoublesInIntegerRegistersTest())
         {
             failedTests->Add(TestCases::DoublesInIntegerRegisters);

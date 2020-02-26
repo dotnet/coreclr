@@ -44,9 +44,9 @@ void ASMDumper::DumpToFile(HANDLE hFile, MethodContext* mc, CompileResult* cr)
 
 #ifdef USE_MSVCDIS
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     DIS* disasm = DIS::PdisNew(DIS::distX8664);
-#elif TARGET_X86
+#elif _TARGET_X86_
     DIS* disasm = DIS::PdisNew(DIS::distX86);
 #endif
     size_t offset = 0;

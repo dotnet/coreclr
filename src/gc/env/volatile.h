@@ -67,12 +67,12 @@
 #error The Volatile type is currently only defined for Visual C++ and GNU C++
 #endif
 
-#if defined(__GNUC__) && !defined(HOST_X86) && !defined(HOST_AMD64) && !defined(HOST_ARM) && !defined(HOST_ARM64)
+#if defined(__GNUC__) && !defined(_X86_) && !defined(_AMD64_) && !defined(_ARM_) && !defined(_ARM64_)
 #error The Volatile type is currently only defined for GCC when targeting x86, AMD64, ARM or ARM64 CPUs
 #endif
 
 #if defined(__GNUC__)
-#if defined(HOST_ARM) || defined(HOST_ARM64)
+#if defined(_ARM_) || defined(_ARM64_)
 // This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
 #define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb ish" : : : "memory")
 #else
@@ -88,8 +88,8 @@
 // notice.
 //
 #define VOLATILE_MEMORY_BARRIER() asm volatile ("" : : : "memory")
-#endif // HOST_ARM || HOST_ARM64
-#elif (defined(HOST_ARM) || defined(HOST_ARM64)) && _ISO_VOLATILE
+#endif // _ARM_ || _ARM64_
+#elif (defined(_ARM_) || defined(_ARM64_)) && _ISO_VOLATILE
 // ARM & ARM64 have a very weak memory model and very few tools to control that model. We're forced to perform a full
 // memory barrier to preserve the volatile semantics. Technically this is only necessary on MP systems but we
 // currently don't have a cheap way to determine the number of CPUs from this header file. Revisit this if it
@@ -133,7 +133,7 @@ inline
 T VolatileLoad(T const * pt)
 {
 #ifndef DACCESS_COMPILE
-#if defined(HOST_ARM64) && defined(__GNUC__)
+#if defined(_ARM64_) && defined(__GNUC__)
     T val;
     static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
     if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
@@ -188,7 +188,7 @@ inline
 void VolatileStore(T* pt, T val)
 {
 #ifndef DACCESS_COMPILE
-#if defined(HOST_ARM64) && defined(__GNUC__)
+#if defined(_ARM64_) && defined(__GNUC__)
     static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
     if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
     {

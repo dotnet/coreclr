@@ -113,7 +113,7 @@ void PerfLog::PerfLogInitialize()
         // Hardcoded file name for spitting the perf auotmation formatted perf data. Open
         // the file here for writing and close in PerfLogDone().
         m_hPerfLogFileHandle = WszCreateFile (
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
                                               W("/tmp/PerfData.dat"),
 #else
                                               W("C:\\PerfData.dat"),

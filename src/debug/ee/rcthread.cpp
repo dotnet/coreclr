@@ -12,7 +12,7 @@
 
 #include "stdafx.h"
 #include "threadsuspend.h"
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 #include "securitywrapper.h"
 #endif
@@ -467,7 +467,7 @@ HRESULT DebuggerRCThread::Init(void)
     return S_OK;
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 // This function is used to verify the security descriptor on an event
 // matches our expectation to prevent attack. This should be called when
@@ -630,7 +630,7 @@ HRESULT DebuggerRCThread::VerifySecurityOnRSCreatedEvents(
     return hr;
 }
 
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
@@ -1624,7 +1624,7 @@ HRESULT DebuggerRCThread::AsyncStop(void)
         NOTHROW;
         GC_NOTRIGGER;
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         PRECONDITION(!ThisIsHelperThreadWorker());
 #else
         PRECONDITION(!ThisIsHelperThreadWorker());
@@ -1818,7 +1818,7 @@ HRESULT DebuggerRCThread::ReDaclEvents(PSECURITY_DESCRIPTOR pSecurityDescriptor)
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     if (m_pDCB != NULL)
     {
         if (m_pDCB->m_rightSideEventAvailable)
@@ -1842,7 +1842,7 @@ HRESULT DebuggerRCThread::ReDaclEvents(PSECURITY_DESCRIPTOR pSecurityDescriptor)
             }
         }
     }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     return S_OK;
 }

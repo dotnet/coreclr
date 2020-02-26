@@ -20,7 +20,7 @@
 #include "dbgtransportmanager.h"
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
-#if defined(TARGET_UNIX) || defined(__ANDROID__)
+#if defined(PLATFORM_UNIX) || defined(__ANDROID__)
 // Local (in-process) debugging is not supported for UNIX and Android.
 #define SUPPORT_LOCAL_DEBUGGING 0
 #else
@@ -28,7 +28,7 @@
 #endif
 
 //********** Globals. *********************************************************
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 HINSTANCE       g_hInst;                // Instance handle to this piece of code.
 #endif
 
@@ -453,7 +453,7 @@ HRESULT STDMETHODCALLTYPE CClassFactory::LockServer(
 //*****************************************************************************
 // This helper provides access to the instance handle of the loaded image.
 //*****************************************************************************
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 HINSTANCE GetModuleInst()
 {
     return g_hInst;
@@ -518,13 +518,13 @@ CLRRuntimeHostInternal_GetImageVersionString(
 } // CLRRuntimeHostInternal_GetImageVersionString
 
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 BOOL
 DbiGetThreadContext(HANDLE hThread,
     DT_CONTEXT *lpContext)
 {
     // if we aren't local debugging this isn't going to work
-#if !defined(HOST_ARM) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
@@ -563,7 +563,7 @@ BOOL
 DbiSetThreadContext(HANDLE hThread,
     const DT_CONTEXT *lpContext)
 {
-#if !defined(HOST_ARM) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else

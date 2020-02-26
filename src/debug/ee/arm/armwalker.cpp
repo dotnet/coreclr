@@ -18,7 +18,7 @@
 #include "openum.h"
 
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
 
 void NativeWalker::Decode()
 {

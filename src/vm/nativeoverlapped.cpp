@@ -30,7 +30,7 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
 {
     FCALL_CONTRACT;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     Thread *pThread = GetThread();
     size_t key=0;
 
@@ -82,9 +82,9 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
     if (*lpOverlapped != NULL && ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolIODequeue))
         FireEtwThreadPoolIODequeue(*lpOverlapped, OverlappedDataObject::GetOverlapped(*lpOverlapped), GetClrInstanceId());
 
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
     *lpOverlapped = NULL;
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
     return;
 }

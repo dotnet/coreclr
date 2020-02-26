@@ -121,7 +121,7 @@ protected:
     bool                m_isAbsoluteBranch; // Is it an obsolute branch or not
 };
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 
 class NativeWalker : public Walker
 {
@@ -151,7 +151,7 @@ private:
     DWORD m_opcode;           // Current instruction or opcode
 };
 
-#elif defined (TARGET_ARM)
+#elif defined (_TARGET_ARM_)
 
 class NativeWalker : public Walker
 {
@@ -168,7 +168,7 @@ private:
     DWORD GetReg(DWORD reg);
 };
 
-#elif defined(TARGET_AMD64)
+#elif defined(_TARGET_AMD64_)
 
 class NativeWalker : public Walker
 {
@@ -197,7 +197,7 @@ private:
 
     DWORD m_opcode;           // Current instruction or opcode
 };
-#elif defined (TARGET_ARM64)
+#elif defined (_TARGET_ARM64_)
 #include "controller.h"
 class NativeWalker : public Walker
 {

@@ -6,12 +6,12 @@
  */
 
 /*****************************************************************************/
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 /*****************************************************************************/
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #include "utilcode.h"           // For _ASSERTE()
-#endif //!TARGET_UNIX
+#endif //!FEATURE_PAL
 #include "gcdump.h"
 
 
@@ -1089,5 +1089,5 @@ EPILOG_MSG:     gcPrintf("    Offset %04X is within the method's epilog"
 }
 
 /*****************************************************************************/
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 /*****************************************************************************/

@@ -454,7 +454,7 @@ operator delete[](void *p) NOEXCEPT
  * New operator overloading for the executable heap
  * ------------------------------------------------------------------------ */
 
-#ifndef TARGET_UNIX 
+#ifndef FEATURE_PAL 
  
 const CExecutable executable = { 0 };
 
@@ -538,17 +538,17 @@ void * __cdecl operator new[](size_t n, const CExecutable&, const NoThrow&)
     return result;
 }
 
-#endif // TARGET_UNIX 
+#endif // FEATURE_PAL 
 
 #ifdef _DEBUG
 
 // This is a DEBUG routing to verify that a memory region complies with executable requirements
 BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length)
 {
-#if defined(CROSSGEN_COMPILE) || defined(TARGET_UNIX)
+#if defined(CROSSGEN_COMPILE) || defined(FEATURE_PAL)
     // No NX support on PAL or for crossgen compilations.
     return TRUE;
-#else // !(CROSSGEN_COMPILE || TARGET_UNIX) 
+#else // !(CROSSGEN_COMPILE || FEATURE_PAL) 
     BYTE *regionStart = (BYTE*) ALIGN_DOWN((BYTE*)lpMem, GetOsPageSize());
     BYTE *regionEnd = (BYTE*) ALIGN_UP((BYTE*)lpMem+length, GetOsPageSize());
     _ASSERTE(length > 0);
@@ -570,7 +570,7 @@ BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length)
     }
 
     return TRUE;
-#endif // CROSSGEN_COMPILE || TARGET_UNIX
+#endif // CROSSGEN_COMPILE || FEATURE_PAL
 }
 
 #endif //_DEBUG

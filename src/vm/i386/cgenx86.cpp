@@ -893,7 +893,7 @@ void DynamicHelperFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 // header issues with cgencpu.h including dbginterface.h.
 WORD GetUnpatchedCodeData(LPCBYTE pAddr)
 {
-#ifndef TARGET_X86
+#ifndef _TARGET_X86_
 #error Make sure this works before porting to platforms other than x86.
 #endif
     CONTRACT(WORD) {
@@ -930,7 +930,7 @@ WORD GetUnpatchedCodeData(LPCBYTE pAddr)
 
 #ifndef DACCESS_COMPILE
 
-#if defined(TARGET_X86) && !defined(FEATURE_STUBS_AS_IL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 //-------------------------------------------------------------------------
 // One-time creation of special prestub to initialize UMEntryThunks.
 //-------------------------------------------------------------------------
@@ -980,7 +980,7 @@ Stub *GenerateUMThunkPrestub()
 
     RETURN psl->Link(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap());
 }
-#endif // TARGET_X86 && !FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 Stub *GenerateInitPInvokeFrameHelper()
 {
@@ -1131,7 +1131,7 @@ void ResumeAtJit(PCONTEXT pContext, LPVOID oldESP)
 #endif // !EnC_SUPPORTED
 
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #pragma warning(push)
 #pragma warning(disable: 4035)
 extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
@@ -1205,7 +1205,7 @@ extern "C" DWORD __stdcall xmmYmmStateSupport()
 
 #pragma warning(pop)
 
-#else // !TARGET_UNIX
+#else // !FEATURE_PAL
 
 extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
 {
@@ -1251,7 +1251,7 @@ extern "C" DWORD __stdcall xmmYmmStateSupport()
     return ((eax & 0x06) == 0x06) ? 1 : 0;
 }
 
-#endif // !TARGET_UNIX
+#endif // !FEATURE_PAL
 
 void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
 {

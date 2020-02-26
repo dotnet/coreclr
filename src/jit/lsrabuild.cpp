@@ -366,13 +366,13 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
 //
 void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
 {
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     if (compiler->opts.compDbgEnC)
     {
         // We only use RSI and RDI for EnC code, so we don't want to favor callee-save regs.
         return;
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
     Interval* theInterval = rp->getInterval();
 
@@ -606,7 +606,7 @@ RefPosition* LinearScan::newRefPosition(Interval*    theInterval,
     // Spill info
     newRP->isFixedRegRef = isFixedRegister;
 
-#ifndef TARGET_AMD64
+#ifndef _TARGET_AMD64_
     // We don't need this for AMD because the PInvoke method epilog code is explicit
     // at register allocation time.
     if (theInterval != nullptr && theInterval->isLocalVar && compiler->info.compCallUnmanaged &&
@@ -615,7 +615,7 @@ RefPosition* LinearScan::newRefPosition(Interval*    theInterval,
         mask &= ~(RBM_PINVOKE_TCB | RBM_PINVOKE_FRAME);
         noway_assert(mask != RBM_NONE);
     }
-#endif // !TARGET_AMD64
+#endif // !_TARGET_AMD64_
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(multiRegIdx);
@@ -778,14 +778,14 @@ regMaskTP LinearScan::getKillSetForStoreInd(GenTreeStoreInd* tree)
 regMaskTP LinearScan::getKillSetForShiftRotate(GenTreeOp* shiftNode)
 {
     regMaskTP killMask = RBM_NONE;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     assert(shiftNode->OperIsShiftOrRotate());
     GenTree* shiftBy = shiftNode->gtGetOp2();
     if (!shiftBy->isContained())
     {
         killMask = RBM_RCX;
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     return killMask;
 }
 
@@ -800,13 +800,13 @@ regMaskTP LinearScan::getKillSetForShiftRotate(GenTreeOp* shiftNode)
 regMaskTP LinearScan::getKillSetForMul(GenTreeOp* mulNode)
 {
     regMaskTP killMask = RBM_NONE;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     assert(mulNode->OperIsMul());
     if (!mulNode->OperIs(GT_MUL) || (((mulNode->gtFlags & GTF_UNSIGNED) != 0) && mulNode->gtOverflowEx()))
     {
         killMask = RBM_RAX | RBM_RDX;
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     return killMask;
 }
 
@@ -821,14 +821,14 @@ regMaskTP LinearScan::getKillSetForMul(GenTreeOp* mulNode)
 regMaskTP LinearScan::getKillSetForModDiv(GenTreeOp* node)
 {
     regMaskTP killMask = RBM_NONE;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     assert(node->OperIs(GT_MOD, GT_DIV, GT_UMOD, GT_UDIV));
     if (!varTypeIsFloating(node->TypeGet()))
     {
         // Both RAX and RDX are killed by the operation
         killMask = RBM_RAX | RBM_RDX;
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     return killMask;
 }
 
@@ -843,7 +843,7 @@ regMaskTP LinearScan::getKillSetForModDiv(GenTreeOp* node)
 regMaskTP LinearScan::getKillSetForCall(GenTreeCall* call)
 {
     regMaskTP killMask = RBM_NONE;
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     if (compiler->compFloatingPointUsed)
     {
         if (call->TypeGet() == TYP_DOUBLE)
@@ -855,15 +855,15 @@ regMaskTP LinearScan::getKillSetForCall(GenTreeCall* call)
             needFloatTmpForFPCall = true;
         }
     }
-#endif // TARGET_X86
-#if defined(TARGET_X86) || defined(TARGET_ARM)
+#endif // _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     if (call->IsHelperCall())
     {
         CorInfoHelpFunc helpFunc = compiler->eeGetHelperNum(call->gtCallMethHnd);
         killMask                 = compiler->compHelperCallKillSet(helpFunc);
     }
     else
-#endif // defined(TARGET_X86) || defined(TARGET_ARM)
+#endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     {
         // if there is no FP used, we can ignore the FP kills
         if (compiler->compFloatingPointUsed)
@@ -874,19 +874,19 @@ regMaskTP LinearScan::getKillSetForCall(GenTreeCall* call)
         {
             killMask = RBM_INT_CALLEE_TRASH;
         }
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
         if (call->IsVirtualStub())
         {
             killMask |= compiler->virtualStubParamInfo->GetRegMask();
         }
-#else  // !TARGET_ARM
+#else  // !_TARGET_ARM_
         // Verify that the special virtual stub call registers are in the kill mask.
         // We don't just add them unconditionally to the killMask because for most architectures
         // they are already in the RBM_CALLEE_TRASH set,
         // and we don't want to introduce extra checks and calls in this hot function.
         assert(!call->IsVirtualStub() || ((killMask & compiler->virtualStubParamInfo->GetRegMask()) ==
                                           compiler->virtualStubParamInfo->GetRegMask()));
-#endif // !TARGET_ARM
+#endif // !_TARGET_ARM_
     }
     return killMask;
 }
@@ -925,7 +925,7 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
                 }
                 break;
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
             case GenTreeBlk::BlkOpKindRepInstr:
                 if (isCopyBlk)
                 {
@@ -968,7 +968,7 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
 regMaskTP LinearScan::getKillSetForHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     regMaskTP killMask = RBM_NONE;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     switch (node->gtHWIntrinsicId)
     {
         case NI_SSE2_MaskMove:
@@ -986,7 +986,7 @@ regMaskTP LinearScan::getKillSetForHWIntrinsic(GenTreeHWIntrinsic* node)
             // Leave killMask as RBM_NONE
             break;
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     return killMask;
 }
 #endif // FEATURE_HW_INTRINSICS
@@ -1038,7 +1038,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
         case GT_RSZ:
         case GT_ROL:
         case GT_ROR:
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         case GT_LSH_HI:
         case GT_RSH_LO:
 #endif
@@ -1047,7 +1047,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
 
         case GT_MUL:
         case GT_MULHI:
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
         case GT_MUL_LONG:
 #endif
             killMask = getKillSetForMul(tree->AsOp());
@@ -1388,7 +1388,7 @@ void LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation cu
                 RefPosition* pos =
                     newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorSave, tree, RBM_FLT_CALLEE_SAVED);
                 varInterval->isPartiallySpilled = true;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
                 pos->regOptional = true;
 #endif
             }
@@ -1432,7 +1432,7 @@ void LinearScan::buildUpperVectorRestoreRefPosition(Interval* lclVarInterval, Ls
         Interval*    upperVectorInterval = getUpperVectorInterval(varIndex);
         RefPosition* pos = newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorRestore, node, RBM_NONE);
         lclVarInterval->isPartiallySpilled = false;
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         pos->regOptional = true;
 #endif
     }
@@ -1564,7 +1564,7 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
 
     if (tree->isContained())
     {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
         // On XArch we can have contained candidate lclVars if they are part of a RMW
         // address computation. In this case we need to check whether it is a last use.
         if (tree->IsLocal() && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
@@ -1577,9 +1577,9 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                 VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
             }
         }
-#else  // TARGET_XARCH
+#else  // _TARGET_XARCH_
         assert(!isCandidateLocalRef(tree));
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
         JITDUMP("Contained\n");
         return;
     }
@@ -1599,10 +1599,10 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
     int produce         = newDefListCount - oldDefListCount;
     assert((consume == 0) || (ComputeAvailableSrcCount(tree) == consume));
 
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     // Multi-reg call node is the only node that could produce multi-reg value
     assert(produce <= 1 || (tree->IsMultiRegCall() && produce == MAX_RET_REG_COUNT));
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
 
 #endif // DEBUG
 
@@ -2421,7 +2421,7 @@ void LinearScan::validateIntervals()
 }
 #endif // DEBUG
 
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
 //------------------------------------------------------------------------
 // setTgtPref: Set a  preference relationship between the given Interval
 //             and a Use RefPosition.
@@ -2452,7 +2452,7 @@ void setTgtPref(Interval* interval, RefPosition* tgtPrefUse)
         }
     }
 }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 //------------------------------------------------------------------------
 // BuildDef: Build a RefTypeDef RefPosition for the given node
 //
@@ -2496,7 +2496,7 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
             assert(isSingleRegister(dstCandidates));
         }
     }
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     else if (varTypeIsByte(tree))
     {
         if (dstCandidates == RBM_NONE)
@@ -2506,7 +2506,7 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
         dstCandidates &= ~RBM_NON_BYTE_REGS;
         assert(dstCandidates != RBM_NONE);
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     if (pendingDelayFree)
     {
         interval->hasInterferingUses = true;
@@ -2524,10 +2524,10 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
         RefInfoListNode* refInfo = listNodePool.GetNode(defRefPosition, tree);
         defList.Append(refInfo);
     }
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     setTgtPref(interval, tgtPrefUse);
     setTgtPref(interval, tgtPrefUse2);
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     assert(!interval->isPartiallySpilled);
 #endif
@@ -2751,12 +2751,12 @@ int LinearScan::BuildOperandUses(GenTree* node, regMaskTP candidates)
         return 1;
     }
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (node->OperIs(GT_LONG))
     {
         return BuildBinaryUses(node->AsOp(), candidates);
     }
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
     if (node->OperIsIndir())
     {
         return BuildIndirUses(node->AsIndir(), candidates);
@@ -2868,12 +2868,12 @@ int LinearScan::BuildDelayFreeUses(GenTree* node, regMaskTP candidates)
 //
 int LinearScan::BuildBinaryUses(GenTreeOp* node, regMaskTP candidates)
 {
-#ifdef TARGET_XARCH
+#ifdef _TARGET_XARCH_
     if (node->OperIsBinary() && isRMWRegOper(node))
     {
         return BuildRMWUses(node, candidates);
     }
-#endif // TARGET_XARCH
+#endif // _TARGET_XARCH_
     int      srcCount = 0;
     GenTree* op1      = node->gtOp1;
     GenTree* op2      = node->gtGetOp2IfPresent();
@@ -2942,7 +2942,7 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
             BuildUse(op1, RBM_NONE, i);
         }
     }
-#ifndef TARGET_64BIT
+#ifndef _TARGET_64BIT_
     else if (varTypeIsLong(op1))
     {
         if (op1->OperIs(GT_MUL_LONG))
@@ -2959,7 +2959,7 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
             assert(srcCount == 2);
         }
     }
-#endif // !TARGET_64BIT
+#endif // !_TARGET_64BIT_
     else if (op1->isContained())
     {
         srcCount = 0;
@@ -2968,12 +2968,12 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
     {
         srcCount                = 1;
         regMaskTP srcCandidates = RBM_NONE;
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         if (varTypeIsByte(storeLoc))
         {
             srcCandidates = allByteRegs();
         }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
         singleUseRef = BuildUse(op1, srcCandidates);
     }
 
@@ -3077,7 +3077,7 @@ int LinearScan::BuildReturn(GenTree* tree)
 {
     GenTree* op1 = tree->gtGetOp1();
 
-#if !defined(TARGET_64BIT)
+#if !defined(_TARGET_64BIT_)
     if (tree->TypeGet() == TYP_LONG)
     {
         assert((op1->OperGet() == GT_LONG) && op1->isContained());
@@ -3088,20 +3088,20 @@ int LinearScan::BuildReturn(GenTree* tree)
         return 2;
     }
     else
-#endif // !defined(TARGET_64BIT)
+#endif // !defined(_TARGET_64BIT_)
         if ((tree->TypeGet() != TYP_VOID) && !op1->isContained())
     {
         regMaskTP useCandidates = RBM_NONE;
 
 #if FEATURE_MULTIREG_RET
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
         if (varTypeIsSIMD(tree))
         {
             useCandidates = allSIMDRegs();
             BuildUse(op1, useCandidates);
             return 1;
         }
-#endif // !TARGET_ARM64
+#endif // !_TARGET_ARM64_
 
         if (varTypeIsStruct(tree))
         {
@@ -3168,7 +3168,7 @@ int LinearScan::BuildReturn(GenTree* tree)
 
 bool LinearScan::supportsSpecialPutArg()
 {
-#if defined(DEBUG) && defined(TARGET_X86)
+#if defined(DEBUG) && defined(_TARGET_X86_)
     // On x86, `LSRA_LIMIT_CALLER` is too restrictive to allow the use of special put args: this stress mode
     // leaves only three registers allocatable--eax, ecx, and edx--of which the latter two are also used for the
     // first two integral arguments to a call. This can leave us with too few registers to succesfully allocate in
@@ -3278,7 +3278,7 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         isSpecialPutArg = true;
     }
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // If type of node is `long` then it is actually `double`.
     // The actual `long` types must have been transformed as a field list with two fields.
     if (node->TypeGet() == TYP_LONG)
@@ -3291,7 +3291,7 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         BuildDef(node, argMaskHi, 1);
     }
     else
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
     {
         RefPosition* def = BuildDef(node, argMask);
         if (isSpecialPutArg)
@@ -3355,7 +3355,7 @@ int LinearScan::BuildGCWriteBarrier(GenTree* tree)
     regMaskTP addrCandidates = RBM_ARG_0;
     regMaskTP srcCandidates  = RBM_ARG_1;
 
-#if defined(TARGET_ARM64)
+#if defined(_TARGET_ARM64_)
 
     // the 'addr' goes into x14 (REG_WRITE_BARRIER_DST)
     // the 'src'  goes into x15 (REG_WRITE_BARRIER_SRC)
@@ -3363,7 +3363,7 @@ int LinearScan::BuildGCWriteBarrier(GenTree* tree)
     addrCandidates = RBM_WRITE_BARRIER_DST;
     srcCandidates  = RBM_WRITE_BARRIER_SRC;
 
-#elif defined(TARGET_X86) && NOGC_WRITE_BARRIERS
+#elif defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     bool useOptimizedWriteBarrierHelper = compiler->codeGen->genUseOptimizedWriteBarriers(tree, src);
     if (useOptimizedWriteBarrierHelper)
@@ -3375,7 +3375,7 @@ int LinearScan::BuildGCWriteBarrier(GenTree* tree)
         srcCandidates  = RBM_WRITE_BARRIER_SRC;
     }
 
-#endif // defined(TARGET_X86) && NOGC_WRITE_BARRIERS
+#endif // defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     BuildUse(addr, addrCandidates);
     BuildUse(src, srcCandidates);
@@ -3403,7 +3403,7 @@ int LinearScan::BuildCmp(GenTree* tree)
     GenTree*  op1           = tree->gtGetOp1();
     GenTree*  op2           = tree->gtGetOp2();
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     // If the compare is used by a jump, we just need to set the condition codes. If not, then we need
     // to store the result into the low byte of a register, which requires the dst be a byteable register.
     if (tree->TypeGet() != TYP_VOID)
@@ -3452,7 +3452,7 @@ int LinearScan::BuildCmp(GenTree* tree)
             op2Candidates = allByteRegs();
         }
     }
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
     int srcCount = BuildOperandUses(op1, op1Candidates);
     srcCount += BuildOperandUses(op2, op2Candidates);

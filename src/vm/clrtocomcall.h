@@ -34,14 +34,14 @@ class ComPlusCall
         static MethodDesc *GetWinRTFactoryMethodForCtor(MethodDesc *pMDCtor, BOOL *pComposition);
         static MethodDesc *GetWinRTFactoryMethodForStatic(MethodDesc *pMDStatic);
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         static void Init();
         static LPVOID GetRetThunk(UINT numStackBytes);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
     private:
         ComPlusCall();     // prevent "new"'s on this class
 
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     struct RetThunkCacheElement
     {
         RetThunkCacheElement()
@@ -68,7 +68,7 @@ class ComPlusCall
 
     static SHash<RetThunkSHashTraits> *s_pRetThunkCache;
     static CrstStatic s_RetThunkCacheCrst;
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 };
 
 #endif // __COMPLUSCALL_H__

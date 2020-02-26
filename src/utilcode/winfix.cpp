@@ -183,7 +183,7 @@ WszCreateProcess(
     return fResult;
 }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 
 
 #include "psapi.h"
@@ -292,4 +292,4 @@ HRESULT SetThreadName(HANDLE hThread, PCWSTR lpThreadDescription)
     return g_pfnSetThreadDescription(hThread, lpThreadDescription);
 }
 
-#endif //!TARGET_UNIX
+#endif //!FEATURE_PAL

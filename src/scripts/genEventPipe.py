@@ -254,12 +254,12 @@ def generateEventPipeHelperFile(etwmanifest, eventpipe_directory, extern, dryRun
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 #include <windef.h>
 #include <crtdbg.h>
 #else
 #include "pal.h"
-#endif //TARGET_UNIX
+#endif //FEATURE_PAL
 
 bool ResizeBuffer(char *&buffer, size_t& size, size_t currLen, size_t newSize, bool &fixedBuffer)
 {
@@ -397,7 +397,7 @@ def generateEventPipeImplFiles(
 #include "{root:s}/vm/eventpipeevent.h"
 #include "{root:s}/vm/eventpipe.h"
 
-#if defined(TARGET_UNIX)
+#if defined(FEATURE_PAL)
 #define wcslen PAL_wcslen
 #endif
 

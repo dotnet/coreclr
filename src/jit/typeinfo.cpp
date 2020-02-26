@@ -219,7 +219,7 @@ BOOL typeInfo::tiCompatibleWith(COMP_HANDLE     CompHnd,
     {
         return tiCompatibleWithByRef(CompHnd, child, parent);
     }
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     // On 64-bit targets we have precise representation for native int, so these rules
     // represent the fact that the ECMA spec permits the implicit conversion
     // between an int32 and a native int.
@@ -231,7 +231,7 @@ BOOL typeInfo::tiCompatibleWith(COMP_HANDLE     CompHnd,
     {
         return TRUE;
     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
     return FALSE;
 }
 
@@ -362,7 +362,7 @@ BOOL typeInfo::tiMergeToCommonParent(COMP_HANDLE CompHnd, typeInfo* pDest, const
     {
         return tiCompatibleWithByRef(CompHnd, *pSrc, *pDest);
     }
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     // On 64-bit targets we have precise representation for native int, so these rules
     // represent the fact that the ECMA spec permits the implicit conversion
     // between an int32 and a native int.
@@ -376,7 +376,7 @@ BOOL typeInfo::tiMergeToCommonParent(COMP_HANDLE CompHnd, typeInfo* pDest, const
         *changed = true;
         return TRUE;
     }
-#endif // TARGET_64BIT
+#endif // _TARGET_64BIT_
 
 FAIL:
     *pDest = typeInfo();

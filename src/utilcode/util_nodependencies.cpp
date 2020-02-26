@@ -28,7 +28,7 @@ RunningOnStatusEnum gRunningOnStatus = RUNNING_ON_STATUS_UNINITED;
 //*****************************************************************************
 void InitRunningOnVersionStatus ()
 {
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
@@ -88,15 +88,15 @@ CHECK_SUPPORTED:
         UtilMessageBoxCatastrophicNonLocalized(NON_SUPPORTED_PLATFORM_MSGBOX_TITLE, NON_SUPPORTED_PLATFORM_MSGBOX_TEXT, MB_OK | MB_ICONERROR, TRUE);
         TerminateProcess(GetCurrentProcess(), NON_SUPPORTED_PLATFORM_TERMINATE_ERROR_CODE);
     }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 } // InitRunningOnVersionStatus
 
-#ifndef HOST_64BIT
+#ifndef BIT64
 //------------------------------------------------------------------------------
 // Returns TRUE if we are running on a 64-bit OS in WoW, FALSE otherwise.
 BOOL RunningInWow64()
 {
-    #ifdef TARGET_UNIX
+    #ifdef PLATFORM_UNIX
     return FALSE;
     #else
     static int s_Wow64Process;
@@ -116,7 +116,7 @@ BOOL RunningInWow64()
 }
 #endif
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 //------------------------------------------------------------------------------
 //
 // GetRegistryLongValue - Reads a configuration LONG value from the registry.
@@ -470,7 +470,7 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
 
     return S_OK;
 } // GetDebuggerSettingInfoWorker
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
 #endif //!defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(_DEBUG)
 
@@ -864,18 +864,18 @@ HighCharHelper::HighCharTable[]= {
     TRUE, /* 0x7, .*/
     TRUE, /* 0x8, .*/
     FALSE, /* 0x9,   */
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
     TRUE, /* 0xA,  */
 #else    
     FALSE, /* 0xA,  */
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
     FALSE, /* 0xB, .*/
     FALSE, /* 0xC, .*/
-#ifdef TARGET_UNIX
+#ifdef PLATFORM_UNIX
     TRUE, /* 0xD,  */
 #else    
     FALSE, /* 0xD,  */
-#endif // TARGET_UNIX
+#endif // PLATFORM_UNIX
     TRUE, /* 0xE, .*/
     TRUE, /* 0xF, .*/
     TRUE, /* 0x10, .*/

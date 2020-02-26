@@ -11,7 +11,7 @@
 #ifndef _common_h_ 
 #define _common_h_
 
-#if defined(_MSC_VER) && defined(HOST_X86) && !defined(FPO_ON)
+#if defined(_MSC_VER) && defined(_X86_) && !defined(FPO_ON)
 #pragma optimize("y", on)       // Small critical routines, don't put in EBP frame 
 #define FPO_ON 1
 #define COMMON_TURNED_FPO_ON 1
@@ -212,7 +212,7 @@ EXTERN_C AppDomain* STDCALL GetAppDomain();
 
 inline void RetailBreak()  
 {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
     __asm int 3
 #else
     DebugBreak();
@@ -414,7 +414,7 @@ inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection
 HRESULT EnsureRtlFunctions();
 HINSTANCE GetModuleInst();
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 //
 // Strong memory model. No memory barrier necessary before writing object references into GC heap.
 //

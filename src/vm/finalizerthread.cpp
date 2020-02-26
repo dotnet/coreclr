@@ -475,10 +475,10 @@ void FinalizerThread::FinalizerThreadCreate()
         MODE_ANY;
     } CONTRACTL_END;
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
     MHandles[kLowMemoryNotification] =
         CreateMemoryResourceNotification(LowMemoryResourceNotification);
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     hEventFinalizerDone = new CLREvent();
     hEventFinalizerDone->CreateManualEvent(FALSE);

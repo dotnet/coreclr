@@ -137,7 +137,7 @@ regNumber Compiler::raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc
 
     regState->rsCalleeRegArgMaskLiveIn |= inArgMask;
 
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     if (argDsc->lvType == TYP_DOUBLE)
     {
         if (info.compIsVarArgs || opts.compUseSoftFP)
@@ -158,7 +158,7 @@ regNumber Compiler::raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc
         assert(!regState->rsIsFloat);
         regState->rsCalleeRegArgMaskLiveIn |= genRegMask((regNumber)(inArgReg + 1));
     }
-#endif // TARGET_ARM
+#endif // _TARGET_ARM_
 
 #if FEATURE_MULTIREG_ARGS
     if (varTypeIsStruct(argDsc->lvType))
@@ -247,7 +247,7 @@ bool Compiler::rpMustCreateEBPFrame(INDEBUG(const char** wbReason))
         result = true;
     }
 
-#ifdef TARGET_ARM64
+#ifdef _TARGET_ARM64_
     // TODO-ARM64-NYI: This is temporary: force a frame pointer-based frame until genFnProlog can handle non-frame
     // pointer frames.
     if (!result)
@@ -255,7 +255,7 @@ bool Compiler::rpMustCreateEBPFrame(INDEBUG(const char** wbReason))
         INDEBUG(reason = "Temporary ARM64 force frame pointer");
         result = true;
     }
-#endif // TARGET_ARM64
+#endif // _TARGET_ARM64_
 
 #ifdef DEBUG
     if ((result == true) && (wbReason != nullptr))

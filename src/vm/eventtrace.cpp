@@ -216,7 +216,7 @@ BOOL IsRundownNgenKeywordEnabledAndNotSuppressed()
 /*******************************************************/
 /* Fast assembly function to get the topmost EBP frame */
 /*******************************************************/
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 extern "C"
 {
     CallStackFrame* GetEbp()
@@ -307,14 +307,14 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::SaveCurrentStack(int skip
         return ETW::SamplingLog::UnInitialized;
     }
 #ifndef DACCESS_COMPILE
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
     if (RtlVirtualUnwind_Unsafe == NULL)
     {
         // We haven't even set up the RtlVirtualUnwind function pointer yet,
         // so it's too early to try stack walking.
         return ETW::SamplingLog::UnInitialized;
     }
-#endif // TARGET_AMD64
+#endif // _TARGET_AMD64_
     Thread *pThread = GetThread();
     if (pThread == NULL)
     {
@@ -331,7 +331,7 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::SaveCurrentStack(int skip
     pThread->MarkEtwStackWalkInProgress();
     EX_TRY
     {
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
         CallStackFrame *currentEBP = GetEbp();
         CallStackFrame *lastEBP = NULL;
 
@@ -404,7 +404,7 @@ ETW::SamplingLog::EtwStackWalkStatus ETW::SamplingLog::SaveCurrentStack(int skip
     
             PrevSP = CurrentSP;
         }
-#endif //TARGET_X86
+#endif //_TARGET_X86_
     } EX_CATCH { } EX_END_CATCH(SwallowAllExceptions);
     pThread->MarkEtwStackWalkCompleted();
 #endif //!DACCESS_COMPILE
@@ -4515,7 +4515,7 @@ extern "C"
                 }
             }
 
-#ifdef TARGET_AMD64
+#ifdef _TARGET_AMD64_
             // We only do this on amd64  (NOT ARM, because ARM uses frame based stack crawling)
             // If we have turned on the JIT keyword to the INFORMATION setting (needed to get JIT names) then
             // we assume that we also want good stack traces so we need to publish unwind information so
@@ -4629,11 +4629,11 @@ VOID ETW::ExceptionLog::ExceptionThrown(CrawlFrame  *pCf, BOOL bIsReThrownExcept
 
         if (pCf->IsFrameless())
         {
-#ifndef HOST_64BIT
+#ifndef BIT64
             exceptionEIP = (PVOID)pCf->GetRegisterSet()->ControlPC;
 #else
             exceptionEIP = (PVOID)GetIP(pCf->GetRegisterSet()->pContext);
-#endif //!HOST_64BIT
+#endif //!BIT64
         }
         else
         {

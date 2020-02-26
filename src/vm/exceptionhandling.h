@@ -13,9 +13,9 @@
 #include "eexcp.h"
 #include "exstatecommon.h"
 
-#if defined(TARGET_ARM) || defined(TARGET_X86)
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
 #define USE_PER_FRAME_PINVOKE_INIT
-#endif // TARGET_ARM || TARGET_X86
+#endif // _TARGET_ARM_ || _TARGET_X86_
 
 // This address lies in the NULL pointer partition of the process memory.
 // Accessing it will result in AV.
@@ -69,10 +69,10 @@ public:
         m_StackTraceInfo.Init();
 #endif //  DACCESS_COMPILE
 
-#ifndef TARGET_UNIX        
+#ifndef FEATURE_PAL        
         // Init the WatsonBucketTracker
         m_WatsonBucketTracker.Init();
-#endif // !TARGET_UNIX        
+#endif // !FEATURE_PAL        
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         // Initialize the default exception severity to NotCorrupting
@@ -99,7 +99,7 @@ public:
         m_pLimitFrame = NULL;
         m_csfEHClauseOfCollapsedTracker.Clear();
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         m_fOwnsExceptionPointers = FALSE;
 #endif
     }
@@ -129,10 +129,10 @@ public:
 
         m_StackTraceInfo.Init();
 
-#ifndef TARGET_UNIX        
+#ifndef FEATURE_PAL        
         // Init the WatsonBucketTracker
         m_WatsonBucketTracker.Init();
-#endif // !TARGET_UNIX        
+#endif // !FEATURE_PAL        
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         // Initialize the default exception severity to NotCorrupting
@@ -158,7 +158,7 @@ public:
         m_pInitialExplicitFrame = NULL;
         m_csfEHClauseOfCollapsedTracker.Clear();
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
         m_fOwnsExceptionPointers = FALSE;
 #endif
     }
@@ -299,7 +299,7 @@ public:
         return m_pInitialExplicitFrame;
     }
 
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     // Reset the range of explicit frames, the limit frame and the scanned
     // stack range before unwinding a sequence of native frames. These frames
     // will be in the unwound part of the stack.
@@ -309,7 +309,7 @@ public:
         m_pLimitFrame = NULL;
         m_ScannedStackRange.Reset();
     }
-#endif // TARGET_UNIX
+#endif // FEATURE_PAL
 
     // Determines if we have unwound to the specified parent method frame.
     // Currently this is only used for funclet skipping.
@@ -383,7 +383,7 @@ public:
 
     bool IsStackOverflowException();
 
-#if defined(TARGET_UNIX) && !defined(CROSS_COMPILE)
+#if defined(FEATURE_PAL) && !defined(CROSS_COMPILE)
     void TakeExceptionPointersOwnership(PAL_SEHException* ex)
     {
         _ASSERTE(ex->GetExceptionRecord() == m_ptrs.ExceptionRecord);
@@ -391,7 +391,7 @@ public:
         ex->Clear();
         m_fOwnsExceptionPointers = TRUE;
     }
-#endif // TARGET_UNIX && !CROSS_COMPILE
+#endif // FEATURE_PAL && !CROSS_COMPILE
 
 private:
     DWORD_PTR
@@ -581,7 +581,7 @@ public:
         return m_EnclosingClauseInfoOfCollapsedTracker.GetEnclosingClauseCallerSP();
     }
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 private:
     EHWatsonBucketTracker m_WatsonBucketTracker;
 public:
@@ -590,7 +590,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return PTR_EHWatsonBucketTracker(PTR_HOST_MEMBER_TADDR(ExceptionTracker, this, m_WatsonBucketTracker));
     }
-#endif // !TARGET_UNIX        
+#endif // !FEATURE_PAL        
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
 private:
@@ -712,7 +712,7 @@ private: ;
 
     StackRange              m_ScannedStackRange;
     DAC_EXCEPTION_POINTERS  m_ptrs;
-#ifdef TARGET_UNIX
+#ifdef FEATURE_PAL
     BOOL                    m_fOwnsExceptionPointers;
 #endif
     OBJECTHANDLE            m_hThrowable;

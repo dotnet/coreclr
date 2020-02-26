@@ -79,7 +79,7 @@ public:
     //
     void* m_StackAddress; // A pseudo or real stack location for this record.
 
-#ifndef TARGET_UNIX
+#ifndef FEATURE_PAL
 private:
     EHWatsonBucketTracker m_WatsonBucketTracker;
 public:
@@ -156,7 +156,7 @@ public:
     EHClauseInfo        m_EHClauseInfo;
     ExceptionFlags      m_ExceptionFlags;
 
-#if defined(TARGET_X86) && defined(DEBUGGING_SUPPORTED)
+#if defined(_TARGET_X86_) && defined(DEBUGGING_SUPPORTED)
     EHContext           m_InterceptionContext;
     BOOL                m_ValidInterceptionContext;
 #endif 
@@ -175,9 +175,9 @@ private:
     ExInfo& operator=(const ExInfo &from);
 };
 
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
 PTR_ExInfo GetEHTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable, PTR_ExInfo pStartingEHTracker);
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 
 #endif // !WIN64EXCEPTIONS
 #endif // __ExInfo_h__

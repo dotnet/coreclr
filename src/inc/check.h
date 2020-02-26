@@ -558,7 +558,7 @@ CHECK CheckValue(TYPENAME &val)
 #endif // __llvm__ else
 
 #if defined(_MSC_VER) || defined(_PREFIX_)
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
 // Empty methods that consist of UNREACHABLE() result in a zero-sized declspec(noreturn) method
 // which causes the pdb file to make the next method declspec(noreturn) as well, thus breaking BBT
 // Remove when we get a VC compiler that fixes VSW 449170
