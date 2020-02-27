@@ -857,11 +857,11 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         exceptionhandling.h
     )
 
-    if(CLR_CMAKE_PLATFORM_UNIX)
+    if(CLR_CMAKE_TARGET_UNIX)
         list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
             ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
         )
-    endif(CLR_CMAKE_PLATFORM_UNIX)
+    endif(CLR_CMAKE_TARGET_UNIX)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)

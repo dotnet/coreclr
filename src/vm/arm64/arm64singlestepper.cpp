@@ -10,7 +10,7 @@
 #include "common.h"
 #include "arm64singlestepper.h"
 
-inline uint64_t SignExtend(uint64_t value, unsigned int signbit)
+inline uint64_t SignExtend(uint64_t value, uint64_t signbit)
 {
     _ASSERTE(signbit < 64);
 
@@ -25,7 +25,7 @@ inline uint64_t SignExtend(uint64_t value, unsigned int signbit)
         return value;
 }
 
-inline uint64_t BitExtract(uint64_t value, unsigned int highbit, unsigned int lowbit, bool signExtend = false)
+inline uint64_t BitExtract(uint64_t value, uint64_t highbit, uint64_t lowbit, bool signExtend = false)
 {
     _ASSERTE((highbit < 64) && (lowbit < 64) && (highbit >= lowbit));
     uint64_t extractedValue = (value >> lowbit) & ((1ull << ((highbit - lowbit) + 1)) - 1);
