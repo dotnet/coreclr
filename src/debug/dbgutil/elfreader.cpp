@@ -46,9 +46,11 @@ class ElfReaderExport: public ElfReader
 private:
     ICorDebugDataTarget* m_dataTarget;
 
+    uint64_t m_noteVA;
+
 public:
     ElfReaderExport(ICorDebugDataTarget* dataTarget) :
-        m_dataTarget(dataTarget)
+        m_dataTarget(dataTarget), m_noteVA(0)
     {
         dataTarget->AddRef();
     }
@@ -58,11 +60,35 @@ public:
         m_dataTarget->Release();
     }
 
+    bool GetNoteVA(uint64_t*va)
+    {
+        if (m_noteVA != 0)
+        {
+            *va = m_noteVA;
+            return true;
+        }
+        return false;
+    }
+
 private:
     virtual bool ReadMemory(void* address, void* buffer, size_t size)
     {
         uint32_t read = 0;
         return SUCCEEDED(m_dataTarget->ReadVirtual(reinterpret_cast<CLRDATA_ADDRESS>(address), reinterpret_cast<PBYTE>(buffer), (uint32_t)size, &read));
+    }
+
+    virtual void VisitProgramHeader(uint64_t loadbias, uint64_t baseAddress, ElfW(Phdr)* phdr)
+    {
+        ElfW(Phdr) &ph = *phdr;
+
+        switch (ph.p_type)
+        {
+        case PT_NOTE:
+            if (m_noteVA == 0)
+                m_noteVA = ph.p_vaddr;
+            break;
+        }
+
     }
 };
 
@@ -83,6 +109,26 @@ TryGetSymbol(ICorDebugDataTarget* dataTarget, uint64_t baseAddress, const char* 
         }
     }
     *symbolAddress = 0;
+    return false;
+}
+
+//
+// Main entry point to get the build-id
+//
+bool
+TryGetBuildIdKey(ICorDebugDataTarget* dataTarget, uint64_t baseAddress, uint64_t *key)
+{
+    ElfReaderExport elfreader(dataTarget);
+
+    elfreader.EnumerateProgramHeaders(baseAddress);
+
+    uint64_t noteVA;
+
+    if (elfreader.GetNoteVA(&noteVA))
+    {
+        uint32_t read = 0;
+        return SUCCEEDED(dataTarget->ReadVirtual(baseAddress + noteVA + 0x10, reinterpret_cast<PBYTE>(key), sizeof(uint64_t), &read));
+    }
     return false;
 }
 

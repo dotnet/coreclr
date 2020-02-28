@@ -30,6 +30,7 @@
 #include <dactablerva.h>
 #else
 extern bool TryGetSymbol(ICorDebugDataTarget* dataTarget, uint64_t baseAddress, const char* symbolName, uint64_t* symbolAddress);
+extern bool TryGetBuildIdKey(ICorDebugDataTarget* dataTarget, uint64_t baseAddress, uint64_t *key);
 #endif
 #endif
 
@@ -7249,6 +7250,84 @@ bool ClrDataAccess::MdCacheGetEEName(TADDR taEEStruct, SString & eeName)
 #define _WIDE(x) _WIDE2(x)
 #define _WIDE2(x) W(x)
 
+constexpr uint64_t byteswap(uint64_t a)
+{
+    return (((a >>  0) & 0xff) << 56) |
+           (((a >>  8) & 0xff) << 48) |
+           (((a >> 16) & 0xff) << 40) |
+           (((a >> 24) & 0xff) << 32) |
+           (((a >> 32) & 0xff) << 24) |
+           (((a >> 40) & 0xff) << 16) |
+           (((a >> 48) & 0xff) <<  8) |
+           (((a >> 56) & 0xff) <<  0);
+}
+
+#ifdef TARGET_UNIX
+HRESULT GetDacTableAddressFromBuildId(ICorDebugDataTarget* dataTarget, ULONG64 baseAddress, PULONG64 dacTableAddress)
+{
+    static const uint64_t knownDacTableRvas[][2] = {
+#ifdef _TARGET_ARM_
+        { byteswap(0x1b3ccaa5e90fc7b5), 0x0051d534 }, // 3.0.0-linux-arm         1b3ccaa5e90fc7b55d7cc3a56543b50d967e7fc3
+        { byteswap(0x1b682748af6bff52), 0x0051d534 }, // 3.0.1-linux-arm         1b682748af6bff52dff10123babf054cfb77a815
+        { byteswap(0x3ded063b88555985), 0x0051d534 }, // 3.0.2-linux-arm         3ded063b885559858834d6b134f0873c925427df
+        { byteswap(0x93500f29d2353ed6), 0x0051d534 }, // 3.0.3-linux-arm         93500f29d2353ed6d88ffec5ebc545d36a76eb90
+        { byteswap(0x1ad0f6ce0299e969), 0x00542644 }, // 3.1.0-linux-arm         1ad0f6ce0299e9692d6a6fad46174793664339c3
+        { byteswap(0x453911ff93943d5d), 0x00542644 }, // 3.1.1-linux-arm         453911ff93943d5d9545cd1842769399e6e69348
+        { byteswap(0xc84dd0af8cb2329f), 0x00542644 }, // 3.1.2-linux-arm         c84dd0af8cb2329f271ea902823ca5493024bd65
+#endif
+#ifdef _TARGET_ARM64_
+        { byteswap(0x9fdf21369d5abb16), 0x00774dd8 }, // 3.0.0-linux-arm64       9fdf21369d5abb16e56628118c1ea46482dd48ac
+        { byteswap(0x2ee09351979dd376), 0x00774dd8 }, // 3.0.1-linux-arm64       2ee09351979dd376fefa0e8edb38189baec181d3
+        { byteswap(0x553997493352b789), 0x00774dd8 }, // 3.0.2-linux-arm64       553997493352b7895de63816afb9d0633817e7a5
+        { byteswap(0xb69990aa0b560fdb), 0x00774dd8 }, // 3.0.3-linux-arm64       b69990aa0b560fdbf275bf381b5e16768c95f5bb
+        { byteswap(0x16ef48b2b66987b6), 0x00775f08 }, // 3.1.0-linux-arm64       16ef48b2b66987b610daa040dcf6d2922125103e
+        { byteswap(0x31d4f2d7b4718529), 0x00775f08 }, // 3.1.1-linux-arm64       31d4f2d7b47185297218315b5eb72af4a1a3aa40
+        { byteswap(0xe2d401759f1bd900), 0x00775f08 }, // 3.1.2-linux-arm64       e2d401759f1bd9006f16876db54be976a291e3be
+        { byteswap(0x98c668512a17a45a), 0x0076cd58 }, // 3.0.0-linux-musl-arm64  98c668512a17a45aa9070ee317535863de8bfefb
+        { byteswap(0x1f09306f440f6405), 0x0076cd58 }, // 3.0.1-linux-musl-arm64  1f09306f440f640556d2d6dbe080e79070f316e0
+        { byteswap(0x1df800e39aa76fe9), 0x0076cd58 }, // 3.0.2-linux-musl-arm64  1df800e39aa76fe97c3c4b994b8c17388cb5a731
+        { byteswap(0x5175c766a43ec189), 0x0076cd58 }, // 3.0.3-linux-musl-arm64  5175c766a43ec1894a9d62a4c64fff3a961aee96
+        { byteswap(0x3012ff7e5f93c689), 0x0076de88 }, // 3.1.0-linux-musl-arm64  3012ff7e5f93c6899ee80391fbdfadbef1ab714b
+        { byteswap(0xdf80e2974418a06d), 0x0076de88 }, // 3.1.1-linux-musl-arm64  df80e2974418a06d01fc69896d1a72810e6dcb30
+        { byteswap(0xe33f53de99893dac), 0x0076de88 }, // 3.1.2-linux-musl-arm64  e33f53de99893dac2abd2ba13dd92cdf876aea47
+#endif
+#ifdef _TARGET_AMD64_
+        { byteswap(0xb4c030672d8bb8cf), 0x0073c568 }, // 3.0.0-linux-x64         b4c030672d8bb8cffdae6ebfac0717763f6677f8
+        { byteswap(0x5e2d6e090b052570), 0x0073c568 }, // 3.0.1-linux-x64         5e2d6e090b052570bfdc50a98dc9b132eb4edfb8
+        { byteswap(0xf77d2182e288dd35), 0x0073c568 }, // 3.0.2-linux-x64         f77d2182e288dd3544549a3a66f96707c126834d
+        { byteswap(0x3a7c5d95719e77cf), 0x0073c568 }, // 3.0.3-linux-x64         3a7c5d95719e77cf51d1479b8832eadcb64a93ea
+        { byteswap(0x4eb714123c1ed48a), 0x00765688 }, // 3.1.0-linux-x64         4eb714123c1ed48a30101567209c40f302c0df18
+        { byteswap(0x54a088f93037082f), 0x00765688 }, // 3.1.1-linux-x64         54a088f93037082fa97108b9faef2c6ac8162280
+        { byteswap(0xb6c3855bee51a4c6), 0x00765688 }, // 3.1.2-linux-x64         b6c3855bee51a4c6f7f79faa9f4da4073c74ebe4
+        { byteswap(0xb698f8d147152918), 0x0099ea68 }, // 3.0.0-linux-musl-x64    b698f8d147152918dbf6a496c439bc935888037f
+        { byteswap(0x51fd255c7dc7867e), 0x0099ea68 }, // 3.0.1-linux-musl-x64    51fd255c7dc7867e481398fa22d48220b6e819ef
+        { byteswap(0x9fb2890cca2b3982), 0x0099ea68 }, // 3.0.2-linux-musl-x64    9fb2890cca2b3982443b955151aedf1ccdb2e5dd
+        { byteswap(0x8717eefff7369af9), 0x0099ea68 }, // 3.0.3-linux-musl-x64    8717eefff7369af909c1b7f8ca420f3e9cc814bb
+        { byteswap(0x8fa59c87e09cbcdf), 0x0099fb88 }, // 3.1.0-linux-musl-x64    8fa59c87e09cbcdff6e44b9c89456d725e49a4e5
+        { byteswap(0x602d24943c6f1c63), 0x0099fb88 }, // 3.1.1-linux-musl-x64    602d24943c6f1c63861c9fab553d7ca3cfd838a1
+        { byteswap(0xfbdfd8e027cd6f96), 0x0099fb88 }, // 3.1.2-linux-musl-x64    fbdfd8e027cd6f968b78245c8dd829e31c772f82
+#endif
+        { 0 , ~0ULL } // List terminator
+    };
+
+    uint64_t key = 0;
+
+    if (TryGetBuildIdKey(dataTarget, baseAddress, &key))
+    {
+        for (int i = 0; knownDacTableRvas[i][0] != 0; ++i)
+        {
+            if (knownDacTableRvas[i][0] == key)
+            {
+                *dacTableAddress = baseAddress + knownDacTableRvas[i][1];
+                return S_OK;
+            }
+        }
+    }
+
+    return E_FAIL;
+}
+#endif
+
 HRESULT
 GetDacTableAddress(ICorDebugDataTarget* dataTarget, ULONG64 baseAddress, PULONG64 dacTableAddress)
 {
@@ -7266,7 +7345,8 @@ GetDacTableAddress(ICorDebugDataTarget* dataTarget, ULONG64 baseAddress, PULONG6
     // On Linux try to get the dac table address via the export symbol
     if (!TryGetSymbol(dataTarget, baseAddress, "g_dacTable", dacTableAddress))
     {
-        return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
+        if (FAILED(GetDacTableAddressFromBuildId(dataTarget, baseAddress, dacTableAddress)))
+            return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
     }
 #endif
 #endif
