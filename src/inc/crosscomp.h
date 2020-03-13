@@ -401,27 +401,27 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 #define T_CRITICAL_SECTION_VALIDATION_MESSAGE "T_CRITICAL_SECTION validation failed. It is not in sync with CRITICAL_SECTION"
 
-#if defined(TARGET_DARWIN) && defined(TARGET_X86)
+#if defined(TARGET_DARWIN) && defined(_TARGET_X86_)
 #define DAC_CS_NATIVE_DATA_SIZE 76
-#elif defined(TARGET_DARWIN) && defined(TARGET_AMD64)
+#elif defined(TARGET_DARWIN) && defined(_TARGET_AMD64_)
 #define DAC_CS_NATIVE_DATA_SIZE 120
-#elif defined(TARGET_FREEBSD) && defined(TARGET_X86)
+#elif defined(TARGET_FREEBSD) && defined(_TARGET_X86_)
 #define DAC_CS_NATIVE_DATA_SIZE 12
-#elif defined(TARGET_FREEBSD) && defined(TARGET_AMD64)
+#elif defined(TARGET_FREEBSD) && defined(_TARGET_AMD64_)
 #define DAC_CS_NATIVE_DATA_SIZE 24
-#elif defined(TARGET_LINUX) && defined(TARGET_ARM)
+#elif defined(TARGET_LINUX) && defined(_TARGET_ARM_)
 #define DAC_CS_NATIVE_DATA_SIZE 80
-#elif defined(TARGET_LINUX) && defined(TARGET_ARM64)
+#elif defined(TARGET_LINUX) && defined(_TARGET_ARM64_)
 #define DAC_CS_NATIVE_DATA_SIZE 116
-#elif defined(TARGET_LINUX) && defined(TARGET_X86)
+#elif defined(TARGET_LINUX) && defined(_TARGET_X86_)
 #define DAC_CS_NATIVE_DATA_SIZE 76
-#elif defined(TARGET_LINUX) && defined(TARGET_AMD64)
+#elif defined(TARGET_LINUX) && defined(_TARGET_AMD64_)
 #define DAC_CS_NATIVE_DATA_SIZE 96
-#elif defined(TARGET_NETBSD) && defined(TARGET_AMD64)
+#elif defined(TARGET_NETBSD) && defined(_TARGET_AMD64_)
 #define DAC_CS_NATIVE_DATA_SIZE 96
-#elif defined(TARGET_NETBSD) && defined(TARGET_ARM)
+#elif defined(TARGET_NETBSD) && defined(_TARGET_ARM_)
 #define DAC_CS_NATIVE_DATA_SIZE 56
-#elif defined(TARGET_NETBSD) && defined(TARGET_X86)
+#elif defined(TARGET_NETBSD) && defined(_TARGET_X86_)
 #define DAC_CS_NATIVE_DATA_SIZE 56
 #else
 #warning

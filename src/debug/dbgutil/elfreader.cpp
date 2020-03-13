@@ -17,7 +17,7 @@
 #define Elf_Dyn    ElfW(Dyn)
 #define Elf_Sym    ElfW(Sym)
 
-#if TARGET_64BIT
+#if _TARGET_64BIT_
 #define PRIx PRIx64
 #define PRIu PRIu64
 #define PRId PRId64
@@ -445,7 +445,7 @@ ElfReader::EnumerateProgramHeaders(uint64_t baseAddress, uint64_t* ploadbias, El
      _ASSERTE(phnum != PN_XNUM);
 #endif
     _ASSERTE(ehdr.e_phentsize == sizeof(Elf_Phdr));
-#ifdef TARGET_64BIT
+#ifdef _TARGET_64BIT_
     _ASSERTE(ehdr.e_ident[EI_CLASS] == ELFCLASS64);
 #else
     _ASSERTE(ehdr.e_ident[EI_CLASS] == ELFCLASS32);
@@ -528,9 +528,9 @@ Elf32_Ehdr::Elf32_Ehdr()
         e_ident[i] = 0;
     }
     e_type = ET_REL;
-#if defined(TARGET_X86)
+#if defined(_TARGET_X86_)
     e_machine = EM_386;
-#elif defined(TARGET_ARM)
+#elif defined(_TARGET_ARM_)
     e_machine = EM_ARM;
 #endif
     e_flags = 0;
@@ -558,9 +558,9 @@ Elf64_Ehdr::Elf64_Ehdr()
         e_ident[i] = 0;
     }
     e_type = ET_REL;
-#if defined(TARGET_AMD64)
+#if defined(_TARGET_AMD64_)
     e_machine = EM_X86_64;
-#elif defined(TARGET_ARM64)
+#elif defined(_TARGET_ARM64_)
     e_machine = EM_AARCH64;
 #endif
     e_flags = 0;

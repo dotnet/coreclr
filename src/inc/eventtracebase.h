@@ -1399,13 +1399,13 @@ typedef struct _MCGEN_TRACE_BUFFER {
 
 #endif // FEATURE_EVENT_TRACE && !defined(HOST_UNIX)
 #ifdef FEATURE_EVENT_TRACE
-#ifdef TARGET_X86
+#ifdef _TARGET_X86_
 struct CallStackFrame
 {
     struct CallStackFrame* m_Next;
     SIZE_T m_ReturnAddress;
 };
-#endif // TARGET_X86
+#endif // _TARGET_X86_
 #endif // FEATURE_EVENT_TRACE
 
 #if defined(FEATURE_EVENT_TRACE) && !defined(HOST_UNIX)

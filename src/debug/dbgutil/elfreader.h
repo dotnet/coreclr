@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#if TARGET_64BIT
+#if _TARGET_64BIT_
 #define TARGET_WORDSIZE 64
 #else
 #define TARGET_WORDSIZE 32
