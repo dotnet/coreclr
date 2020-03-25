@@ -2183,6 +2183,13 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
         fieldVarDsc->lvFldOrdinal    = pFieldInfo->fldOrdinal;
         fieldVarDsc->lvParentLcl     = lclNum;
         fieldVarDsc->lvIsParam       = varDsc->lvIsParam;
+
+        // This new local may be the first time we've seen a long typed local.
+        if (fieldVarDsc->lvType == TYP_LONG)
+        {
+            compiler->compLongUsed = true;
+        }
+
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
         // Reset the implicitByRef flag.
