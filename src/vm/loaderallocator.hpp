@@ -467,6 +467,7 @@ public:
 
     // The default implementation is a no-op. Only collectible loader allocators implement this method.
     virtual void RegisterHandleForCleanup(OBJECTHANDLE /* objHandle */) { }
+    virtual void UnregisterHandleFromCleanup(OBJECTHANDLE /* objHandle */) { }
     virtual void CleanupHandles() { }
 
     void RegisterFailedTypeInitForCleanup(ListLockEntry *pListLockEntry);
@@ -671,6 +672,7 @@ public:
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     virtual void RegisterHandleForCleanup(OBJECTHANDLE objHandle);
+    virtual void UnregisterHandleFromCleanup(OBJECTHANDLE /* objHandle */);
     virtual void CleanupHandles();
     CLRPrivBinderAssemblyLoadContext* GetBinder()
     {

@@ -225,6 +225,7 @@ FCFuncStart(gCOMTypeHandleFuncs)
     FCFuncElement("CreateCaInstance", RuntimeTypeHandle::CreateCaInstance)
     FCFuncElement("CreateInstanceForAnotherGenericParameter", RuntimeTypeHandle::CreateInstanceForGenericType)
     QCFuncElement("GetGCHandle", RuntimeTypeHandle::GetGCHandle)
+    QCFuncElement("FreeGCHandle", RuntimeTypeHandle::FreeGCHandle)
 
     FCFuncElement("IsInstanceOfType", RuntimeTypeHandle::IsInstanceOfType)
     FCFuncElement("GetDeclaringMethod", RuntimeTypeHandle::GetDeclaringMethod)
