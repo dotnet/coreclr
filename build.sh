@@ -612,7 +612,7 @@ esac
 
 __BuildType=Debug
 __CodeCoverage=
-__IgnoreWarnings=0
+__IgnoreWarnings=1
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
@@ -648,7 +648,7 @@ __GccMajorVersion=0
 __GccMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
 __DistroRid=""
-__cmakeargs=""
+__cmakeargs="-DCLR_CMAKE_WARNINGS_ARE_ERRORS=OFF"
 __SkipGenerateVersion=0
 __PortableBuild=1
 __msbuildonunsupportedplatform=0

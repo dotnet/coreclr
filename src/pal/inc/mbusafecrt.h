@@ -32,7 +32,7 @@ typedef int errno_t;
 #define SAFECRT_SUCCESS 0
 
 #ifndef THROW_DECL
-#if defined(_MSC_VER) || defined(__llvm__) || !defined(__cplusplus)
+#if defined(_MSC_VER) || !defined(__cplusplus)
 #define THROW_DECL
 #else
 #define THROW_DECL throw()
