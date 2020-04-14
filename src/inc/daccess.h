@@ -2469,6 +2469,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 // - Class with an vtable pointer and an alignment greater than the pointer size.
 //   The Windows compilers will align the first member to the alignment size of the
 //   class.  Linux will align the first member to its natural alignment
+//
+// This introduces a runtime layout change
 #define DAC_ALIGNAS(a) alignas(a)
 
 #endif // #ifndef __daccess_h__

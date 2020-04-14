@@ -51,7 +51,7 @@
 
 #define ANALYZER_NORETURN
 
-#ifdef _MSC_VER
+#ifdef FEATURE_PAL
 #define EMPTY_BASES_DECL __declspec(empty_bases)
 #else
 #define EMPTY_BASES_DECL
