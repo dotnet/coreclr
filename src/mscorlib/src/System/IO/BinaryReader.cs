@@ -312,8 +312,11 @@ namespace System.IO
                 if (currPos == 0 && n == stringLength)
                     return new String(_charBuffer, 0, charsRead);
 
+                // Since we could be reading from an untrusted data source, limit the initial size of the
+                // StringBuilder instance we're about to get or create. It'll expand automatically as needed.
+
                 if (sb == null)
-                    sb = StringBuilderCache.Acquire(stringLength); // Actual string length in chars may be smaller.
+                    sb = StringBuilderCache.Acquire(Math.Min(stringLength, StringBuilderCache.MAX_BUILDER_SIZE)); // Actual string length in chars may be smaller.
                 sb.Append(_charBuffer, 0, charsRead);
                 currPos += n;
             } while (currPos < stringLength);
