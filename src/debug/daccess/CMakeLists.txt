@@ -45,14 +45,23 @@ add_library_clr(daccess ${DACCESS_SOURCES})
 
 add_dependencies(daccess eventing_headers)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-  add_custom_command(
-    OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
-    DEPENDS coreclr
-    VERBATIM
-    COMMAND sh ${CLR_DIR}/src/pal/tools/gen-dactable-rva.sh $<TARGET_FILE:coreclr> ${GENERATED_INCLUDE_DIR}/dactablerva.h
-    COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
-  )
+if(CLR_CMAKE_TARGET_UNIX)
+  if(CLR_CMAKE_PLATFORM_UNIX)
+    add_custom_command(
+      OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
+      DEPENDS coreclr
+      VERBATIM
+      COMMAND sh ${CLR_DIR}/src/pal/tools/gen-dactable-rva.sh $<TARGET_FILE:coreclr> ${GENERATED_INCLUDE_DIR}/dactablerva.h
+      COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
+    )
+  else(CLR_CMAKE_PLATFORM_UNIX)
+    add_custom_command(
+      OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
+      VERBATIM
+      COMMAND ${CLR_DIR}/src/pal/tools/gen-dactable-rva.cmd "${CLR_DIR}" "${CLR_CMAKE_TARGET_OS}" "${CLR_CMAKE_TARGET_ARCH}" "$<CONFIG>" "${GENERATED_INCLUDE_DIR}/dactablerva.h"
+      COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
+    )
+  endif(CLR_CMAKE_PLATFORM_UNIX)
 
   set_source_files_properties(
     ${GENERATED_INCLUDE_DIR}/dactablerva.h
@@ -65,4 +74,4 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   )
 
   add_dependencies(daccess dactablerva_header)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_TARGET_UNIX)
