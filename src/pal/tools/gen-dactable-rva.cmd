@@ -36,4 +36,7 @@ if "%target%" == "alpine-x64-Release" (
     echo #define DAC_TABLE_RVA 0x0099fb88 > %dactablervaPath%
     exit 0
 )
-exit 1
+
+rem Set a bogus address for other cases to allow compilation
+echo #define DAC_TABLE_RVA 0xdeadbeef > %dactablervaPath%
+exit 0
