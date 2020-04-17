@@ -70,7 +70,7 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 set(COREDBI_LIBRARIES
     debug-pal
     cordbdi
-    utilcodestaticnohost
+    utilcode_dbi
     ildbsymlib
     mdcompiler-dbi
     mdruntime-dbi

@@ -90,6 +90,11 @@ set(UTILCODE_DAC_SOURCES
   hostimpl.cpp
 )
 
+set(UTILCODE_DBI_SOURCES
+  ${UTILCODE_COMMON_SOURCES}
+  hostimpl.cpp
+)
+
 set(UTILCODE_CROSSGEN_SOURCES 
   ${UTILCODE_COMMON_SOURCES}
   hostimpl.cpp
@@ -105,6 +110,7 @@ set (UTILCODE_DEPENDENCIES eventing_headers)
 
 convert_to_absolute_path(UTILCODE_SOURCES ${UTILCODE_SOURCES})
 convert_to_absolute_path(UTILCODE_DAC_SOURCES ${UTILCODE_DAC_SOURCES})
+convert_to_absolute_path(UTILCODE_DBI_SOURCES ${UTILCODE_DBI_SOURCES})
 convert_to_absolute_path(UTILCODE_CROSSGEN_SOURCES ${UTILCODE_CROSSGEN_SOURCES})
 convert_to_absolute_path(UTILCODE_STATICNOHOST_SOURCES ${UTILCODE_STATICNOHOST_SOURCES})
 
@@ -113,6 +119,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(dac)
+add_subdirectory(dbi)
 add_subdirectory(dyncrt)
 add_subdirectory(staticnohost)
 add_subdirectory(crossgen)
