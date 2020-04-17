@@ -28,7 +28,7 @@
 #endif
 
 //********** Globals. *********************************************************
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
 HINSTANCE       g_hInst;                // Instance handle to this piece of code.
 #endif
 
