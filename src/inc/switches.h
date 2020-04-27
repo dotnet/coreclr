@@ -66,11 +66,11 @@
     #define CODEHEAP_START_ADDRESS  0x64480000000
     #define CLR_UPPER_ADDRESS_MAX   0x644FC000000
 
-#if !defined(FEATURE_PAL)
+#if !defined(HOST_UNIX)
     #define USE_UPPER_ADDRESS       1
 #else
     #define USE_UPPER_ADDRESS       0
-#endif // !FEATURE_PAL
+#endif // !HOST_UNIX
 
 #else
     #error Please add a new #elif clause and define all portability macros for the new platform

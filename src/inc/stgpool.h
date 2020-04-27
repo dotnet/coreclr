@@ -1258,7 +1258,7 @@ private:
     __checkReturn 
     HRESULT RehashBlobs();
 
-    DAC_ALIGNAS(StgPool)                     // Align first member to alignment of base class
+    DAC_ALIGNAS(StgPool) // Align first member to alignment of base class
     CBlobPoolHash m_Hash;                    // Hash table for lookups.
 };  // class StgBlobPool
 

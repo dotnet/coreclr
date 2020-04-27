@@ -12,6 +12,27 @@
 #define CROSSBITNESS_COMPILE
 #endif
 
+// Target platform-specific library naming
+//
+#ifdef TARGET_WINDOWS
+#define MAKE_TARGET_DLLNAME_W(name) name W(".dll")
+#define MAKE_TARGET_DLLNAME_A(name) name ".dll"
+#else // TARGET_WINDOWS
+#ifdef TARGET_OSX
+#define MAKE_TARGET_DLLNAME_W(name) W("lib") name W(".dylib")
+#define MAKE_TARGET_DLLNAME_A(name)  "lib" name  ".dylib"
+#else
+#define MAKE_TARGET_DLLNAME_W(name) W("lib") name W(".so")
+#define MAKE_TARGET_DLLNAME_A(name)  "lib" name  ".so"
+#endif
+#endif // TARGET_WINDOWS
+
+#ifdef UNICODE
+#define MAKE_TARGET_DLLNAME(name) MAKE_TARGET_DLLNAME_W(name)
+#else
+#define MAKE_TARGET_DLLNAME(name) MAKE_TARGET_DLLNAME_A(name)
+#endif
+
 #if !defined(_ARM_) && defined(_TARGET_ARM_) // Non-ARM Host managing ARM related code
 
 #ifndef CROSS_COMPILE
@@ -92,7 +113,7 @@ typedef struct DECLSPEC_ALIGN(8) _T_CONTEXT {
 // each frame function.
 //
 
-#ifndef FEATURE_PAL
+#if defined(HOST_WINDOWS)
 #ifdef _X86_
 typedef struct _RUNTIME_FUNCTION {
     DWORD BeginAddress;
@@ -121,7 +142,7 @@ typedef struct _UNWIND_HISTORY_TABLE {
     UNWIND_HISTORY_TABLE_ENTRY Entry[UNWIND_HISTORY_TABLE_SIZE];
 } UNWIND_HISTORY_TABLE, *PUNWIND_HISTORY_TABLE;
 #endif // _X86_
-#endif // !FEATURE_PAL
+#endif // HOST_WINDOWS
 
 
 //
@@ -177,7 +198,7 @@ typedef struct _T_DISPATCHER_CONTEXT {
     PUCHAR NonVolatileRegisters;
 } T_DISPATCHER_CONTEXT, *PT_DISPATCHER_CONTEXT;
 
-#if defined(FEATURE_PAL) || defined(_X86_)
+#if defined(HOST_UNIX) || defined(_X86_)
 #define T_RUNTIME_FUNCTION RUNTIME_FUNCTION
 #define PT_RUNTIME_FUNCTION PRUNTIME_FUNCTION
 #else
@@ -372,6 +393,61 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 #endif 
 
+#if defined(DACCESS_COMPILE) && defined(TARGET_UNIX)
+// This is a TARGET oriented copy of CRITICAL_SECTION and PAL_CS_NATIVE_DATA_SIZE
+// It is configured based on TARGET configuration rather than HOST configuration
+// There is validation code in src/coreclr/src/vm/crst.cpp to keep these from
+// getting out of sync
+
+#define T_CRITICAL_SECTION_VALIDATION_MESSAGE "T_CRITICAL_SECTION validation failed. It is not in sync with CRITICAL_SECTION"
+
+#if defined(TARGET_DARWIN) && defined(_TARGET_X86_)
+#define DAC_CS_NATIVE_DATA_SIZE 76
+#elif defined(TARGET_DARWIN) && defined(_TARGET_AMD64_)
+#define DAC_CS_NATIVE_DATA_SIZE 120
+#elif defined(TARGET_FREEBSD) && defined(_TARGET_X86_)
+#define DAC_CS_NATIVE_DATA_SIZE 12
+#elif defined(TARGET_FREEBSD) && defined(_TARGET_AMD64_)
+#define DAC_CS_NATIVE_DATA_SIZE 24
+#elif defined(TARGET_LINUX) && defined(_TARGET_ARM_)
+#define DAC_CS_NATIVE_DATA_SIZE 80
+#elif defined(TARGET_LINUX) && defined(_TARGET_ARM64_)
+#define DAC_CS_NATIVE_DATA_SIZE 116
+#elif defined(TARGET_LINUX) && defined(_TARGET_X86_)
+#define DAC_CS_NATIVE_DATA_SIZE 76
+#elif defined(TARGET_LINUX) && defined(_TARGET_AMD64_)
+#define DAC_CS_NATIVE_DATA_SIZE 96
+#elif defined(TARGET_NETBSD) && defined(_TARGET_AMD64_)
+#define DAC_CS_NATIVE_DATA_SIZE 96
+#elif defined(TARGET_NETBSD) && defined(_TARGET_ARM_)
+#define DAC_CS_NATIVE_DATA_SIZE 56
+#elif defined(TARGET_NETBSD) && defined(_TARGET_X86_)
+#define DAC_CS_NATIVE_DATA_SIZE 56
+#else
+#warning
+#error  DAC_CS_NATIVE_DATA_SIZE is not defined for this architecture
+#endif
+
+struct T_CRITICAL_SECTION {
+    PVOID DebugInfo;
+    LONG LockCount;
+    LONG RecursionCount;
+    HANDLE OwningThread;
+    HANDLE LockSemaphore;
+    ULONG_PTR SpinCount;
+
+    BOOL bInternal;
+    volatile DWORD dwInitState;
+
+    union CSNativeDataStorage
+    {
+        BYTE rgNativeDataStorage[DAC_CS_NATIVE_DATA_SIZE];
+        PVOID pvAlign; // make sure the storage is machine-pointer-size aligned
+    } csnds;
+};
+#else
+#define T_CRITICAL_SECTION CRITICAL_SECTION
+#endif
 
 #ifdef CROSSGEN_COMPILE
 void CrossGenNotSupported(const char * message);

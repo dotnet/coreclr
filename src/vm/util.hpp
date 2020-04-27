@@ -42,7 +42,7 @@
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 
 // Hot cache lines need to be aligned to cache line size to improve performance
-#if defined(ARM64)
+#if defined(_TARGET_ARM64_)
 #define MAX_CACHE_LINE_SIZE 128
 #else
 #define MAX_CACHE_LINE_SIZE 64
@@ -671,7 +671,7 @@ FORCEINLINE void VoidFreeNativeLibrary(NATIVE_LIBRARY_HANDLE h)
     if (h == NULL)
         return;
 
-#ifdef FEATURE_PAL
+#ifdef HOST_UNIX
     PAL_FreeLibraryDirect(h);
 #else
     FreeLibrary(h);

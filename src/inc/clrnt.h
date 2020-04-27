@@ -96,7 +96,7 @@ typedef signed char SCHAR;
 typedef SCHAR *PSCHAR;
 typedef LONG NTSTATUS;
 
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
 
 #define TLS_MINIMUM_AVAILABLE 64    // winnt
 #define TLS_EXPANSION_SLOTS   1024
@@ -748,7 +748,7 @@ typedef VM_COUNTERS *PVM_COUNTERS;
 
 #undef TYPE3
 
-#endif // !defined(FEATURE_PAL)
+#endif // !defined(HOST_UNIX)
 
 #if !defined(_TARGET_X86_)
 
@@ -811,9 +811,9 @@ PEXCEPTION_ROUTINE
     IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL
     );
 
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
 extern RtlVirtualUnwindFn* RtlVirtualUnwind_Unsafe;
-#else // !FEATURE_PAL
+#else // !HOST_UNIX
 PEXCEPTION_ROUTINE
 RtlVirtualUnwind_Unsafe(
     IN ULONG HandlerType,
@@ -825,7 +825,7 @@ RtlVirtualUnwind_Unsafe(
     OUT PULONG64 EstablisherFrame,
     IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL
     );
-#endif // !FEATURE_PAL
+#endif // !HOST_UNIX
 
 #endif // _TARGET_AMD64_
 

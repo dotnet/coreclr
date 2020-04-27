@@ -149,7 +149,7 @@ void jitShutdown(bool processIsTerminating)
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
 extern "C"
-#ifdef FEATURE_PAL
+#ifdef HOST_UNIX
     DLLEXPORT // For Win32 PAL LoadLibrary emulation
 #endif
     BOOL WINAPI

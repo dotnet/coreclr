@@ -165,6 +165,11 @@ if [!__PassThroughArgs!]==[] (
     set __PassThroughArgs=%__PassThroughArgs% %1
 )
 
+if /i "%1" == "-OfficialBuildId"     (set __OfficialBuildIdArg=/p:OfficialBuildId=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1=%2&shift&shift&goto Arg_Loop)
+
+if /i "%1" == "-alpinedac"           (set __BuildCoreLib=0&set __BuildNativeCoreLib=0&set __BuildNative=0&set __BuildCrossArchNative=1&set __CrossArch=x64&set __BuildTests=0&set __BuildPackages=0&set __BuildManagedTools=0&set __BuildOS=alpine&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "-linuxdac"            (set __BuildCoreLib=0&set __BuildNativeCoreLib=0&set __BuildNative=0&set __BuildCrossArchNative=1&set __CrossArch=x64&set __BuildTests=0&set __BuildPackages=0&set __BuildManagedTools=0&set __BuildOS=Linux&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
 if /i "%1" == "-freebsdmscorlib"     (set __BuildNativeCoreLib=0&set __BuildNative=0&set __BuildTests=0&set __BuildPackages=0&set __BuildManagedTools=0&set __BuildOS=FreeBSD&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-linuxmscorlib"       (set __BuildNativeCoreLib=0&set __BuildNative=0&set __BuildTests=0&set __BuildPackages=0&set __BuildManagedTools=0&set __BuildOS=Linux&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-netbsdmscorlib"      (set __BuildNativeCoreLib=0&set __BuildNative=0&set __BuildTests=0&set __BuildPackages=0&set __BuildManagedTools=0&set __BuildOS=NetBSD&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -188,10 +193,9 @@ if /i "%1" == "-nopgooptimize"       (set __PgoOptimize=0&set processedArgs=!pro
 if /i "%1" == "-ibcoptimize"         (set __IbcOptimize=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-ibconly"             (set __IbcOptimize=1&set __IbcOnly=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "-crossgenaltjit"      (set __CrossgenAltJit=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-crossgenaltjit"      (set __CrossgenAltJit=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 REM TODO remove these once they are no longer used in buildpipeline
 if /i "%1" == "-skiprestore"         (set __SkipRestoreArg=/p:RestoreDuringBuild=false&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "-OfficialBuildId"     (set __OfficialBuildIdArg=/p:OfficialBuildId=%2&set processedArgs=!processedArgs! %1=%2&shift&shift&goto Arg_Loop)
 
 REM TODO these are deprecated remove them eventually
 REM don't add more, use the - syntax instead
@@ -216,7 +220,7 @@ if /i "%1" == "nopgooptimize"       (set __PgoOptimize=0&set processedArgs=!proc
 if /i "%1" == "enforcepgo"          (set __EnforcePgo=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ibcoptimize"         (set __IbcOptimize=1&set __PartialNgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "crossgenaltjit"      (set __CrossgenAltJit=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "crossgenaltjit"      (set __CrossgenAltJit=%2&set __PassThroughArgs=%__PassThroughArgs% %2set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 REM TODO remove this once it's no longer used in buildpipeline
 if /i "%1" == "--"                  (set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
@@ -284,6 +288,15 @@ REM Determine if this is a cross-arch build. Only do cross-arch build if we're a
 
 if %__SkipCrossArchNative% EQU 0 (
     if %__BuildNative% EQU 1 (
+        if %__BuildCrossArchNative% EQU 0 (
+            if /i not "%__BuildArch%"=="x86" (
+                REM Make recursive calls to build the cross OS DAC
+                call :BuildCrossOSDac -linuxdac
+                if not !errorlevel! == 0 (
+                    goto ExitWithError
+                )
+            )
+        )
         if /i "%__BuildArch%"=="arm64" (
             set __BuildCrossArchNative=1
         )
@@ -334,7 +347,7 @@ REM Set the remaining variables based upon the determined build configuration
 echo %__MsgPrefix%Checking prerequisites
 
 set __CMakeNeeded=1
-if %__BuildNative%==0 if %__BuildNativeCoreLib%==0 if %__BuildTests%==0 set __CMakeNeeded=0
+if %__BuildNative%==0 if %__BuildCrossArchNative%==0 if %__BuildNativeCoreLib%==0 if %__BuildTests%==0 set __CMakeNeeded=0
 if %__CMakeNeeded%==1 (
     REM Eval the output from set-cmake-path.ps1
     for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
@@ -992,6 +1005,20 @@ REM ============================================================================
 :CrossgenFailure
 exit /b 1
 
+:BuildCrossOSDac
+setlocal
+set __BuildDacOption=%1
+set __NextCmd=call %__ThisScriptFull% %__BuildDacOption% %__BuildArch% %__BuildType% %__PassThroughArgs%
+echo %__MsgPrefix%Invoking: %__NextCmd%
+%__NextCmd%
+if not !errorlevel! == 0 (
+    echo %__MsgPrefix%    %__BuildDacOption% %__BuildArch% %__BuildType% %__PassThroughArgs%
+    endlocal
+    goto ExitWithError
+)
+endlocal
+exit /b 0
+
 :Usage
 echo.
 echo Build the CoreCLR repo.
@@ -1019,6 +1046,9 @@ echo -ibcinstrument: generate IBC-tuning-enabled native images when invoking cro
 echo -ibcoptimize: use IBC data to optimize System.Private.CoreLib.dll
 echo -ibconly: only run the ibcoptimize step. Assumes an appropriate build already exists
 echo -configureonly: skip all builds; only run CMake ^(default: CMake and builds are run^)
+echo -alpinedac: Build a linux musl DAC with minimal support for printing exceptions in a dump on a windows host.
+echo -linuxdac: Build a linux DAC with minimal support for printing exceptions in a dump on a windows host.
+
 echo -skipconfigure: skip CMake ^(default: CMake is run^)
 echo -skipmscorlib: skip building System.Private.CoreLib ^(default: System.Private.CoreLib is built^).
 echo -skipnative: skip building native components ^(default: native components are built^).

@@ -263,11 +263,11 @@
 //#define WszSetCurrentDirectory SetCurrentDirectoryW
 //#define WszGetBinaryType       GetBinaryTypeWrapper     //Coresys does not seem to have this API
 
-#if FEATURE_PAL
+#if HOST_UNIX
 #define WszFindFirstFile     FindFirstFileW
 #else
 #define WszFindFirstFile(_lpFileName_, _lpFindData_)       FindFirstFileExWrapper(_lpFileName_, FindExInfoStandard, _lpFindData_, FindExSearchNameMatch, NULL, 0)
-#endif //FEATURE_PAL
+#endif // HOST_UNIX
 //*****************************************************************************
 // Prototypes for API's.
 //*****************************************************************************
@@ -280,14 +280,14 @@ inline DWORD GetMaxDBCSCharByteSize()
 {
     // contract.h not visible here
     __annotation(W("WRAPPER ") W("GetMaxDBCSCharByteSize"));
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
     EnsureCharSetInfoInitialized();
 
     _ASSERTE(g_dwMaxDBCSCharByteSize != 0);
     return (g_dwMaxDBCSCharByteSize);
-#else // FEATURE_PAL
+#else // HOST_UNIX
     return 3;
-#endif // FEATURE_PAL
+#endif // HOST_UNIX
 }
 
 #ifndef FEATURE_PAL
@@ -360,7 +360,7 @@ InterlockedCompareExchangePointer (
 
 #endif // _X86_ && _MSC_VER
 
-#if defined(_ARM_) & !defined(FEATURE_PAL)
+#if defined(_ARM_) & !defined(HOST_UNIX)
 //
 // InterlockedCompareExchangeAcquire/InterlockedCompareExchangeRelease is not mapped in SDK to the correct intrinsics. Remove once
 // the SDK definition is fixed (OS Bug #516255)
@@ -472,7 +472,7 @@ inline int LateboundMessageBoxW(HWND hWnd,
                                 LPCWSTR lpCaption,
                                 UINT uType)
 {
-#ifndef FEATURE_PAL
+#ifndef HOST_UNIX
     // User32 should exist on all systems where displaying a message box makes sense.
     HMODULE hGuiExtModule = WszLoadLibrary(W("user32"));
     if (hGuiExtModule)
@@ -485,7 +485,7 @@ inline int LateboundMessageBoxW(HWND hWnd,
         FreeLibrary(hGuiExtModule);
         return result;
     }
-#endif // !FEATURE_PAL
+#endif // !HOST_UNIX
 
     // No luck. Output the caption and text to the debugger if present or stdout otherwise.
     if (lpText == NULL)

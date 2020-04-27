@@ -2149,6 +2149,7 @@ public:
 class LayoutEEClass : public EEClass
 {
 public:
+    DAC_ALIGNAS(EEClass) // Align the first member to the alignment of the base class
     EEClassLayoutInfo m_LayoutInfo;
 
 #ifndef DACCESS_COMPILE

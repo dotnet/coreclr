@@ -11,9 +11,7 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
 endif()
 
 # Compile options
-add_definitions(-DPLATFORM_UNIX)
 add_definitions(-DLP64COMPATIBLE)
-add_definitions(-DFEATURE_PAL)
 add_definitions(-DCORECLR)
 add_definitions(-DPIC)
 if(PAL_CMAKE_PLATFORM_ARCH_I386)

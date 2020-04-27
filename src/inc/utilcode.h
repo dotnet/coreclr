@@ -719,9 +719,9 @@ public:
         m_nHashSize = 0;
         m_csMap = NULL;
         m_pResourceFile = NULL;
-#ifdef FEATURE_PAL
+#ifdef HOST_UNIX
         m_pResourceDomain = NULL;
-#endif // FEATURE_PAL
+#endif // HOST_UNIX
 
     }// CCompRC
 
@@ -831,12 +831,12 @@ private:
     CRITSEC_COOKIE m_csMap;
 
     LPCWSTR m_pResourceFile;
-#ifdef FEATURE_PAL
+#ifdef TARGET_UNIX
     // Resource domain is an ANSI string identifying a native resources file
     static LPCSTR  m_pDefaultResourceDomain;
     static LPCSTR  m_pFallbackResourceDomain;
     LPCSTR m_pResourceDomain;
-#endif // FEATURE_PAL
+#endif // TARGET_UNIX
 
     // Main accessors for hash
     HRESOURCEDLL LookupNode(LocaleID langId, BOOL &fMissing);
@@ -1318,16 +1318,16 @@ public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
-#ifndef FEATURE_PAL
+#ifdef HOST_WINDOWS
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
     static bool GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node);
-#else // !FEATURE_PAL
+#else // HOST_WINDOWS
     static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
-#endif // !FEATURE_PAL
+#endif // HOST_WINDOWS
 #endif
 };
 
-#ifndef FEATURE_PAL
+#ifdef HOST_WINDOWS
 
 struct CPU_Group_Info 
 {
@@ -1391,7 +1391,7 @@ public:
 
 DWORD_PTR GetCurrentProcessCpuMask();
 
-#endif // !FEATURE_PAL
+#endif // HOST_WINDOWS
 
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
@@ -4335,13 +4335,13 @@ LPWSTR *SegmentCommandLine(LPCWSTR lpCmdLine, DWORD *pNumArgs);
 class ClrTeb
 {
 public:
-#if defined(FEATURE_PAL)
+#if defined(HOST_UNIX)
 
     // returns pointer that uniquely identifies the fiber
     static void* GetFiberPtrId()
     {
         LIMITED_METHOD_CONTRACT;
-        // not fiber for FEATURE_PAL - use the regular thread ID
+        // not fiber for HOST_UNIX - use the regular thread ID
         return (void *)(size_t)GetCurrentThreadId();
     }
 
@@ -4360,7 +4360,7 @@ public:
         return PAL_GetStackLimit();
     }
 
-#else // !FEATURE_PAL
+#else // HOST_UNIX
 
     // returns pointer that uniquely identifies the fiber
     static void* GetFiberPtrId()
@@ -4409,7 +4409,7 @@ public:
     {
         return (void*) 1;
     }
-#endif // !FEATURE_PAL
+#endif // HOST_UNIX
 };
 
 #if !defined(DACCESS_COMPILE)
@@ -4848,7 +4848,7 @@ namespace util
  * Overloaded operators for the executable heap
  * ------------------------------------------------------------------------ */
 
-#ifndef FEATURE_PAL
+#ifdef HOST_WINDOWS
 
 struct CExecutable { int x; };
 extern const CExecutable executable;
@@ -4872,7 +4872,7 @@ template<class T> void DeleteExecutable(T *p)
     }
 }
 
-#endif // FEATURE_PAL
+#endif // HOST_WINDOWS
 
 INDEBUG(BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);)
 

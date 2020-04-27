@@ -197,7 +197,7 @@
 #endif
 #endif
 
-#if defined(PLATFORM_UNIX)
+#if defined(HOST_UNIX)
 #define _HOST_UNIX_
 #endif
 
@@ -230,14 +230,7 @@
 
 // Include the AMD64 unwind codes when appropriate.
 #if defined(_TARGET_AMD64_)
-// We need to temporarily set PLATFORM_UNIX, if necessary, to get the Unix-specific unwind codes.
-#if defined(_TARGET_UNIX_) && !defined(_HOST_UNIX_)
-#define PLATFORM_UNIX
-#endif
 #include "win64unwind.h"
-#if defined(_TARGET_UNIX_) && !defined(_HOST_UNIX_)
-#undef PLATFORM_UNIX
-#endif
 #endif
 
 #include "corhdr.h"
