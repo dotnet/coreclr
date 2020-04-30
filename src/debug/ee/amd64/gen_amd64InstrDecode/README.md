@@ -30,8 +30,8 @@ and accurately mechanism to implement
 This function needs to be able to decode an arbitrary `amd64`
 instruction.  The decoder currently must be able to identify:
 
-- Whether the instruction includes a instruction pointer relative memory accesses
-- The location of the memory displacement withing the instruction
+- Whether the instruction includes an instruction pointer relative memory access
+- The location of the memory displacement within the instruction
 - The instruction length in bytes
 - The size of the memory operation in bytes
 
@@ -54,7 +54,7 @@ sample instruction disassembly.
 The process entails
 - Generating a necessary set of instructions
 - Generating parsable disassembly for the instructions
-- Parsing the disassambly
+- Parsing the disassembly
 
 ### Generating a necessary set of instructions
 
@@ -80,14 +80,14 @@ We will iterate through all the necessary set. Many of these combinations
 will lead to invalid/undefined encodings.  This will cause the disassembler
 to give up and mark the disassemble as bad.
 
-The disassemble will then resume trying to diassemble at teh next boundary.
+The disassemble will then resume trying to disassemble at the next boundary.
 
 To make sure the disassembler attempts to disassemble every instruction,
 we need to make sure the preceding instruction is always valid and terminates
 at our desired instruction boundary.
 
-Through examination of the `Primary` opcode map, it is obsereved that
-0x50-0x5f are all 1 byte instructions.  These become conveninet padding.
+Through examination of the `Primary` opcode map, it is observed that
+0x50-0x5f are all 1 byte instructions.  These become convenient padding.
 
 After each necessary instruction we insert enough padding bytes to fill
 the maximum instruction length and leave at least one additional one byte
@@ -104,7 +104,7 @@ After the modrm byte, the generated instructions always include a
 const char* postamble = "0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,\n";
 ```
 
-This meets the padding a consistency needs.
+This meets the padding consistency needs.
 
 #### Ordering
 
@@ -193,7 +193,7 @@ Windows disassembler may also work.  Not attempted.
 # Parse disassembly and generate code
 cat opcodes.intel | dotnet run > ../amd64InstrDecode.h
 ```
-#### Finding releavant dissassembly lines
+#### Finding relevant disassembly lines
 
 We are not interested in all lines in the disassembly. The disassembler
 stray comments, recovery and our padding introduce lines we need to ignore.
@@ -213,7 +213,7 @@ We continue parsing the first line of each group.
 
 #### Ignoring bad encodings
 
-Many encoding are not valid.  For `gdb`, these instructions are marked
+Many encodings are not valid.  For `gdb`, these instructions are marked
 `(bad)`.  We filter and ignore these.
 
 #### Parsing the disassambly for each instruction sample
@@ -247,7 +247,7 @@ To facilitate identifying sets of instructions, the creates an `opCodeExt`.
 For the `Primary` map this is simply the encoded opcode from the instruction
 shifted left by 4 bits.
 
-For the #D Now `NOW3D` map this is simply the encoded immediate from the
+For the 3D Now `NOW3D` map this is simply the encoded immediate from the
 instruction shifted left by 4 bits.
 
 For the `Secondary` `F38`, and `F39` maps this is the encoded opcode from
@@ -275,7 +275,7 @@ For a few other instructions the `L`, `W`, `vvvv` value may the instruction
 change behavior. Usually these do not change mnemonic.
 
 The set of instructions is therefore usually grouped by the opcode map and
-`opCodeExt` generated above.  For thes a change in `opCodeExt` or `map`
+`opCodeExt` generated above.  For these a change in `opCodeExt` or `map`
 will start a new group.
 
 For select problematic groups of `modrm.reg` sensitive instructions, a
@@ -323,7 +323,7 @@ respective descriptions.
 
 ## Limitations
 
-The approach of using a single object file as the source of disassebly
+The approach of using a single object file as the source of disassembly
 samples, is restricted to a max compilation/link unit size. Early drafts
 were generating more instructions, and couldn't be compiled.
 
@@ -351,10 +351,10 @@ of the disassembler may have disassembly bugs.  Using newer disassemblers
 would mitigate this to some extent.
 
 ### Bugs
-- Inadequate samples.  Are thre other bits which modify instruction
-behavior which we missed.
+- Inadequate samples.  Are there other bits which modify instruction
+behavior which we missed?
 - Parser/Table generator implementation bugs. Does the parser do what it
-was intended to do
+was intended to do?
 
 ## Reasons to regenerate the file
 

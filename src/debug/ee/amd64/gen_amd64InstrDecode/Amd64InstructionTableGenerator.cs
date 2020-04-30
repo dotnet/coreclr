@@ -1,10 +1,14 @@
-﻿using System;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Amd64InstructioTableGenerator
+namespace Amd64InstructionTableGenerator
 {
     [Flags]
     public enum EncodingFlags : int
@@ -152,7 +156,7 @@ namespace Amd64InstructioTableGenerator
                 {"lidt",    (e) => { return SuffixFlags.M10B;}},
                 {"sgdt",    (e) => { return SuffixFlags.M10B;}},
                 {"sidt",    (e) => { return SuffixFlags.M10B;}},
-                {"vlddqu",  (e) => { return Amd64InstructioTableGenerator.Amd64L(SuffixFlags.M32B, SuffixFlags.M16B, e);}},
+                {"vlddqu",  (e) => { return Amd64InstructionTableGenerator.Amd64L(SuffixFlags.M32B, SuffixFlags.M16B, e);}},
                 {"vprotb",  (e) => { return SuffixFlags.M16B;}},
                 {"vprotd",  (e) => { return SuffixFlags.M16B;}},
                 {"vprotq",  (e) => { return SuffixFlags.M16B;}},
@@ -499,7 +503,7 @@ namespace Amd64InstructioTableGenerator
     }
 
 
-    class Amd64InstructioTableGenerator
+    class Amd64InstructionTableGenerator
     {
         List<Amd64InstructionSample> samples = new List<Amd64InstructionSample>();
 
@@ -514,7 +518,7 @@ namespace Amd64InstructioTableGenerator
         Dictionary<Map, Dictionary<int, string>> opcodes;
         int currentExtension = -8;
 
-        Amd64InstructioTableGenerator()
+        Amd64InstructionTableGenerator()
         {
             regExpandOpcodes = new List<(Map, int)>()
             {
@@ -865,7 +869,7 @@ namespace Amd64InstructioTableGenerator
             Console.WriteLine("    // Since there are 8 modrm.reg values, they occur is groups of 8.");
             Console.WriteLine("    // Each group is referenced from the other tables below using Extension|(index >> 3).");
             currentExtension += 8;
-            Console.WriteLine($"    static InstrForm instrFormExtension[{currentExtension + 1}]");
+            Console.WriteLine($"    static const InstrForm instrFormExtension[{currentExtension + 1}]");
             Console.WriteLine("    {");
             for (int i = 0; i < currentExtension; i++)
             {
@@ -877,7 +881,7 @@ namespace Amd64InstructioTableGenerator
             Console.WriteLine("    };");
 
             Console.WriteLine();
-            Console.WriteLine($"    static InstrForm instrFormPrimary[256]");
+            Console.WriteLine($"    static const InstrForm instrFormPrimary[256]");
             Console.WriteLine("    {");
             for (int i = 0; i < 4096; i+= 16)
             {
@@ -889,7 +893,7 @@ namespace Amd64InstructioTableGenerator
             Console.WriteLine("    };");
 
             Console.WriteLine();
-            Console.WriteLine($"    static InstrForm instrForm3DNow[256]");
+            Console.WriteLine($"    static const InstrForm instrForm3DNow[256]");
             Console.WriteLine("    {");
             for (int i = 0; i < 4096; i+= 16)
             {
@@ -906,7 +910,7 @@ namespace Amd64InstructioTableGenerator
             foreach((string name, Map map) in mapTuples)
             {
                 Console.WriteLine();
-                Console.WriteLine($"    static InstrForm instrForm{name}[1024]");
+                Console.WriteLine($"    static const InstrForm instrForm{name}[1024]");
                 Console.WriteLine("    {");
                 for (int i = 0; i < 4096; i+= 16)
                 {
@@ -926,7 +930,7 @@ namespace Amd64InstructioTableGenerator
 
         static void Main(string[] args)
         {
-            new Amd64InstructioTableGenerator();
+            new Amd64InstructionTableGenerator();
         }
     }
 }
