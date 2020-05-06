@@ -3,5 +3,3 @@ if(WIN32)
     add_subdirectory(DacTableGen)
   endif()    
 endif(WIN32)
-
-_install(FILES SOS_README.md DESTINATION .)
