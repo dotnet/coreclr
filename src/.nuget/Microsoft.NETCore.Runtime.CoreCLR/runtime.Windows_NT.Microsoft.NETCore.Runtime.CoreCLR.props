@@ -18,9 +18,6 @@
     <NativeBinary Include="$(BinDir)mscordbi.dll" />
     <NativeBinary Include="$(BinDir)mscorrc.debug.dll" />
     <NativeBinary Include="$(BinDir)mscorrc.dll" />
-    <File Include="$(BinDir)SOS_README.md">
-      <TargetPath>runtimes\$(PackageTargetRuntime)\native</TargetPath>
-    </File>
     <NativeBinary Include="$(BinDir)Redist\ucrt\DLLs\$(BuildArch)\*.dll" Condition="'$(BuildType)'=='Release' AND '$(BuildArch)' != 'arm64'" />
     <CrossGenBinary Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificToolFile Include="$(BinDir)crossgen.exe" />

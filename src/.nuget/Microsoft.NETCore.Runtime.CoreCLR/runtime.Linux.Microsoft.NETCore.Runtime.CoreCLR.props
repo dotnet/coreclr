@@ -13,9 +13,6 @@
     <NativeBinary Include="$(BinDir)libmscordaccore.so" />
     <NativeBinary Include="$(BinDir)libmscordbi.so" />
     <NativeBinary Include="$(BinDir)System.Globalization.Native.so" />
-    <File Include="$(BinDir)SOS_README.md">
-      <TargetPath>runtimes\$(PackageTargetRuntime)\native</TargetPath>
-    </File>
     <NativeBinary Condition="'$(_PlatformDoesNotSupportCreatedump)' != 'true'" Include="$(BinDir)createdump" />
     <CrossGenBinary Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificToolFile Include="$(BinDir)crossgen" />
