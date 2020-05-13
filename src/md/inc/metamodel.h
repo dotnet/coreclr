@@ -2120,6 +2120,7 @@ public:
 
     FORCEINLINE void MarkUnsafeToDelete() { m_isSafeToDelete = false; }
 
+    DAC_ALIGNAS(CMiniMdBase)
     bool m_isSafeToDelete; // This starts out true, but gets set to FALSE if we detect
                            // a MiniMd API call that might have given out an internal pointer.
 #endif
