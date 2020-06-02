@@ -117,7 +117,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_acos(double x)
+PALIMPORT double __cdecl PAL_acos(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(acos);
@@ -147,7 +147,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_acosh(double x)
+PALIMPORT double __cdecl PAL_acosh(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(acosh);
@@ -166,7 +166,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_asin(double x)
+PALIMPORT double __cdecl PAL_asin(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(asin);
@@ -196,7 +196,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_asinh(double x)
+PALIMPORT double __cdecl PAL_asinh(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(asinh);
@@ -215,7 +215,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_atan2(double y, double x)
+PALIMPORT double __cdecl PAL_atan2(double y, double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(atan2);
@@ -255,7 +255,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_exp(double x)
+PALIMPORT double __cdecl PAL_exp(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(exp);
@@ -306,7 +306,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_log(double x)
+PALIMPORT double __cdecl PAL_log(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(log);
@@ -336,7 +336,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_log10(double x)
+PALIMPORT double __cdecl PAL_log10(double x) THROW_DECL
 {
     double ret;
     PERF_ENTRY(log10);
@@ -366,7 +366,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT double __cdecl PAL_pow(double x, double y)
+PALIMPORT double __cdecl PAL_pow(double x, double y) THROW_DECL
 {
     double ret;
     PERF_ENTRY(pow);
@@ -527,7 +527,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_acosf(float x)
+PALIMPORT float __cdecl PAL_acosf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(acosf);
@@ -557,7 +557,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_acoshf(float x)
+PALIMPORT float __cdecl PAL_acoshf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(acoshf);
@@ -576,7 +576,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_asinf(float x)
+PALIMPORT float __cdecl PAL_asinf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(asinf);
@@ -606,7 +606,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_asinhf(float x)
+PALIMPORT float __cdecl PAL_asinhf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(asinhf);
@@ -626,7 +626,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_atan2f(float y, float x)
+PALIMPORT float __cdecl PAL_atan2f(float y, float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(atan2f);
@@ -666,7 +666,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_expf(float x)
+PALIMPORT float __cdecl PAL_expf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(expf);
@@ -698,7 +698,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_logf(float x)
+PALIMPORT float __cdecl PAL_logf(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(logf);
@@ -728,7 +728,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_log10f(float x)
+PALIMPORT float __cdecl PAL_log10f(float x) THROW_DECL
 {
     float ret;
     PERF_ENTRY(log10f);
@@ -758,7 +758,7 @@ Function:
 
 See MSDN.
 --*/
-PALIMPORT float __cdecl PAL_powf(float x, float y)
+PALIMPORT float __cdecl PAL_powf(float x, float y) THROW_DECL
 {
     float ret;
     PERF_ENTRY(powf);
