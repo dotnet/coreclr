@@ -164,7 +164,8 @@ do                                                      \
             pfwalk->m_managedPlacement.m_alignment = pfwalk->m_managedPlacement.m_size;
 #endif
         }
-        else if (corElemType == ELEMENT_TYPE_PTR)
+        else if (corElemType == ELEMENT_TYPE_PTR
+                || corElemType == ELEMENT_TYPE_FNPTR)
         {
             pfwalk->m_managedPlacement.m_size = TARGET_POINTER_SIZE;
             pfwalk->m_managedPlacement.m_alignment = TARGET_POINTER_SIZE;
@@ -408,6 +409,7 @@ do                                                      \
             break;
 
         case ELEMENT_TYPE_PTR:
+        case ELEMENT_TYPE_FNPTR:
 #ifdef FEATURE_COMINTEROP
             if (fIsWinRT)
             {
