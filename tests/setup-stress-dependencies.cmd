@@ -74,7 +74,7 @@ REM ============================================================================
 
 REM Download the package
 echo Downloading CoreDisTools package
-set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
+set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --source https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json --packages "%__PackageDir%"
 echo %DOTNETCMD%
 call %DOTNETCMD%
 if errorlevel 1 goto Fail
