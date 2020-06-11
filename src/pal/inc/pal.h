@@ -137,6 +137,11 @@ extern "C" {
 #define LANG_THAI                        0x1e
 
 /******************* Compiler-specific glue *******************************/
+#if defined(_MSC_VER) || !defined(__cplusplus)
+#define THROW_DECL
+#else
+#define THROW_DECL throw()
+#endif
 
 #ifndef _MSC_VER
 #if defined(CORECLR)
@@ -4207,7 +4212,7 @@ EXTERN_C
 PALIMPORT
 void *PAL_memcpy (void *dest, const void *src, size_t count);
 
-PALIMPORT void * __cdecl memcpy(void *, const void *, size_t);
+PALIMPORT void * __cdecl memcpy(void *, const void *, size_t) THROW_DECL;
 
 #define memcpy PAL_memcpy
 #define IS_PAL_memcpy 1
@@ -4220,7 +4225,7 @@ PALIMPORT int    __cdecl memcmp(const void *, const void *, size_t);
 PALIMPORT void * __cdecl memset(void *, int, size_t);
 PALIMPORT void * __cdecl memmove(void *, const void *, size_t);
 PALIMPORT void * __cdecl memchr(const void *, int, size_t);
-PALIMPORT long long int __cdecl atoll(const char *);
+PALIMPORT long long int __cdecl atoll(const char *) THROW_DECL;
 PALIMPORT size_t __cdecl strlen(const char *);
 PALIMPORT int __cdecl strcmp(const char*, const char *);
 PALIMPORT int __cdecl strncmp(const char*, const char *, size_t);
@@ -4259,7 +4264,7 @@ PALIMPORT int __cdecl toupper(int);
 #define _TRUNCATE ((size_t)-1)
 #endif
 
-PALIMPORT errno_t __cdecl memcpy_s(void *, size_t, const void *, size_t);
+PALIMPORT errno_t __cdecl memcpy_s(void *, size_t, const void *, size_t) THROW_DECL;
 PALIMPORT errno_t __cdecl memmove_s(void *, size_t, const void *, size_t);
 PALIMPORT char * __cdecl _strlwr(char *);
 PALIMPORT int __cdecl _stricmp(const char *, const char *);
@@ -4387,58 +4392,58 @@ PALIMPORT long long __cdecl llabs(long long);
 PALIMPORT int __cdecl _finite(double);
 PALIMPORT int __cdecl _isnan(double);
 PALIMPORT double __cdecl _copysign(double, double);
-PALIMPORT double __cdecl acos(double);
-PALIMPORT double __cdecl acosh(double);
-PALIMPORT double __cdecl asin(double);
-PALIMPORT double __cdecl asinh(double);
-PALIMPORT double __cdecl atan(double);
-PALIMPORT double __cdecl atanh(double);
-PALIMPORT double __cdecl atan2(double, double);
-PALIMPORT double __cdecl cbrt(double);
-PALIMPORT double __cdecl ceil(double);
-PALIMPORT double __cdecl cos(double);
-PALIMPORT double __cdecl cosh(double);
-PALIMPORT double __cdecl exp(double);
-PALIMPORT double __cdecl fabs(double);
-PALIMPORT double __cdecl floor(double);
-PALIMPORT double __cdecl fmod(double, double); 
-PALIMPORT double __cdecl log(double);
-PALIMPORT double __cdecl log10(double);
-PALIMPORT double __cdecl modf(double, double*);
-PALIMPORT double __cdecl pow(double, double);
-PALIMPORT double __cdecl sin(double);
-PALIMPORT double __cdecl sinh(double);
-PALIMPORT double __cdecl sqrt(double);
-PALIMPORT double __cdecl tan(double);
-PALIMPORT double __cdecl tanh(double);
+PALIMPORT double __cdecl acos(double) THROW_DECL;
+PALIMPORT double __cdecl acosh(double) THROW_DECL;
+PALIMPORT double __cdecl asin(double) THROW_DECL;
+PALIMPORT double __cdecl asinh(double) THROW_DECL;
+PALIMPORT double __cdecl atan(double) THROW_DECL;
+PALIMPORT double __cdecl atanh(double) THROW_DECL;
+PALIMPORT double __cdecl atan2(double, double) THROW_DECL;
+PALIMPORT double __cdecl cbrt(double) THROW_DECL;
+PALIMPORT double __cdecl ceil(double) THROW_DECL;
+PALIMPORT double __cdecl cos(double) THROW_DECL;
+PALIMPORT double __cdecl cosh(double) THROW_DECL;
+PALIMPORT double __cdecl exp(double) THROW_DECL;
+PALIMPORT double __cdecl fabs(double) THROW_DECL;
+PALIMPORT double __cdecl floor(double) THROW_DECL;
+PALIMPORT double __cdecl fmod(double, double) THROW_DECL;
+PALIMPORT double __cdecl log(double) THROW_DECL;
+PALIMPORT double __cdecl log10(double) THROW_DECL;
+PALIMPORT double __cdecl modf(double, double*) THROW_DECL;
+PALIMPORT double __cdecl pow(double, double) THROW_DECL;
+PALIMPORT double __cdecl sin(double) THROW_DECL;
+PALIMPORT double __cdecl sinh(double) THROW_DECL;
+PALIMPORT double __cdecl sqrt(double) THROW_DECL;
+PALIMPORT double __cdecl tan(double) THROW_DECL;
+PALIMPORT double __cdecl tanh(double) THROW_DECL;
 
 PALIMPORT int __cdecl _finitef(float);
 PALIMPORT int __cdecl _isnanf(float);
 PALIMPORT float __cdecl _copysignf(float, float);
-PALIMPORT float __cdecl acosf(float);
-PALIMPORT float __cdecl acoshf(float);
-PALIMPORT float __cdecl asinf(float);
-PALIMPORT float __cdecl asinhf(float);
-PALIMPORT float __cdecl atanf(float);
-PALIMPORT float __cdecl atanhf(float);
-PALIMPORT float __cdecl atan2f(float, float);
-PALIMPORT float __cdecl cbrtf(float);
-PALIMPORT float __cdecl ceilf(float);
-PALIMPORT float __cdecl cosf(float);
-PALIMPORT float __cdecl coshf(float);
-PALIMPORT float __cdecl expf(float);
-PALIMPORT float __cdecl fabsf(float);
-PALIMPORT float __cdecl floorf(float);
-PALIMPORT float __cdecl fmodf(float, float); 
-PALIMPORT float __cdecl logf(float);
-PALIMPORT float __cdecl log10f(float);
-PALIMPORT float __cdecl modff(float, float*);
-PALIMPORT float __cdecl powf(float, float);
-PALIMPORT float __cdecl sinf(float);
-PALIMPORT float __cdecl sinhf(float);
-PALIMPORT float __cdecl sqrtf(float);
-PALIMPORT float __cdecl tanf(float);
-PALIMPORT float __cdecl tanhf(float);
+PALIMPORT float __cdecl acosf(float) THROW_DECL;
+PALIMPORT float __cdecl acoshf(float) THROW_DECL;
+PALIMPORT float __cdecl asinf(float) THROW_DECL;
+PALIMPORT float __cdecl asinhf(float) THROW_DECL;
+PALIMPORT float __cdecl atanf(float) THROW_DECL;
+PALIMPORT float __cdecl atanhf(float) THROW_DECL;
+PALIMPORT float __cdecl atan2f(float, float) THROW_DECL;
+PALIMPORT float __cdecl cbrtf(float) THROW_DECL;
+PALIMPORT float __cdecl ceilf(float) THROW_DECL;
+PALIMPORT float __cdecl cosf(float) THROW_DECL;
+PALIMPORT float __cdecl coshf(float) THROW_DECL;
+PALIMPORT float __cdecl expf(float) THROW_DECL;
+PALIMPORT float __cdecl fabsf(float) THROW_DECL;
+PALIMPORT float __cdecl floorf(float) THROW_DECL;
+PALIMPORT float __cdecl fmodf(float, float) THROW_DECL;
+PALIMPORT float __cdecl logf(float) THROW_DECL;
+PALIMPORT float __cdecl log10f(float) THROW_DECL;
+PALIMPORT float __cdecl modff(float, float*) THROW_DECL;
+PALIMPORT float __cdecl powf(float, float) THROW_DECL;
+PALIMPORT float __cdecl sinf(float) THROW_DECL;
+PALIMPORT float __cdecl sinhf(float) THROW_DECL;
+PALIMPORT float __cdecl sqrtf(float) THROW_DECL;
+PALIMPORT float __cdecl tanf(float) THROW_DECL;
+PALIMPORT float __cdecl tanhf(float) THROW_DECL;
 
 #ifndef PAL_STDCPP_COMPAT
 
