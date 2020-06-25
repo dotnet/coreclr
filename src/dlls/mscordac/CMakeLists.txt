@@ -189,6 +189,12 @@ else(WIN32)
     )
 endif(WIN32)
 
+if(WIN32 AND CLR_CMAKE_TARGET_UNIX)
+    list(APPEND COREDAC_LIBRARIES
+        libunwind_xdac
+    )
+endif(WIN32 AND CLR_CMAKE_TARGET_UNIX)
+
 target_link_libraries(mscordaccore PRIVATE ${COREDAC_LIBRARIES})
 
 # add the install targets

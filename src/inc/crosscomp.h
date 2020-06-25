@@ -424,7 +424,6 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 #elif defined(TARGET_NETBSD) && defined(_TARGET_X86_)
 #define DAC_CS_NATIVE_DATA_SIZE 56
 #else
-#warning
 #error  DAC_CS_NATIVE_DATA_SIZE is not defined for this architecture
 #endif
 
