@@ -331,7 +331,7 @@ else(CLR_CMAKE_HOST_UNIX)
         list(APPEND libunwind_setjmp_la_SOURCES     x86_64/longjmp.S x86_64/siglongjmp.SA)
     endif()
 
-    set_source_files_properties(${CLR_DIR}/src/pal/src/exception/remote-unwind.cpp PROPERTIES COMPILE_FLAGS /TP INCLUDE_DIRECTORIES ${CLR_DIR}/src/inc)
+    set_source_files_properties(${CLR_DIR}/src/pal/src/exception/remote-unwind-xdac.cpp PROPERTIES COMPILE_FLAGS /TP INCLUDE_DIRECTORIES ${CLR_DIR}/src/inc)
     set_source_files_properties(${CLR_DIR}/src/pal/src/exception/seh-unwind.cpp PROPERTIES COMPILE_FLAGS /TP INCLUDE_DIRECTORIES ${CLR_DIR}/src/inc)
     add_library(libunwind_xdac
       OBJECT
