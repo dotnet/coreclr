@@ -58,7 +58,7 @@ if(CLR_CMAKE_TARGET_UNIX)
     add_custom_command(
       OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
       VERBATIM
-      COMMAND ${CLR_DIR}/src/pal/tools/gen-dactable-rva.cmd "${CLR_DIR}" "${CLR_CMAKE_TARGET_OS}" "${CLR_CMAKE_TARGET_ARCH}" "$<CONFIG>" "${GENERATED_INCLUDE_DIR}/dactablerva.h"
+      COMMAND ${CLR_DIR}/src/pal/tools/gen-dactable-rva.cmd "$(ProjectDir)/artifacts/crossdac" "${CLR_CMAKE_TARGET_OS}" "${CLR_CMAKE_TARGET_ARCH}" "$<CONFIG>" "${GENERATED_INCLUDE_DIR}/dactablerva.h"
       COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
     )
   endif(CLR_CMAKE_PLATFORM_UNIX)
