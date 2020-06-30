@@ -86,6 +86,10 @@
     <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm64'">x64</CrossTargetComponentFolder>
     <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm' and '$(TargetsWindows)' == 'true'">x86</CrossTargetComponentFolder>
     <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm' and '$(TargetsLinux)' == 'true'">x64</CrossTargetComponentFolder>
+
+    <CrossDacFolders Condition="'$(CrossDac)' == 'true' and $(BuildArch)' != 'arm'">$(RootBinDir)Product\*.$(BuildArch).$(BuildType)\x64</CrossDacComponentFolder>
+    <CrossDacFolders Condition="''$(CrossDac)' == 'true' and $(BuildArch)' == 'arm'">$(RootBinDir)Product\*.$(BuildArch).$(BuildType)\x86</CrossDacComponentFolder>
+
   </PropertyGroup>
 
 </Project>

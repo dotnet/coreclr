@@ -1,0 +1,154 @@
+parameters:
+  buildConfig: ''
+  archType: ''
+  osGroup: ''
+  osIdentifier: ''
+  container: ''
+  timeoutInMinutes: ''
+
+### Product build
+jobs:
+- template: xplat-job.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/product/'
+    enableMicrobuild: true
+
+    # Compute job name from template parameters
+    name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('{0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    # Run all steps in the container.
+    # Note that the containers are defined in platform-matrix.yml
+    container: ${{ parameters.container }}
+
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+
+    gatherAssetManifests: true
+    variables:
+    - name: osIdentifier
+      value: ${{ parameters.osIdentifier }}
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      # Variables used to publish packages to blob feed
+      - name: dotnetfeedUrl
+        value: https://dotnetfeed.blob.core.windows.net/dotnet-coreclr/index.json
+      - name: dotnetfeedPAT
+        value: $(dotnetfeed-storage-access-key-1)
+      # Variables used by arcade to gather asset manifests
+      - name: _DotNetPublishToBlobFeed
+        value: true
+    - name: officialBuildIdArg
+      value: ''
+    - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: officialBuildIdArg
+        value: '-officialbuildid=$(Build.BuildNumber)'
+
+    steps:
+
+    # Install native dependencies
+    # Linux builds use docker images with dependencies preinstalled,
+    # and FreeBSD builds use a build agent with dependencies
+    # preinstalled, so we only need this step for OSX and Windows.
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      # Necessary to install python
+      - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
+        displayName: Install native dependencies
+
+    # Install internal tools on official builds
+    # Since our internal tools are behind an authenticated feed,
+    # we need to use the DotNetCli AzDO task to restore from the feed using a service connection.
+    # We can't do this from within the build, so we need to do this as a separate step.
+    - ${{ if and(and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')), eq(parameters.osGroup, 'Windows_NT')) }}:
+        - task: DotNetCoreInstaller@0
+          inputs:
+            packageType: 'sdk'
+            version: '2.1.503'
+        - task: DotNetCoreCLI@2
+          displayName: Restore internal tools
+          inputs:
+            command: restore
+            feedsToUse: config
+            projects: '$(Build.SourcesDirectory)/eng/common/internal/Tools.csproj'
+            nugetConfigPath: 'eng/internal/NuGet.config'
+            restoreDirectory: '$(Build.SourcesDirectory)\.packages'
+            verbosityRestore: 'normal'
+            externalFeedCredentials: 'dotnet-core-internal-tooling'
+
+    # Build-Linux
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-crossdac.sh $(officialBuildIdArg)
+        displayName: Build product
+
+      - task: PublishBuildArtifacts@1
+        displayName: Publish crossdac linux build artifacts
+        inputs:
+          PathtoPublish: '$(Build.SourcesDirectory)/artifacts/crossdac/crossdac-linux-artifacts.tar.gz/'
+          PublishLocation: Container
+          ArtifactName: 'crossdac-linux-artifacts.tar.gz'
+        continueOnError: true
+        condition: always()
+
+    # Build-Windows
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      # Download and unzip managed test artifacts
+      - template: /eng/pipelines/common/download-artifact-step.yml
+        parameters:
+          unpackFolder: '$(Build.SourcesDirectory)/artifacts/crossdac'
+          artifactFileName: 'crossdac-linux-artifacts.tar.gz'
+          artifactName: 'crossdac-linux-artifacts.tar.gz'
+          displayName: 'Download crossdac linux build artifacts'
+
+      # Build linux dac
+      - script: set __TestIntermediateDir=int&&build.cmd -linuxdac $(buildConfig) $(archType) $(officialBuildIdArg)
+        displayName: Build Linux dac
+
+      # Build alpine dac
+      - ${{ if ne(parameters.archType, 'arm') }}:
+        - script: set __TestIntermediateDir=int&&build.cmd -alpinedac $(buildConfig) $(archType) $(officialBuildIdArg)
+          displayName: Build Alpine dac
+
+      - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+        # Sign
+        - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:CrossDac=true /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
+          displayName: Sign Linux Binaries
+
+        - task: PublishBuildArtifacts@1
+          displayName: Publish Signing Logs
+          inputs:
+            PathtoPublish: '$(Build.SourcesDirectory)/artifacts/'
+            PublishLocation: Container
+            ArtifactName: ${{ format('SignLogs_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          continueOnError: true
+          condition: always()
+
+        # Get key vault secrets for publishing
+        - task: AzureKeyVault@1
+          inputs:
+            azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+            KeyVaultName: EngKeyVault
+            SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+      # Build packages
+      - script: build-packages.cmd -BuildCrossDacOnly -BuildArch=$(archType) -BuildType=$(_BuildConfig) $(officialBuildIdArg) -ci
+        displayName: Build packages
+
+      # Publish official build
+      - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+        # TODO: pass publish feed url and access token in from the internal pipeline
+        - powershell: eng\common\build.ps1 -ci -restore -publish -configuration $(_BuildConfig) /p:DotNetPublishUsingPipelines=true /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedUrl=$(dotnetfeedUrl) /p:DotNetPublishBlobFeedKey=$(dotnetfeedPAT) /p:__BuildType=$(_BuildConfig) /p:__BuildArch=$(archType) /p:__BuildOS=$(osGroup) /p:OSIdentifier=$(osIdentifier) /bl:"$(Build.SourcesDirectory)\bin\Logs\publish-pkgs.binlog" -projects $(Build.SourcesDirectory)\eng\empty.csproj
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages
+
+    # Publish Logs
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Logs
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
+        artifactName: ${{ format('BuildLogs_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      continueOnError: true
+      condition: always()

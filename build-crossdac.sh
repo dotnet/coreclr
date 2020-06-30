@@ -8,7 +8,7 @@ chmod u+x dotnet-install.sh
 
 # Fetch prebuilt runtime pieces
 
-RUNTIME_URL_PREFIX=$(./dotnet-install.sh --dry-run --runtime dotnet --version ${VERSION_IDENTIFIER} --arch arm64 | grep 'Primary named payload URL:' | sed -e 's/^.*URL: //' -e 's/linux-arm64.tar.gz//')
+RUNTIME_URL_PREFIX=$(./dotnet-install.sh --dry-run --runtime dotnet --version ${VERSION_IDENTIFIER} --arch arm64 | grep 'Primary named payload URL:' | sed -e 's/^.*URL: //' -e 's/linux-musl/linux/' -e 's/linux-arm64.tar.gz//')
 
 for rid in linux-arm linux-arm64 linux-musl-arm64 linux-x64 linux-musl-x64
 do

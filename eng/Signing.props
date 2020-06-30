@@ -21,6 +21,11 @@
     <ItemsToSign Include="$(BinDir)$(CrossTargetComponentFolder)/*.exe" />
   </ItemGroup>
 
+  <!-- sign the cross OS DAC files as well -->
+  <ItemGroup Condition="'$(CrossDacFolders)' != ''">
+    <ItemsToSign Include="$(CrossDacFolders)/mscord*.dll" />
+  </ItemGroup>
+
   <Target Name="ValidateSignFileListIsNotEmpty" BeforeTargets="Sign">
     <Error Condition="'@(ItemsToSign)' == ''" Text="List of files to sign is empty" />
     <Message Importance="High" Text="Attempting to sign %(ItemsToSign.Identity)" />
