@@ -48,5 +48,30 @@
 	"Name": "Microsoft.NETCore.Native",
 	"Description": "Native shims for .NET Core runtime",
 	"CommonTypes": [ ]
+    },
+    {
+        "Name": "Microsoft.CrossOsDiag.Private.CoreClr.linux-arm",
+        "Description": "Private package for uploading the .NET Core cross OS diagnostic tools to the symbol server.",
+        "CommonTypes": [ ]
+    },
+    {
+        "Name": "Microsoft.CrossOsDiag.Private.CoreClr.linux-arm64",
+        "Description": "Private package for uploading the .NET Core cross OS diagnostic tools to the symbol server.",
+        "CommonTypes": [ ]
+    },
+    {
+        "Name": "Microsoft.CrossOsDiag.Private.CoreClr.linux-musl-arm64",
+        "Description": "Private package for uploading the .NET Core cross OS diagnostic tools to the symbol server.",
+        "CommonTypes": [ ]
+    },
+    {
+        "Name": "Microsoft.CrossOsDiag.Private.CoreClr.linux-x64",
+        "Description": "Private package for uploading the .NET Core cross OS diagnostic tools to the symbol server.",
+        "CommonTypes": [ ]
+    },
+    {
+        "Name": "Microsoft.CrossOsDiag.Private.CoreClr.linux-musl-x64",
+        "Description": "Private package for uploading the .NET Core cross OS diagnostic tools to the symbol server.",
+        "CommonTypes": [ ]
     }
 ]

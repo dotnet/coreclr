@@ -2,6 +2,7 @@
 setlocal EnableDelayedExpansion
 
 set "__ProjectDir=%~dp0"
+set "__Project=packages.builds"
 
 set "__args=%*"
 set processedArgs=
@@ -17,6 +18,7 @@ REM CMD eats "=" on the argument list.
 REM TODO: remove all -Property=Value type arguments here once we get rid of them in buildpipeline.
 if /i "%1" == "-BuildArch"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-BuildType"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-CrossDacOnly"    (set processedArgs=!processedArgs! %1&set __Project=packages.CrossDac.builds&shift&goto Arg_Loop)
 if /i "%1" == "-OfficialBuildId" (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:OfficialBuildId=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "--"               (set processedArgs=!processedArgs! %1&shift)
 
@@ -35,7 +37,7 @@ if [!processedArgs!]==[] (
 
 set logFile=%__ProjectDir%bin\Logs\build-packages.binlog
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%eng\common\build.ps1"^
-  -r -b -projects %__ProjectDir%src\.nuget\packages.builds^
+  -r -b -projects %__ProjectDir%src\.nuget\%__Project%^
   -verbosity minimal /bl:%logFile% /nodeReuse:false^
   /p:__BuildOS=Windows_NT /p:ArcadeBuild=true^
   /p:PortableBuild=true /p:FilterToOSGroup=Windows_NT^

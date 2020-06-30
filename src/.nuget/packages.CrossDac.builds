@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.Build.Traversal">
+  <Import Project="packaging.props" />
+
+  <ItemGroup>
+    <ProjectReference Include="Microsoft.CrossOsDiag.Private.CoreCLR\*$(__BuildArch).pkgproj" />
+  </ItemGroup>
+</Project>

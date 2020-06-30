@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <NoBuild>true</NoBuild>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <File Include="$(CoreclrPath)/libcoreclr.so" />
+    <File Include="$(CrossDacBinaries)/mscordaccore.dll" />
+    <File Include="$(CrossDacBinaries)/mscordbi.dll" />
+    <File Include="$(CrossDacBinaries)/PDB/mscordaccore.pdb" />
+    <File Include="$(CrossDacBinaries)/PDB/mscordbi.pdb" />
+  </ItemGroup>
+
+</Project>
