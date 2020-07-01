@@ -115,6 +115,8 @@ ${{ if endsWith(variables['Build.SourceBranch'], 'crossdac') }}:
   variables:
   - name: _DotNetArtifactsCategory
     value: CORECLR
+  - name: coreClrVersion
+    value: ''
 
   stages:
     - stage: build-linux
@@ -148,6 +150,7 @@ ${{ if endsWith(variables['Build.SourceBranch'], 'crossdac') }}:
             # due to waiting for an exclusive lock on the feed.
             # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
             timeoutInMinutes: 120
+            coreClrBuildId: variables['coreClrVersion']
 
       #
       # Publish build information to Build Assets Registry

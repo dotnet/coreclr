@@ -5,6 +5,7 @@ parameters:
   osIdentifier: ''
   container: ''
   timeoutInMinutes: ''
+  coreClrBuildId: ''
 
 ### Product build
 jobs:
@@ -16,6 +17,7 @@ jobs:
     osIdentifier: ${{ parameters.osIdentifier }}
     helixType: 'build/product/'
     enableMicrobuild: true
+    coreClrBuildId: $${{ parameters.coreClrBuildId }}
 
     # Compute job name from template parameters
     name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -79,7 +81,7 @@ jobs:
 
     # Build-Linux
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-crossdac.sh $(officialBuildIdArg)
+      - script: ./build-crossdac.sh $(coreClrBuildId)
         displayName: Build product
 
       - task: PublishBuildArtifacts@1
