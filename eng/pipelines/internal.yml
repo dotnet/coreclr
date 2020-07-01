@@ -27,12 +27,12 @@ variables:
 - name: CrossDacCoreClrVersion
   value: ''
 
-# This condition is typically true.  It represent the normal product build case
-# It is included in the release/3.1 branches to facilitate auto merging of
-# servicing chages into the release/3.1-crossdac branch
-${{ if not(endsWith(variables['Build.SourceBranch'], 'crossdac')) }}:
+stages:
+  # This condition is typically true.  It represent the normal product build case
+  # It is included in the release/3.1 branches to facilitate auto merging of
+  # servicing chages into the release/3.1-crossdac branch
+  ${{ if not(endsWith(variables['Build.SourceBranch'], 'crossdac')) }}:
   # See mappings in https://github.com/dotnet/arcade/blob/055bb2951c3107189551ab912b4e5550928b5afb/src/Microsoft.DotNet.Arcade.Sdk/tools/SdkTasks/PublishToPackageFeed.proj#L33-L48
-  stages:
     - stage: build
       jobs:
       #
@@ -108,12 +108,11 @@ ${{ if not(endsWith(variables['Build.SourceBranch'], 'crossdac')) }}:
             readyToRun: true
             displayNameArgs: R2R
 
-# Code below this point is reseverved for use of the crossdac branch
-# Please keep this as the last non-blank line in the release/3.1 branch
+  # Code below this point is reseverved for use of the crossdac branch
+  # Please keep this as the last non-blank line in the release/3.1 branch
 
-# This condition is true for the release/3.1-crossdac branch
-${{ if endsWith(variables['Build.SourceBranch'], 'crossdac') }}:
-  stages:
+  # This condition is true for the release/3.1-crossdac branch
+  ${{ if endsWith(variables['Build.SourceBranch'], 'crossdac') }}:
     - stage: build-linux
       jobs:
       #
