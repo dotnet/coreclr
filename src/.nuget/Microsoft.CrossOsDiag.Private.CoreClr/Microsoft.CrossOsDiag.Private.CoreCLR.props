@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <File Include="$(CoreclrPath)/libcoreclr.so" />
+    <File Condition="'$(SymStoreCrossDacIndex)' == 'true'" Include="$(CoreclrPath)/libcoreclr.so" />
     <File Include="$(CrossDacBinaries)/mscordaccore.dll" />
     <File Include="$(CrossDacBinaries)/mscordbi.dll" />
     <File Include="$(CrossDacBinaries)/PDB/mscordaccore.pdb" />
