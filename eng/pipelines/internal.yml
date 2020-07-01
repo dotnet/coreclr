@@ -28,134 +28,49 @@ variables:
   value: ''
 
 stages:
-  # This condition is typically true.  It represent the normal product build case
-  # It is included in the release/3.1 branches to facilitate auto merging of
-  # servicing chages into the release/3.1-crossdac branch
-  ${{ if not(endsWith(variables['Build.SourceBranch'], 'crossdac')) }}:
-  # See mappings in https://github.com/dotnet/arcade/blob/055bb2951c3107189551ab912b4e5550928b5afb/src/Microsoft.DotNet.Arcade.Sdk/tools/SdkTasks/PublishToPackageFeed.proj#L33-L48
-    - stage: build
-      jobs:
-      #
-      # Release builds
-      #
-      - template: /eng/platform-matrix.yml
-        parameters:
-          jobTemplate: build-job.yml
-          buildConfig: release
-          platformGroup: all
-          jobParameters:
-            # Publishing packages to blob feeds sometimes takes a long time
-            # due to waiting for an exclusive lock on the feed.
-            # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
-            timeoutInMinutes: 120
+  - stage: build-linux
+    jobs:
+    #
+    # Cross-dac prepare
+    #
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: build-crossdac-job.yml
+        buildConfig: release
+        platforms: Linux_musl_x64 # Choose the lightest weight linux platform
 
-      #
-      # Publish build information to Build Assets Registry
-      #
-      # This job gathers build assets from the pipeline (from each official
-      # product build job), and publishes them to the build assets
-      # registry. Its dependencies should be updated to include all of the
-      # official builds if we add more platform/arch combinations.
-      - template: /eng/finalize-publish.yml
-        parameters:
-          dependsOn:
-          - build_Linux_arm_release
-          - build_Linux_arm64_release
-          - build_Linux_musl_x64_release
-          - build_Linux_musl_arm64_release
-          - build_Linux_rhel6_x64_release
-          - build_Linux_x64_release
-          - build_OSX_x64_release
-          - build_Windows_NT_x64_release
-          - build_Windows_NT_x86_release
-          - build_Windows_NT_arm_release
-          - build_Windows_NT_arm64_release
+  - stage: build-windows
+    jobs:
+    #
+    # Cross-dac builds
+    #
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: build-crossdac-job.yml
+        buildConfig: release
+        dependsOn:
+        - build_Linux_musl_x64_release
+        platforms:
+        - Windows_NT_arm
+        - Windows_NT_arm64
+        - Windows_NT_x64
+        jobParameters:
+          # Publishing packages to blob feeds sometimes takes a long time
+          # due to waiting for an exclusive lock on the feed.
+          # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
+          timeoutInMinutes: 120
+          coreClrBuildId: variables['coreClrVersion']
 
-    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
-      - template: /eng/common/templates/post-build/post-build.yml
-        parameters:
-          # Symbol validation is not entirely reliable as of yet, so should be turned off until https://github.com/dotnet/arcade/issues/2871 is resolved.
-          enableSymbolValidation: false
-
-    - stage: test
-      displayName: Test
-      jobs:
-      #
-      # Release test builds
-      #
-      - template: /eng/platform-matrix.yml
-        parameters:
-          jobTemplate: test-job.yml
-          buildConfig: release
-          platformGroup: all
-          helixQueueGroup: all
-          ignoreDependencyOnBuildJobs: true
-          jobParameters:
-            testGroup: outerloop
-
-      #
-      # ReadyToRun test builds
-      #
-      - template: /eng/platform-matrix.yml
-        parameters:
-          jobTemplate: test-job.yml
-          buildConfig: release
-          platformGroup: all
-          helixQueueGroup: all
-          ignoreDependencyOnBuildJobs: true
-          jobParameters:
-            testGroup: outerloop
-            readyToRun: true
-            displayNameArgs: R2R
-
-  # Code below this point is reseverved for use of the crossdac branch
-  # Please keep this as the last non-blank line in the release/3.1 branch
-
-  # This condition is true for the release/3.1-crossdac branch
-  ${{ if endsWith(variables['Build.SourceBranch'], 'crossdac') }}:
-    - stage: build-linux
-      jobs:
-      #
-      # Cross-dac prepare
-      #
-      - template: /eng/platform-matrix.yml
-        parameters:
-          jobTemplate: build-crossdac-job.yml
-          buildConfig: release
-          platforms: Linux_musl_x64 # Choose the lightest weight linux platform
-
-    - stage: build-windows
-      jobs:
-      #
-      # Cross-dac builds
-      #
-      - template: /eng/platform-matrix.yml
-        parameters:
-          jobTemplate: build-crossdac-job.yml
-          buildConfig: release
-          dependsOn:
-          - build_Linux_musl_x64_release
-          platforms:
-          - Windows_NT_arm
-          - Windows_NT_arm64
-          - Windows_NT_x64
-          jobParameters:
-            # Publishing packages to blob feeds sometimes takes a long time
-            # due to waiting for an exclusive lock on the feed.
-            # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
-            timeoutInMinutes: 120
-            coreClrBuildId: variables['coreClrVersion']
-
-      #
-      # Publish build information to Build Assets Registry
-      #
-      # This job gathers build assets from the pipeline (from each official
-      # product build job), and publishes them to the build assets
-      # registry. Its dependencies should be updated to include all of the
-      # official builds if we add more platform/arch combinations.
-      - template: /eng/finalize-publish.yml
-        parameters:
-          dependsOn:
-          - build_Windows_NT_x64_release
-          - build_Windows_NT_arm_release
-          - build_Windows_NT_arm64_release
+    #
+    # Publish build information to Build Assets Registry
+    #
+    # This job gathers build assets from the pipeline (from each official
+    # product build job), and publishes them to the build assets
+    # registry. Its dependencies should be updated to include all of the
+    # official builds if we add more platform/arch combinations.
+    - template: /eng/finalize-publish.yml
+      parameters:
+        dependsOn:
+        - build_Windows_NT_x64_release
+        - build_Windows_NT_arm_release
+        - build_Windows_NT_arm64_release
