@@ -28,7 +28,7 @@ variables:
   value: ''
 
 stages:
-  - stage: build-linux
+  - stage: Prepare
     jobs:
     #
     # Cross-dac prepare
@@ -39,10 +39,10 @@ stages:
         buildConfig: release
         platforms: Linux_musl_x64 # Choose the lightest weight linux platform
 
-  - stage: build-windows
+  - stage: Build
     jobs:
     #
-    # Cross-dac builds
+    # Cross-dac build
     #
     - template: /eng/platform-matrix.yml
       parameters:
