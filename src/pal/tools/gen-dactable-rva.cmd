@@ -17,23 +17,23 @@ rem The offset doesn't change often, but in the 2.1.x history it changed several
 rem this needs to be replaced by an automated mechanism to get the table offset
 
 if "%target%" == "Linux-arm-Release" (
-    copy %linuxArtifacts%/linux-arm/libcoreclr.so.dactablerva.h %dactablervaPath%
+    copy /Y "%linuxArtifacts%\linux-arm\libcoreclr.so.dactablerva.h" "%dactablervaPath%"
     exit 0
 )
 if "%target%" == "Linux-arm64-Release" (
-    copy %linuxArtifacts%/linux-arm64/libcoreclr.so.dactablerva.h %dactablervaPath%
+    copy /Y "%linuxArtifacts%\linux-arm64\libcoreclr.so.dactablerva.h" "%dactablervaPath%"
     exit 0
 )
 if "%target%" == "alpine-arm64-Release" (
-    copy %linuxArtifacts%/linux-musl-arm64/libcoreclr.so.dactablerva.h %dactablervaPath%
+    copy /Y "%linuxArtifacts%\linux-musl-arm64\libcoreclr.so.dactablerva.h" "%dactablervaPath%"
     exit 0
 )
 if "%target%" == "Linux-x64-Release" (
-    copy %linuxArtifacts%/linux-x64/libcoreclr.so.dactablerva.h %dactablervaPath%
+    copy /Y "%linuxArtifacts%\linux-x64\libcoreclr.so.dactablerva.h" "%dactablervaPath%"
     exit 0
 )
 if "%target%" == "alpine-x64-Release" (
-    copy %linuxArtifacts%/linux-musl-x64/libcoreclr.so.dactablerva.h %dactablervaPath%
+    copy /Y "%linuxArtifacts%\linux-musl-x64\libcoreclr.so.dactablerva.h" "%dactablervaPath%"
     exit 0
 )
 
