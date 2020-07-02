@@ -1,9 +1,6 @@
 export VERSION_IDENTIFIER=$1
 
 # Install prerequisites
-apt update
-apt install -y dwarfdump
-
 wget https://dotnet.microsoft.com/download/dotnet-core/scripts/v1/dotnet-install.sh
 
 chmod u+x dotnet-install.sh
@@ -19,19 +16,6 @@ do
   tar -f artifacts/runtime-${rid}.tar.gz -C artifacts/crossdac/${rid} --wildcards --xform='s/^.*\(lib[a-zA-Z_0-9]*.so\)/\1/' -x *libcoreclr.so *libmscordaccore.so *libmscordbi.so
 done
 
-# Get symbols
-./dotnet.sh tool install --tool-path ./artifacts/dotnet-symbol dotnet-symbol 
-for i in $(find artifacts/crossdac -name libms\*.so)
-do
-  ./dotnet.sh $(find ./artifacts/dotnet-symbol -name dotnet-symbol.dll) $i
-done
-
-# Build dwarf dumps
-for i in $(find artifacts/crossdac \( -name libmscordaccore.so.dbg -o -name libmscordbi.so.dbg \) )
-do
-  dwarfdump -i -d -G $i | grep -v -e DW_TAG_formal -e DW_TAG_subprog > $i.dwarf
-done
-
 # Build dactablerva.h files
 chmod ugo+x src/pal/tools/gen-dactable-rva.sh
 for i in $(find artifacts/crossdac -name libcoreclr.so)
@@ -39,10 +23,10 @@ do
     src/pal/tools/gen-dactable-rva.sh $i $i.dactablerva.h
 done
 
-cd artifacts/crossdac && tar -zcf crossdac-linux-artifacts.tar.gz $(find linux* \( -name libcoreclr.so -o -name \*.h -o -name \*.dwarf \) ) && cd -
+cd artifacts/crossdac && tar -zcf crossdac-linux-artifacts.tar.gz $(find linux* \( -name libcoreclr.so -o -name \*.h \) ) && cd -
 
-# Simple error checking.  Ensure the artifacts contain 20 files ((1x -- libcoreclr.so, 1x -- *dactablerva.h, and 2x -- *dwarf) per rid)
-if [[ $(tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz | wc -l) -ne 20 ]] 
+# Simple error checking.  Ensure the artifacts contain 10 files ((1x -- libcoreclr.so, 1x -- *dactablerva.h) per rid)
+if [[ $(tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz | wc -l) -ne 10 ]]
 then
   tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz
 
