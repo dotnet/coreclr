@@ -105,6 +105,12 @@ endif(CLR_CMAKE_PLATFORM_DARWIN)
 # mscordaccore on both the mscordaccore.exp and mscordac.obj.
 _add_library(mscordacobj OBJECT mscordac.cpp)
 
+if(WIN32 AND CLR_CMAKE_TARGET_UNIX)
+    list(APPEND CLR_DAC_SOURCES
+        $<TARGET_OBJECTS:libunwind_xdac>
+    )
+endif(WIN32 AND CLR_CMAKE_TARGET_UNIX)
+
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
@@ -188,12 +194,6 @@ else(WIN32)
         ${END_WHOLE_ARCHIVE}
     )
 endif(WIN32)
-
-if(WIN32 AND CLR_CMAKE_TARGET_UNIX)
-    list(APPEND COREDAC_LIBRARIES
-        libunwind_xdac
-    )
-endif(WIN32 AND CLR_CMAKE_TARGET_UNIX)
 
 target_link_libraries(mscordaccore PRIVATE ${COREDAC_LIBRARIES})
 
