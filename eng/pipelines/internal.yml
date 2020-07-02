@@ -11,6 +11,8 @@ variables:
   value: CORECLR
 - name: CrossDacCoreClrVersion
   value: 'latest'
+- name: SymStoreCrossDacIndex
+  value: 'false'
 
 stages:
   - stage: Prepare
@@ -48,6 +50,7 @@ stages:
           # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
           timeoutInMinutes: 120
           coreClrBuildId: variables['CrossDacCoreClrVersion']
+          symStoreCrossDacIndex: variables['SymStoreCrossDacIndex']
 
     #
     # Publish build information to Build Assets Registry
