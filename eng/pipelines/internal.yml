@@ -38,7 +38,7 @@ stages:
         jobTemplate: build-crossdac-job.yml
         buildConfig: release
         platforms:
-        - Linux_musl_x64 # Choose the lightest weight linux platform
+        - Linux_arm64 # Needs an ubuntu container
 
   - stage: Build
     jobs:
@@ -50,7 +50,7 @@ stages:
         jobTemplate: build-crossdac-job.yml
         buildConfig: release
         dependsOn:
-        - build_Linux_musl_x64_release
+        - build_Linux_arm64_release
         platforms:
         - Windows_NT_arm
         - Windows_NT_arm64

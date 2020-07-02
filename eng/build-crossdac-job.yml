@@ -5,7 +5,7 @@ parameters:
   osIdentifier: ''
   container: ''
   timeoutInMinutes: ''
-  coreClrBuildId: ''
+  coreClrBuildId: 'latest'
 
 ### Product build
 jobs:

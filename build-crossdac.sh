@@ -1,3 +1,5 @@
+export VERSION_IDENTIFIER=$1
+
 # Install prerequisites
 apt update
 apt install -y dwarfdump
