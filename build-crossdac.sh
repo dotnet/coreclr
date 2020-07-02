@@ -1,3 +1,6 @@
+#!/bin/bash
+
+set -x
 export VERSION_IDENTIFIER=${VERSION_IDENTIFIER:-${1}}
 
 # Install prerequisites
@@ -12,8 +15,8 @@ RUNTIME_URL_PREFIX=$(./dotnet-install.sh --dry-run --runtime dotnet --version ${
 for rid in linux-arm linux-arm64 linux-musl-arm64 linux-x64 linux-musl-x64
 do
   mkdir -p artifacts/crossdac/${rid}
-  wget ${RUNTIME_URL_PREFIX}${rid}.tar.gz -O artifacts/runtime-${rid}.tar.gz
-  tar -f artifacts/runtime-${rid}.tar.gz -C artifacts/crossdac/${rid} --wildcards --xform='s/^.*\(lib[a-zA-Z_0-9]*.so\)/\1/' -x *libcoreclr.so *libmscordaccore.so *libmscordbi.so
+  wget -q ${RUNTIME_URL_PREFIX}${rid}.tar.gz -O artifacts/runtime-${rid}.tar.gz
+  tar -f artifacts/runtime-${rid}.tar.gz -C artifacts/crossdac/${rid} --wildcards --xform='s/^.*\(lib[a-zA-Z_0-9]*.so\)/\1/' -x *libcoreclr.so
 done
 
 # Build dactablerva.h files
@@ -23,12 +26,15 @@ do
     src/pal/tools/gen-dactable-rva.sh $i $i.dactablerva.h
 done
 
+ls -laR artifacts/crossdac
+
 cd artifacts/crossdac && tar -zcf crossdac-linux-artifacts.tar.gz $(find linux* \( -name libcoreclr.so -o -name \*.h \) ) && cd -
+
+tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz
 
 # Simple error checking.  Ensure the artifacts contain 10 files ((1x -- libcoreclr.so, 1x -- *dactablerva.h) per rid)
 if [[ $(tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz | wc -l) -ne 10 ]]
 then
-  tar -tf artifacts/crossdac/crossdac-linux-artifacts.tar.gz
 
   echo "Number of artifacts doesn't match expectations"
 
