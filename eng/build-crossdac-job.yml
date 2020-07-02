@@ -149,11 +149,11 @@ jobs:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
             NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages
 
-    # Publish Logs
-    - task: PublishBuildArtifacts@1
-      displayName: Publish Logs
-      inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
-        artifactName: ${{ format('BuildLogs_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-      continueOnError: true
-      condition: always()
+      # Publish Logs
+      - task: PublishBuildArtifacts@1
+        displayName: Publish Logs
+        inputs:
+          pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
+          artifactName: ${{ format('BuildLogs_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        continueOnError: true
+        condition: always()
