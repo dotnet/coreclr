@@ -2,24 +2,9 @@ trigger:
   batch: true
   branches:
     include:
-    - release/3.*
-    - internal/release/3.*
+    - internal/release/3.1-crossdac
 
 pr: none
-
-schedules:
-- cron: "0 13 * * *"
-  displayName: Mon through Sun at 5:00 AM (UTC-8:00)
-  branches:
-    include:
-    - master
-  always: true
-- cron: "0 1 * * *"
-  displayName: Mon through Sun at 5:00 PM (UTC-8:00)
-  branches:
-    include:
-    - master
-  always: true
 
 variables:
 - name: _DotNetArtifactsCategory
