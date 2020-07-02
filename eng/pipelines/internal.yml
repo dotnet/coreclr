@@ -37,7 +37,8 @@ stages:
       parameters:
         jobTemplate: build-crossdac-job.yml
         buildConfig: release
-        platforms: Linux_musl_x64 # Choose the lightest weight linux platform
+        platforms:
+        - Linux_musl_x64 # Choose the lightest weight linux platform
 
   - stage: Build
     jobs:
