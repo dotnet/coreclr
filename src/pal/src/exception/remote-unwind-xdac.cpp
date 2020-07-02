@@ -420,16 +420,20 @@ put_unwind_info(unw_addr_space_t as, unw_proc_info_t *pip, void *arg)
 {
 }
 
-static unw_accessors_t unwind_accessors =
+static unw_accessors_t* get_unwind_accessors()
 {
-    .find_proc_info = find_proc_info,
-    .put_unwind_info = put_unwind_info,
-    .get_dyn_info_list_addr = get_dyn_info_list_addr,
-    .access_mem = access_mem,
-    .access_reg = access_reg,
-    .access_fpreg = access_fpreg,
-    .resume = resume,
-    .get_proc_name = get_proc_name
+    static unw_accessors_t unwind_accessors;
+
+    unwind_accessors.find_proc_info = find_proc_info;
+    unwind_accessors.put_unwind_info = put_unwind_info;
+    unwind_accessors.get_dyn_info_list_addr = get_dyn_info_list_addr;
+    unwind_accessors.access_mem = access_mem;
+    unwind_accessors.access_reg = access_reg;
+    unwind_accessors.access_fpreg = access_fpreg;
+    unwind_accessors.resume = resume;
+    unwind_accessors.get_proc_name = get_proc_name;
+
+    return &unwind_accessors;
 };
 
 /*++
@@ -461,7 +465,7 @@ PAL_VirtualUnwindOutOfProc(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *cont
     info.Context = context;
     info.ReadMemory = readMemoryCallback;
 
-    addrSpace = unw_create_addr_space(&unwind_accessors, 0);
+    addrSpace = unw_create_addr_space(get_unwind_accessors(), 0);
 
     st = unw_init_remote(&cursor, addrSpace, &info);
     if (st < 0)
