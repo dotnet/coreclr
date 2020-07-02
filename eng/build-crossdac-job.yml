@@ -90,7 +90,7 @@ jobs:
       - task: PublishBuildArtifacts@1
         displayName: Publish crossdac linux build artifacts
         inputs:
-          PathtoPublish: '$(Build.SourcesDirectory)/artifacts/crossdac/crossdac-linux-artifacts.tar.gz/'
+          PathtoPublish: '$(Build.SourcesDirectory)/artifacts/crossdac/crossdac-linux-artifacts.tar.gz'
           PublishLocation: Container
           ArtifactName: 'crossdac-linux-artifacts.tar.gz'
         continueOnError: true
