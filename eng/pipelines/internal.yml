@@ -60,3 +60,9 @@ stages:
         - build_Windows_NT_x64_release
         - build_Windows_NT_arm_release
         - build_Windows_NT_arm64_release
+
+  - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+    - template: /eng/common/templates/post-build/post-build.yml
+      parameters:
+        # Symbol validation is not entirely reliable as of yet, so should be turned off until https://github.com/dotnet/arcade/issues/2871 is resolved.
+        enableSymbolValidation: false
