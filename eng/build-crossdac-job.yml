@@ -81,8 +81,9 @@ jobs:
 
     # Build-Linux
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-crossdac.sh $(coreClrBuildId)
+      - script: ./build-crossdac.sh
         displayName: Build product
+        env: { 'VERSION_IDENTIFIER': '$(coreClrBuildId)' }
 
       - task: PublishBuildArtifacts@1
         displayName: Publish crossdac linux build artifacts

@@ -1,4 +1,4 @@
-export VERSION_IDENTIFIER=$1
+export VERSION_IDENTIFIER=${VERSION_IDENTIFIER:-${1}}
 
 # Install prerequisites
 wget https://dotnet.microsoft.com/download/dotnet-core/scripts/v1/dotnet-install.sh
