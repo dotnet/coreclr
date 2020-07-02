@@ -6,6 +6,7 @@ parameters:
   container: ''
   timeoutInMinutes: ''
   coreClrBuildId: 'latest'
+  symStoreCrossDacIndex: ''
 
 ### Product build
 jobs:
@@ -49,6 +50,8 @@ jobs:
         value: '-officialbuildid=$(Build.BuildNumber)'
     - name: coreClrBuildId
       value: ${{ parameters.coreClrBuildId }}
+    - name: symStoreCrossDacIndex
+      value: ${{ parameters.symStoreCrossDacIndex }}
 
     steps:
 
@@ -137,7 +140,7 @@ jobs:
             SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
       # Build packages
-      - script: build-packages.cmd -CrossDacOnly -BuildArch=$(archType) -BuildType=$(_BuildConfig) $(officialBuildIdArg) -ci
+      - script: build-packages.cmd -CrossDacOnly -BuildArch=$(archType) -BuildType=$(_BuildConfig) $(officialBuildIdArg) -ci /p:SymStoreCrossDacIndex=$(symStoreCrossDacIndex)
         displayName: Build packages
 
       # Publish official build
