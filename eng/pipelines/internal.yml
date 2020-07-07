@@ -27,7 +27,7 @@ stages:
         platforms:
         - Linux_arm64 # Needs an ubuntu container
         jobParameters:
-          coreClrBuildId: variables['CrossDacCoreClrVersion']
+          coreClrBuildId: ${{ variables.CrossDacCoreClrVersion }}
 
   - stage: Build
     jobs:
@@ -49,8 +49,8 @@ stages:
           # due to waiting for an exclusive lock on the feed.
           # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
           timeoutInMinutes: 120
-          coreClrBuildId: variables['CrossDacCoreClrVersion']
-          symStoreCrossDacIndex: variables['SymStoreCrossDacIndex']
+          coreClrBuildId: ${{ variables.CrossDacCoreClrVersion }}
+          symStoreCrossDacIndex: ${{ variables.SymStoreCrossDacIndex }}
 
     #
     # Publish build information to Build Assets Registry
