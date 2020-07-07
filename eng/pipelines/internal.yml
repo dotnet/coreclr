@@ -2,7 +2,7 @@ trigger:
   batch: true
   branches:
     include:
-    - internal/release/3.1-crossdac
+    - release/3.1-crossdac
 
 pr: none
 
