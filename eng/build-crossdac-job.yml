@@ -132,7 +132,7 @@ jobs:
             SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
 
       # Build packages
-      - script: build-packages.cmd -CrossDacOnly -BuildArch=$(archType) -BuildType=$(_BuildConfig) $(officialBuildIdArg) -ci /p:SymStoreCrossDacIndex=${{ variables.SymStoreCrossDacIndex }}
+      - script: build-packages.cmd -CrossDacOnly -BuildArch=$(archType) -BuildType=$(_BuildConfig) $(officialBuildIdArg) -ci /p:SymStoreCrossDacIndex=$(SymStoreCrossDacIndex)
         displayName: Build packages
 
       # Publish official build
