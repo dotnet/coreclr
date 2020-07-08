@@ -6,13 +6,24 @@ trigger:
 
 pr: none
 
+parameters:
+# Set `CrossDacCoreClrVersion` to download and index against a specific version
+- name: CrossDacCoreClrVersion
+  type: string
+  default: latest
+# Set `SymStoreCrossDacIndex: true` to index the DAC for a given release
+- name: SymStoreCrossDacIndex
+  type: boolean
+  default: false
+
 variables:
 - name: _DotNetArtifactsCategory
   value: CORECLR
+- name: CrossDacCoreClrVersion
+  value: ${{ parameters.CrossDacCoreClrVersion }}
+- name: SymStoreCrossDacIndex
+  value: ${{ parameters.SymStoreCrossDacIndex }}
 
-# AzDO optional variables
-# Manually set `SymStoreCrossDacIndex: true` to index the DAC for a given release
-# Manually set `CrossDacCoreClrVersion` to download and index against a specific version
 
 stages:
   - stage: Prepare
