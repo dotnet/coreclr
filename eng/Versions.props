@@ -33,8 +33,6 @@
     <!-- dotnet-optimization -->
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190912.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190912.1</optimizationPGOCoreCLRVersion>
-    <!-- SymbolUploader -->
-    <SymbolUploaderVersion>1.1.135802</SymbolUploaderVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
