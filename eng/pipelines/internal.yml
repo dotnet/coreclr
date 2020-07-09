@@ -15,6 +15,10 @@ parameters:
 - name: SymStoreCrossDacIndex
   type: boolean
   default: false
+# Set `MicrosoftSymbolUploaderBuildTaskVersion` to fix the version of the symbol task to use.
+- name: MicrosoftSymbolUploaderBuildTaskVersion
+  type: string
+  default: 1.1.135802
 
 variables:
 - name: _DotNetArtifactsCategory
@@ -78,3 +82,4 @@ stages:
       parameters:
         # Symbol validation is not entirely reliable as of yet, so should be turned off until https://github.com/dotnet/arcade/issues/2871 is resolved.
         enableSymbolValidation: false
+        symbolPublishingAdditionalParameters: /p:MicrosoftSymbolUploaderBuildTaskVersion=${{ parameters.MicrosoftSymbolUploaderBuildTaskVersion }}
