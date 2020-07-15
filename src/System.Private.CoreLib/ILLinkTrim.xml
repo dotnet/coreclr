@@ -69,6 +69,7 @@
     <type fullname="System.Runtime.InteropServices.CustomMarshalers.*" />
     <!-- Accessed by the WinRT Host -->
     <type fullname="Internal.Runtime.InteropServices.WindowsRuntime.ActivationFactoryLoader" />
+    <type fullname="System.Runtime.InteropServices.WindowsRuntime.IManagedActivationFactory" />
     <!-- Workaround for https://github.com/mono/linker/issues/378 -->
     <type fullname="System.Runtime.InteropServices.IDispatch" />
     <type fullname="Internal.Runtime.InteropServices.IClassFactory2" />
