@@ -143,11 +143,7 @@ FIELD(MDInternalRW, m_pSemReadWrite, sizeof(void*))
 FIELD(MDInternalRW, m_fOwnSem, 4)
 END_TYPE(MDInternalRW, sizeof(void*))
 
-#ifdef _MSC_VER // Corresponds to `#ifdef _MSC_VER` in DataTargetReader::AlignBase()
 BEGIN_TYPE(CLiteWeightStgdbRW, sizeof(CLiteWeightStgdb<CMiniMdRW>))
-#else // _MSC_VER
-BEGIN_TYPE(CLiteWeightStgdbRW, sizeof(CLiteWeightStgdb<CMiniMdRW>) - 4)
-#endif // _MSC_VER
 FIELD(CLiteWeightStgdbRW, m_cbSaveSize, 4)
 FIELD(CLiteWeightStgdbRW, m_bSaveCompressed, 4)
 FIELD(CLiteWeightStgdbRW, m_pImage, sizeof(void*))
@@ -240,11 +236,7 @@ ALIGN_FIELD(StgGuidPool, m_Hash, sizeof(CGuidPoolHash), sizeof(void*))
 FIELD(StgGuidPool, m_bHash, sizeof(BOOL))
 END_TYPE(StgGuidPool, sizeof(void*))
 
-#ifdef _MSC_VER // Corresponds to `#ifdef _MSC_VER` in DataTargetReader::AlignBase()
 BEGIN_TYPE(RecordPool, sizeof(StgPool))
-#else // _MSC_VER
-BEGIN_TYPE(RecordPool, sizeof(StgPool) - 4)
-#endif // _MSC_VER
 FIELD(RecordPool, m_cbRec, 4)
 END_TYPE(RecordPool, sizeof(void*))
 
