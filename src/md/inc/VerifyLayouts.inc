@@ -143,7 +143,11 @@ FIELD(MDInternalRW, m_pSemReadWrite, sizeof(void*))
 FIELD(MDInternalRW, m_fOwnSem, 4)
 END_TYPE(MDInternalRW, sizeof(void*))
 
+#ifdef _MSC_VER // Corresponds to `#ifdef _MSC_VER` in DataTargetReader::AlignBase()
 BEGIN_TYPE(CLiteWeightStgdbRW, sizeof(CLiteWeightStgdb<CMiniMdRW>))
+#else // _MSC_VER
+BEGIN_TYPE(CLiteWeightStgdbRW, sizeof(CLiteWeightStgdb<CMiniMdRW>) - 4)
+#endif // _MSC_VER
 FIELD(CLiteWeightStgdbRW, m_cbSaveSize, 4)
 FIELD(CLiteWeightStgdbRW, m_bSaveCompressed, 4)
 FIELD(CLiteWeightStgdbRW, m_pImage, sizeof(void*))
@@ -236,7 +240,11 @@ ALIGN_FIELD(StgGuidPool, m_Hash, sizeof(CGuidPoolHash), sizeof(void*))
 FIELD(StgGuidPool, m_bHash, sizeof(BOOL))
 END_TYPE(StgGuidPool, sizeof(void*))
 
+#ifdef _MSC_VER // Corresponds to `#ifdef _MSC_VER` in DataTargetReader::AlignBase()
 BEGIN_TYPE(RecordPool, sizeof(StgPool))
+#else // _MSC_VER
+BEGIN_TYPE(RecordPool, sizeof(StgPool) - 4)
+#endif // _MSC_VER
 FIELD(RecordPool, m_cbRec, 4)
 END_TYPE(RecordPool, sizeof(void*))
 
@@ -276,7 +284,11 @@ ALIGN_FIELD(StgPoolReadOnly, m_HotHeap, sizeof(MetaData::HotHeap), sizeof(void*)
 END_TYPE(StgPoolReadOnly, sizeof(void*))
 
 USING_ALIAS(MapSHash__ULONG__ULONG, MapSHash<ULONG, ULONG>) // Create a using alias to avoid commas in the type name
+#ifdef _MSC_VER // Corresponds to `#ifdef _MSC_VER` in Target_MapSHash::ReadFrom(DataTargetReader & reader)
 BEGIN_TYPE(MapSHash__ULONG__ULONG, sizeof(void*))
+#else // _MSC_VER
+BEGIN_TYPE(MapSHash__ULONG__ULONG, 0)
+#endif // _MSC_VER
 FIELD(MapSHash__ULONG__ULONG, m_table, sizeof(void*))
 FIELD(MapSHash__ULONG__ULONG, m_tableSize, 4)
 FIELD(MapSHash__ULONG__ULONG, m_tableCount, 4)
