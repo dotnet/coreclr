@@ -447,12 +447,8 @@ build_CoreLib()
 
     if [ $__SkipCrossgen == 1 ]; then
         echo "Skipping generating native image"
-
-        if [ $__CrossBuild == 1 ]; then
-            # Crossgen not performed, so treat the IL version as the final version
-            cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
-        fi
-
+        # Crossgen not performed, so treat the IL version as the final version
+        cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
         return
     fi
 
