@@ -33,7 +33,7 @@ else()
         return()
     endif()
 
-    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"${ICUCORE}\")
+    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"/usr/lib/libicucore.dylib\")
 endif()
 
 include(configure.cmake)
