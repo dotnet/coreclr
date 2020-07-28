@@ -504,7 +504,7 @@
       "allowOverride": true
     },
     "MyGetFeedUrl": {
-      "value": "https://dotnet.myget.org/F/dotnet-core-test/api/v2/package",
+      "value": "https://pkgs.dev.azure.com/dnceng/public/_packaging/myget-legacy/nuget/v3/index.json",
       "allowOverride": true
     },
     "MyGetApiKey": {
