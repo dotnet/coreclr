@@ -28,7 +28,7 @@ pgo_pattern = re.compile(pgo_pattern_str)
 def was_compiled_with_pgo(filename):
     headers = subprocess.check_output(["link", "/dump", "/headers", filename])
     
-    match = pgo_pattern.search(headers)
+    match = pgo_pattern.search(headers.decode('utf-8'))
 
     result = False
     tech = "UNKNOWN"
