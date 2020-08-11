@@ -82,10 +82,12 @@ typedef BOOL(*UnwindReadMemoryCallback)(PVOID address, PVOID buffer, SIZE_T size
 #define ERROR(x, ...)
 
 
-#ifdef TARGET_64BIT
+#if defined(BIT64)
 #define ElfW(foo) Elf64_ ## foo
-#else // TARGET_64BIT
+#elif defined(BIT32)
 #define ElfW(foo) Elf32_ ## foo
+#else
+#error TARGET bitness must be defined
 #endif // TARGET_64BIT
 
 #define PALAPI
