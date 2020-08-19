@@ -55,7 +55,7 @@ $netcoreappversion = $version
 Write-Host -ForegroundColor Green "Getting NuGet.exe"
 
 $nugeturl = "https://dist.nuget.org/win-x86-commandline/v3.4.4/NuGet.exe"
-$nugetfeed = "https://dotnet.myget.org/F/dotnet-core/api/v3/index.json"
+$nugetfeed = "https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json"
 $nugetexepath = "$path\NuGet.exe"
 $wc = New-Object System.Net.WebClient
 $wc.DownloadFile($nugeturl, $nugetexepath)
