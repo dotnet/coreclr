@@ -27,7 +27,7 @@
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
     <SystemIOFileSystemAccessControlVersion>4.7.0-preview3.19551.4</SystemIOFileSystemAccessControlVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.1.0-preview3.19553.2</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.1.9-servicing.20459.3</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
