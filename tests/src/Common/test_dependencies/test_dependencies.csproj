@@ -26,7 +26,7 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.Intrinsics.Experimental">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>4.7.0-preview3.19551.4</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Diagnostics.Tools.RuntimeClient">
       <Version>$(MicrosoftDiagnosticsToolsRuntimeClientVersion)</Version>
