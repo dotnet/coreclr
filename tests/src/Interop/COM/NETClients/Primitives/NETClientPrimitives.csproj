@@ -40,7 +40,7 @@
     <ProjectReference Include="../../NativeServer/CMakeLists.txt" />
     <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <PackageReference Include="System.Drawing.Common">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>4.7.0</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />

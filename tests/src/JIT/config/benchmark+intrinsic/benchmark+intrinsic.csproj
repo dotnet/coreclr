@@ -14,7 +14,7 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+      <Version>4.7.0</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
