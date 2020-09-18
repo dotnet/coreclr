@@ -36,16 +36,16 @@
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="$(SystemIOFileSystemAccessControlVersion)" ExcludeAssets="Runtime" />
 
     <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
-    <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="4.7.0-rtm.19564.4" />
 
     <!-- dotnet.exe -->
-    <PackageReference Include="Microsoft.NETCore.DotNetHost" Version="$(MicrosoftNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.NETCore.DotNetHost" Version="3.1.0" />
 
     <!-- hostfxr.dll -->
-    <PackageReference Include="Microsoft.NETCore.DotNetHostResolver" Version="$(MicrosoftNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.NETCore.DotNetHostResolver" Version="3.1.0" />
 
     <!-- hostpolicy.dll -->
-    <PackageReference Include="Microsoft.NETCore.DotNetHostPolicy" Version="$(MicrosoftNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.NETCore.DotNetHostPolicy" Version="3.1.0" />
 
   </ItemGroup>
 
