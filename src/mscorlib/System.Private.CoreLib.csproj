@@ -639,6 +639,7 @@
     <!-- Compiler Definition Verification -->
     <PropertyGroup>
       <CMakeDefinitionSaveFile>$(IntermediateOutputPath)..\cmake.definitions</CMakeDefinitionSaveFile>
+      <PYTHON Condition=" '$(PYTHON)' == '' ">python</PYTHON>
     </PropertyGroup>
     <Exec Command="&quot;$(PYTHON)&quot; $(MSBuildThisFileDirectory)..\scripts\check-definitions.py &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
   </Target>
