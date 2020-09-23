@@ -12822,7 +12822,7 @@ void CordbProcess::HandleDebugEventForInteropDebugging(const DEBUG_EVENT * pEven
     CordbWin32EventThread * pW32EventThread = this->m_pShim->GetWin32EventThread();
     _ASSERTE(pW32EventThread != NULL);
 
-    // if we were waiting for a retriggered exception but recieved any other event then turn
+    // if we were waiting for a retriggered exception but received any other event then turn
     // off the single stepping and dequeue the IB event. Right now we only use the SS flag internally
     // for stepping during possible retrigger.
     if(reaction.GetType() != Reaction::cInbandExceptionRetrigger && pUnmanagedThread->IsSSFlagNeeded())
