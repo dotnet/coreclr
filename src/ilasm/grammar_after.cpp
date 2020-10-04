@@ -845,7 +845,11 @@ Its_An_Id:
                             if(wzFile != NULL)
                             {
                                 if((parser->wzIncludePath != NULL)
-                                 &&(wcschr(wzFile,DIRECTORY_SEPARATOR_CHAR_A)==NULL)&&(wcschr(wzFile,':')==NULL))
+                                 &&(wcschr(wzFile,DIRECTORY_SEPARATOR_CHAR_A)==NULL)
+#ifndef FEATURE_PAL
+                                 &&(wcschr(wzFile,':')==NULL)
+#endif
+                                )
                                 {
                                     PathString wzFullName;
 
