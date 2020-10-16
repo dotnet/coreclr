@@ -10,7 +10,7 @@ if [ "$1" = "Linux" ]; then
         exit 1;
     fi
 elif [ "$1" = "OSX" ]; then
-    brew update
+    brew update --preinstall
     if [ "$?" != "0" ]; then
         exit 1;
     fi
