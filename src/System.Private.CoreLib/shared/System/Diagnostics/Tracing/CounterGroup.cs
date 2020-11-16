@@ -224,7 +224,7 @@ namespace System.Diagnostics.Tracing
                 // above, since WritePayload callback can contain user code that can invoke EventSource constructor
                 // and lead to a deadlock. (See https://github.com/dotnet/runtime/issues/40190 for details)
 
-                foreach (var counter in _counters)
+                foreach (var counter in counters)
                 {
                     // NOTE: It is still possible for a race condition to occur here. An example is if the session
                     // that subscribed to these batch of counters was disabled and it was immediately enabled in
