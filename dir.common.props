@@ -65,7 +65,7 @@
 
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
-    <PackageVersion Condition="'$(PackageVersion)' == ''">3.1.10</PackageVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">3.1.11</PackageVersion>
     <PreReleaseLabel>servicing</PreReleaseLabel>
   </PropertyGroup>
 
