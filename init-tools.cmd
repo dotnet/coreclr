@@ -10,6 +10,7 @@ if [%BUILDTOOLS_SOURCE%]==[] set BUILDTOOLS_SOURCE=https://pkgs.dev.azure.com/dn
 set /P BUILDTOOLS_VERSION=< "%~dp0BuildToolsVersion.txt"
 set BUILD_TOOLS_PATH=%PACKAGES_DIR%Microsoft.DotNet.BuildTools\%BUILDTOOLS_VERSION%\lib\
 set INIT_TOOLS_RESTORE_PROJECT=%~dp0init-tools.msbuild
+set "INIT_TOOLS_RESTORE_ARGS=--source https://pkgs.dev.azure.com/dnceng/public/_packaging/myget-legacy/nuget/v3/index.json"
 set BUILD_TOOLS_SEMAPHORE_DIR=%TOOLRUNTIME_DIR%\%BUILDTOOLS_VERSION%
 set BUILD_TOOLS_SEMAPHORE=%BUILD_TOOLS_SEMAPHORE_DIR%\init-tools.completed
 
