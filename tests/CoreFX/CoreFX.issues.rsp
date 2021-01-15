@@ -86,3 +86,6 @@
 
 # Test failure: https://github.com/dotnet/corefx/issues/39223
 -nomethod System.ComponentModel.TypeConverterTests.FontConverterTest.TestConvertFrom
+
+# Test failure: https://github.com/dotnet/runtime/issues/43166
+-nomethod System.IO.Tests.File_GetSetTimes.SetDateTimeMax
