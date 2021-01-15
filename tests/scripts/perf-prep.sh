@@ -89,8 +89,8 @@ if [ $throughput -eq 1 ]; then
         mkdir Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
         cd Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT
 
-        curl -OL https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/1.0.0
-        mv 1.0.0 1.0.0.zip
+        curl -OL https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/flatcontainer/microsoft.benchview.throughputbenchmarks.x64.windows_nt/1.0.0/microsoft.benchview.throughputbenchmarks.x64.windows_nt.1.0.0.nupkg
+        mv microsoft.benchview.throughputbenchmarks.x64.windows_nt.1.0.0.nupkg 1.0.0.zip
         unzip -q 1.0.0.zip
     fi
 
