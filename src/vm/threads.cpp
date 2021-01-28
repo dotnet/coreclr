@@ -57,7 +57,10 @@
 uint64_t Thread::dead_threads_non_alloc_bytes = 0;
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
-CONTEXT *ThreadStore::s_pOSContext = NULL;
+
+CONTEXT* ThreadStore::s_pOSContext = NULL;
+BYTE* ThreadStore::s_pOSContextBuffer = NULL;
+
 CLREvent *ThreadStore::s_pWaitForStackCrawlEvent;
 
 PTR_ThreadLocalModule ThreadLocalBlock::GetTLMIfExists(ModuleIndex index)
@@ -1452,7 +1455,6 @@ Thread::Thread()
     m_fHasDeadThreadBeenConsideredForGCTrigger = false;
     m_TraceCallCount = 0;
     m_ThrewControlForThread = 0;
-    m_OSContext = NULL;
     m_ThreadTasks = (ThreadTasks)0;
     m_pLoadLimiter= NULL;
     m_pLoadingFile = NULL;
@@ -1487,7 +1489,11 @@ Thread::Thread()
     NewHolder<CONTEXT> contextHolder(m_OSContext);
 
     m_pSavedRedirectContext = NULL;
-    NewHolder<CONTEXT> savedRedirectContextHolder(m_pSavedRedirectContext);
+    m_pOSContextBuffer = NULL;
+
+#ifdef _DEBUG
+    m_RedirectContextInUse = false;
+#endif
 
 #ifdef FEATURE_COMINTEROP
     m_pRCWStack = new RCWStackHeader();
@@ -1563,7 +1569,6 @@ Thread::Thread()
     trackSyncHolder.SuppressRelease();
 #endif
     contextHolder.SuppressRelease();
-    savedRedirectContextHolder.SuppressRelease();
 
 #ifdef FEATURE_COMINTEROP
     m_uliInitializeSpyCookie.QuadPart = 0ul;
@@ -2640,11 +2645,18 @@ Thread::~Thread()
     if (m_OSContext)
         delete m_OSContext;
 
-    if (GetSavedRedirectContext())
+    if (m_pOSContextBuffer)
     {
-        delete GetSavedRedirectContext();
-        SetSavedRedirectContext(NULL);
+        delete[] m_pOSContextBuffer;
+        m_pOSContextBuffer = NULL;
     }
+    else if (m_pSavedRedirectContext)
+    {
+        delete m_pSavedRedirectContext;
+    }
+
+    MarkRedirectContextInUse(m_pSavedRedirectContext);
+    m_pSavedRedirectContext = NULL;
 
 #ifdef FEATURE_COMINTEROP
     if (m_pRCWStack)
