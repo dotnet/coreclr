@@ -6727,6 +6727,17 @@ void HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext)
 
         BOOL unused;
 
+#if defined(FEATURE_PAL) && (defined(_TARGET_AMD64_) || defined(_TARGET_X86_))
+        // Stack probing loop that JIT generates in prolog on x64 / x86 Unix for methods with
+        // large frame is not unwindable, so it is not possible to get the return address location
+        // for hijacking.
+        // This is a hotfix for release/3.1 only.
+        if (IsIPInProlog(&codeInfo) && codeInfo.GetFixedStackSize() >= 0x3000)
+        {
+            return;
+        }
+#endif // _TARGET_UNIX_ && (TARGET_AMD64 || TARGET_X86)
+
         if (IsIPInEpilog(interruptedContext, &codeInfo, &unused))
             return;
 

@@ -1839,7 +1839,7 @@ def build_test_wrappers(host_os,
     command = [dotnetcli_location,
                "msbuild",
                os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
-               "/p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/",
+               "/p:RestoreAdditionalProjectSources=https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json",
                "/p:BuildWrappers=true",
                "/p:TargetsWindows=%s" % ("true" if host_os == "Windows_NT" else "false")]
 

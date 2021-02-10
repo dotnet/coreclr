@@ -63,7 +63,7 @@ build_test_wrappers()
         __MsbuildErr="/fileloggerparameters2:\"ErrorsOnly;LogFile=${__BuildErr}\""
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
-        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
+        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
         eval $nextCommand
 
         if [ $? -ne 0 ]; then
@@ -1049,4 +1049,3 @@ else
     echo "To run single test use the following command:"
     echo "    bash ${__TestBinDir}/__TEST_PATH__/__TEST_NAME__.sh -coreroot=${CORE_ROOT}"
 fi
-

@@ -20,8 +20,8 @@
  <CliPath>##Cli_Path##</CliPath> 
  <NuGetPackageCacheDir>$(NugetCacheRoot)</NuGetPackageCacheDir> 
  <NuGetPackageFeeds> 
-     myget.org dotnet-core=https://dotnet.myget.org/F/dotnet-core/api/v3/index.json; 
-     myget.org=https://www.nuget.org/api/v2/ 
+     myget.org dotnet-core=https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json; 
+     nuget.org=https://www.nuget.org/api/v2/ 
  </NuGetPackageFeeds> 
  <SOSPath>$(RuntimeRoot)\sos.dll</SOSPath> 
  <MDbgDir>$(TestRoot)\mdbg</MDbgDir> 
