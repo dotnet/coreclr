@@ -5,14 +5,14 @@
     <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
       https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
       https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json;
-      https://api.nuget.org/v3/index.json;
+      https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-public/nuget/v3/index.json;
       $(RestoreSources)
     </RestoreSources>
   </PropertyGroup>
 
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
-    <PackageVersion Condition="'$(PackageVersion)' == ''">2.1.25</PackageVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">2.1.26</PackageVersion>
 
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
