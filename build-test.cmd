@@ -458,7 +458,7 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
-call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/  /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /p:RestoreAdditionalProjectSources=https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json  /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: Xunit wrapper build failed. Refer to the build log files for details:
     echo     %__BuildLog%

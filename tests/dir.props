@@ -90,7 +90,7 @@
   <!-- Add test-specific package restore sources. -->
   <PropertyGroup>
     <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
-      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-experimental/nuget/v3/index.json;
       $(RestoreSources)
     </RestoreSources>
     <RestoreSources Condition="'$(IntermediateAzureFeed)' != ''">

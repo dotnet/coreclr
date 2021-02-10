@@ -156,7 +156,7 @@ namespace SoDBench
         <configuration>
         <packageSources>
             <add key='nuget.org' value='https://api.nuget.org/v3/index.json' protocolVersion='3' />
-            <add key='myget.org/dotnet-core' value='https://dotnet.myget.org/F/dotnet-core/api/v3/index.json' protocolVersion='3' />
+            <add key='myget.org/dotnet-core' value='https://dotnetmygetlegacy.blob.core.windows.net/dotnet-core/index.json' protocolVersion='3' />
             <add key='myget.org/aspnet-core' value='https://dotnet.myget.org/F/aspnetcore-dev/api/v3/index.json' protocolVersion='3' />
         </packageSources>
         </configuration>";
