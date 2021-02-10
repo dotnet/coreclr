@@ -6,13 +6,14 @@ __PACKAGES_DIR="$__scriptpath/.packages"
 __TOOLRUNTIME_DIR="$__scriptpath/Tools"
 __DOTNET_PATH="$__scriptpath/.dotnet"
 __DOTNET_CMD="$__DOTNET_PATH/dotnet"
-if [ -z "${__BUILDTOOLS_SOURCE:-}" ]; then __BUILDTOOLS_SOURCE=https://dotnet.myget.org/F/dotnet-buildtools/api/v3/index.json; fi
+if [ -z "${__BUILDTOOLS_SOURCE:-}" ]; then __BUILDTOOLS_SOURCE=https://pkgs.dev.azure.com/dnceng/public/_packaging/myget-legacy/nuget/v3/index.json; fi
 export __BUILDTOOLS_USE_CSPROJ=true
 __BUILD_TOOLS_PACKAGE_VERSION=$(cat "$__scriptpath/BuildToolsVersion.txt" | sed 's/\r$//') # remove CR if mounted repo on Windows drive
 __DOTNET_TOOLS_VERSION=$(cat "$__scriptpath/DotnetCLIVersion.txt" | sed 's/\r$//') # remove CR if mounted repo on Windows drive
 __ILASM_VERSION=$(cat "$__scriptpath/ILAsmVersion.txt" | sed 's/\r$//') # remove CR if mounted repo on Windows drive
 __BUILD_TOOLS_PATH="$__PACKAGES_DIR/microsoft.dotnet.buildtools/$__BUILD_TOOLS_PACKAGE_VERSION/lib"
 __INIT_TOOLS_RESTORE_PROJECT="$__scriptpath/init-tools.msbuild"
+export __INIT_TOOLS_RESTORE_ARGS="--source https://pkgs.dev.azure.com/dnceng/public/_packaging/myget-legacy/nuget/v3/index.json"
 __BUILD_TOOLS_SEMAPHORE="$__TOOLRUNTIME_DIR/$__BUILD_TOOLS_PACKAGE_VERSION/init-tools.complete"
 
 if [ -e "$__BUILD_TOOLS_SEMAPHORE" ]; then

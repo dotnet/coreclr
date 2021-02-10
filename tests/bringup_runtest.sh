@@ -1093,7 +1093,7 @@ function coreclr_code_coverage {
     pushd $toolsDir > /dev/null
 
     echo "Pulling down code coverage tools"
-    wget -q https://www.myget.org/F/dotnet-buildtools/api/v2/package/unix-code-coverage-tools/1.0.0 -O $packageName
+    wget -q https://pkgs.dev.azure.com/dnceng/public/_packaging/myget-legacy/nuget/v3/flat2/unix-code-coverage-tools/1.0.0/unix-code-coverage-tools.1.0.0.nupkg -O $packageName
     echo "Unzipping to $toolsDir"
     unzip -q -o $packageName
 
