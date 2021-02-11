@@ -581,6 +581,9 @@ if (WIN32)
   add_compile_options(/ZH:SHA_256) # use SHA256 for generating hashes of compiler processed source files.
   add_compile_options(/source-charset:utf-8) # Force MSVC to compile source as UTF-8.
 
+  # 5105: Windows SDK headers use 'defined' operator in some macros
+  add_compile_options(/wd4291 /wd5105)
+
   if (CLR_CMAKE_PLATFORM_ARCH_I386)
     add_compile_options(/Gz)
   endif (CLR_CMAKE_PLATFORM_ARCH_I386)
