@@ -273,7 +273,7 @@ jobs:
 
 # Windows arm64
 
-- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}:
+- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
