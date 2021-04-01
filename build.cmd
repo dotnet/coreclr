@@ -1,6 +1,8 @@
 @if not defined _echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
+:: Adding this comment as a test to trigger some faulty Azure Pipelines.
+
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set "__MsgPrefix=BUILD: "
