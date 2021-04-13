@@ -273,7 +273,7 @@ jobs:
 
 # Windows arm64
 
-- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}:
+- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -282,7 +282,8 @@ jobs:
       osGroup: Windows_NT
       osIdentifier: Windows_NT
       helixQueues:
-      # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - Windows.10.Arm64v8.Open
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - Windows.10.Arm64
       ${{ insert }}: ${{ parameters.jobParameters }}
