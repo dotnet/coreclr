@@ -1022,6 +1022,7 @@ PCODE MethodDesc::GetNativeCode()
 {
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
+    _ASSERTE(!IsDefaultInterfaceMethod() || HasNativeCodeSlot());
 
     g_IBCLogger.LogMethodDescAccess(this);
 
@@ -5037,6 +5038,8 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
+    _ASSERTE(!IsDefaultInterfaceMethod() || HasNativeCodeSlot());
+
     if (HasNativeCodeSlot())
     {
 #ifdef _TARGET_ARM_
@@ -5060,11 +5063,6 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
             (TADDR&)value, (TADDR&)expected) == (TADDR&)expected;
     }
     
-    if (IsDefaultInterfaceMethod() && HasPrecode())
-    {        
-        return GetPrecode()->SetTargetInterlocked(addr);
-    }
-
     _ASSERTE(pExpected == NULL);
     return SetStableEntryPointInterlocked(addr);
 }
