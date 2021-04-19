@@ -5,7 +5,7 @@ include ("${CLR_INTEROP_TEST_ROOT}/Interop.cmake")
 include_directories("../Contracts")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_definition(-DWINRT_NO_MAKE_DETECTION)
+add_definitions(-DWINRT_NO_MAKE_DETECTION)
 
 set(SOURCES
   Component.Contracts.ArrayTesting.cpp
