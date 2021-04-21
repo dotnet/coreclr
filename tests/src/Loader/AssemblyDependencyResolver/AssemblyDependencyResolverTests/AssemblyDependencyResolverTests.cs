@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using TestLibrary;
 using Xunit;
@@ -126,6 +127,83 @@ namespace AssemblyDependencyResolverTests
 
                     // After everything is done, the error writer should be reset to the original value.
                     Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
+                }
+            }
+        }
+
+        public void TestAssemblyWithCaseDifferent()
+        {
+            // Testing case sensitive file name resolution in Windows
+            // AssemblyDependencyResolver is given filename with case different, host policy has case changed
+            if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseDifferent.dll");
+                string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
+                string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
+                string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
+
+                IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                    (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+                using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                    HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+                {
+                    using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
+                        0,
+                        changeFile,
+                        "",
+                        ""))
+                    {
+                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
+
+                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtension));
+
+                        Assert.Equal(
+                            changeFile, asmResolveName, StringComparer.InvariantCultureIgnoreCase
+                            );
+
+                        // After everything is done, the error writer should be reset to the original value.
+                        Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
+                    }
+                }
+            }
+        }
+
+        public void TestAssemblyWithCaseReversed()
+        {            
+            // Testing case sensitive file name resolution in Windows
+            // AssemblyDependencyResolver is given filename with case different, host policy has the original file name
+            if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseReversed.dll");
+                string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
+                string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
+                string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
+
+
+                IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                    (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+                using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                    HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+                {
+                    using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
+                        0,
+                        assemblyDependencyPath,
+                        "",
+                        ""))
+                    {
+                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
+
+                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
+
+                        Assert.Equal(
+                            assemblyDependencyPath, asmResolveName, StringComparer.InvariantCultureIgnoreCase
+                            );
+
+                        // After everything is done, the error writer should be reset to the original value.
+                        Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
+                    }
                 }
             }
         }
