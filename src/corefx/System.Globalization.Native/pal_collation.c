@@ -157,7 +157,7 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
 
     // If we need to create customRules, the KanaType custom rule will be 88 kana characters * 4 = 352 chars long
     // and the Width custom rule will be at most 212 halfwidth characters * 5 = 1060 chars long.
-    int capacity = 
+    int capacity =
         ((needsIgnoreKanaTypeCustomRule || needsNotIgnoreKanaTypeCustomRule) ? 4 * (hiraganaEnd - hiraganaStart + 1) : 0) +
         ((needsIgnoreWidthCustomRule || needsNotIgnoreWidthCustomRule) ? 5 * g_HalfFullCharsLength : 0);
 
@@ -306,10 +306,10 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
     return pClonedCollator;
 }
 
-// Returns TRUE if all the collation elements in str are completely ignorable
+// Returns true if all the collation elements in str are completely ignorable
 static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lpStr, int32_t length)
 {
-    int result = TRUE;
+    int result = true;
     UErrorCode err = U_ZERO_ERROR;
     UCollationElements* pCollElem = ucol_openElements(pColl, lpStr, length, &err);
 
@@ -320,7 +320,7 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
         {
             if (curCollElem != 0)
             {
-                result = FALSE;
+                result = false;
                 break;
             }
         }
@@ -328,7 +328,7 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
         ucol_closeElements(pCollElem);
     }
 
-    return U_SUCCESS(err) ? result : FALSE;
+    return U_SUCCESS(err) ? result : false;
 
 }
 
@@ -422,7 +422,7 @@ int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
     }
     else
     {
-        assert(FALSE && "Unexpected ucol_getVersion to fail.");
+        assert(false && "Unexpected ucol_getVersion to fail.");
 
         // we didn't use UCOL_TAILORINGS_VERSION because it is deprecated in ICU v5
         result = UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
@@ -527,7 +527,7 @@ static int AreEqualOrdinalIgnoreCase(UChar32 one, UChar32 two)
 
     if (one == two)
     {
-        return TRUE;
+        return true;
     }
 
     if (one == 0x0131 || two == 0x0131)
@@ -535,7 +535,7 @@ static int AreEqualOrdinalIgnoreCase(UChar32 one, UChar32 two)
         // On Windows with InvariantCulture, the LATIN SMALL LETTER DOTLESS I (U+0131)
         // capitalizes to itself, whereas with ICU it capitalizes to LATIN CAPITAL LETTER I (U+0049).
         // We special case it to match the Windows invariant behavior.
-        return FALSE;
+        return false;
     }
 
     return u_toupper(one) == u_toupper(two);
@@ -560,19 +560,19 @@ int32_t GlobalizationNative_IndexOfOrdinalIgnoreCase(
         const UChar *src = lpSource, *trg = lpTarget;
         UChar32 srcCodepoint, trgCodepoint;
 
-        int32_t match = TRUE;
+        int32_t match = true;
         while (trgIdx < cwTargetLength)
         {
             U16_NEXT(src, srcIdx, cwSourceLength, srcCodepoint);
             U16_NEXT(trg, trgIdx, cwTargetLength, trgCodepoint);
             if (!AreEqualOrdinalIgnoreCase(srcCodepoint, trgCodepoint))
             {
-                match = FALSE; 
+                match = false;
                 break;
             }
         }
 
-        if (match) 
+        if (match)
         {
             result = i;
             if (!findLast)
@@ -598,7 +598,7 @@ int32_t GlobalizationNative_StartsWith(
                         int32_t cwSourceLength,
                         int32_t options)
 {
-    int32_t result = FALSE;
+    int32_t result = false;
     UErrorCode err = U_ZERO_ERROR;
     const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, options, &err);
 
@@ -614,7 +614,7 @@ int32_t GlobalizationNative_StartsWith(
             {
                 if (idx == 0)
                 {
-                    result = TRUE;
+                    result = true;
                 }
                 else
                 {
@@ -640,7 +640,7 @@ int32_t GlobalizationNative_EndsWith(
                         int32_t cwSourceLength,
                         int32_t options)
 {
-    int32_t result = FALSE;
+    int32_t result = false;
     UErrorCode err = U_ZERO_ERROR;
     const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, options, &err);
 
@@ -657,7 +657,7 @@ int32_t GlobalizationNative_EndsWith(
             {
                 if ((idx + usearch_getMatchedLength(pSearch)) == cwSourceLength)
                 {
-                    result = TRUE;
+                    result = true;
                 }
                 else
                 {
