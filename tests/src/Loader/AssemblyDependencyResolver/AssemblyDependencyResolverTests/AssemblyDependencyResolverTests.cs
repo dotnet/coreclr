@@ -134,7 +134,8 @@ namespace AssemblyDependencyResolverTests
         public void TestAssemblyWithCaseDifferent()
         {
             // Testing case sensitive file name resolution in Windows
-            // AssemblyDependencyResolver is given filename with case different, host policy has case changed
+            // Host policy returns 2 file paths with the casing changed,
+            // AssemblyDependencyResolver should not throw
             if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseDifferent.dll");
@@ -150,13 +151,13 @@ namespace AssemblyDependencyResolverTests
                 {
                     using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
                         0,
-                        changeFile,
+                        $"{assemblyDependencyPath}{Path.PathSeparator}{changeFile}",
                         "",
                         ""))
                     {
                         AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
 
-                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtension));
+                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
 
                         Assert.Equal(
                             changeFile, asmResolveName, StringComparer.InvariantCultureIgnoreCase
@@ -172,7 +173,8 @@ namespace AssemblyDependencyResolverTests
         public void TestAssemblyWithCaseReversed()
         {            
             // Testing case sensitive file name resolution in Windows
-            // AssemblyDependencyResolver is given filename with case different, host policy has the original file name
+            // Host policy returns 2 file paths with the casing changed and names swapped,
+            // AssemblyDependencyResolver should not throw
             if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseReversed.dll");
@@ -189,7 +191,7 @@ namespace AssemblyDependencyResolverTests
                 {
                     using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
                         0,
-                        assemblyDependencyPath,
+                        $"{changeFile}{Path.PathSeparator}{assemblyDependencyPath}",
                         "",
                         ""))
                     {
