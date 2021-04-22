@@ -341,7 +341,8 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
   # This linker option causes executables we build to be marked as containing
   # position independent code.
   # It is necessary to make ASLR work for executables.
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--build-id=sha1 -Wl,-z,relro,-z,now")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie -Wl,-z,relro,-z,now")
 
 endif(WIN32)
 
