@@ -133,79 +133,73 @@ namespace AssemblyDependencyResolverTests
 
         public void TestAssemblyWithCaseDifferent()
         {
-            // Testing case sensitive file name resolution in Windows
+            // Testing case sensitive file name resolution
             // Host policy returns 2 file paths with the casing changed,
             // AssemblyDependencyResolver should not throw
-            if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseDifferent.dll");
+            string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
+            string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
+            string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
+
+            IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+            using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
             {
-                string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseDifferent.dll");
-                string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
-                string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
-                string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
-
-                IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
-                    (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
-
-                using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
-                    HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+                using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
+                    0,
+                    $"{assemblyDependencyPath}{Path.PathSeparator}{changeFile}",
+                    "",
+                    ""))
                 {
-                    using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
-                        0,
-                        $"{assemblyDependencyPath}{Path.PathSeparator}{changeFile}",
-                        "",
-                        ""))
-                    {
-                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
+                    AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
 
-                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
+                    string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
 
-                        Assert.Equal(
-                            changeFile, asmResolveName, StringComparer.InvariantCultureIgnoreCase
-                            );
+                    Assert.Equal(
+                        changeFile, asmResolveName, StringComparer.InvariantCultureIgnoreCase
+                        );
 
-                        // After everything is done, the error writer should be reset to the original value.
-                        Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
-                    }
+                    // After everything is done, the error writer should be reset to the original value.
+                    Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
                 }
             }
         }
 
         public void TestAssemblyWithCaseReversed()
         {            
-            // Testing case sensitive file name resolution in Windows
+            // Testing case sensitive file name resolution
             // Host policy returns 2 file paths with the casing changed and names swapped,
             // AssemblyDependencyResolver should not throw
-            if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseReversed.dll");
+            string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
+            string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
+            string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
+
+
+            IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
+                (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
+
+            using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
+                HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
             {
-                string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseReversed.dll");
-                string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
-                string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
-                string changeFile = Path.Combine(Path.GetDirectoryName(assemblyDependencyPath), (nameWOExtensionCaseChanged + Path.GetExtension(assemblyDependencyPath)));
-
-
-                IntPtr previousWriter = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(
-                    (HostPolicyMock.ErrorWriterDelegate)((string _) => { Assert.True(false, "Should never get here"); }));
-
-                using (HostPolicyMock.MockValues_corehost_set_error_writer errorWriterMock =
-                    HostPolicyMock.Mock_corehost_set_error_writer(previousWriter))
+                using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
+                    0,
+                    $"{changeFile}{Path.PathSeparator}{assemblyDependencyPath}",
+                    "",
+                    ""))
                 {
-                    using (HostPolicyMock.Mock_corehost_resolve_component_dependencies(
-                        0,
-                        $"{changeFile}{Path.PathSeparator}{assemblyDependencyPath}",
-                        "",
-                        ""))
-                    {
-                        AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
+                    AssemblyDependencyResolver resolver = new AssemblyDependencyResolver(changeFile);
 
-                        string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
+                    string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
 
-                        Assert.Equal(
-                            assemblyDependencyPath, asmResolveName, StringComparer.InvariantCultureIgnoreCase
-                            );
+                    Assert.Equal(
+                        assemblyDependencyPath, asmResolveName, StringComparer.InvariantCultureIgnoreCase
+                        );
 
-                        // After everything is done, the error writer should be reset to the original value.
-                        Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
-                    }
+                    // After everything is done, the error writer should be reset to the original value.
+                    Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
                 }
             }
         }
