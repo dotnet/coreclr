@@ -5,7 +5,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include "pal_localeStringData.h"
@@ -164,28 +163,28 @@ Gets the locale currency English or native name and convert the result to UChars
 static UErrorCode GetLocaleCurrencyName(const char* locale, UBool nativeName, UChar* value, int32_t valueLength)
 {
     UErrorCode status = U_ZERO_ERROR;
-
+    
     UChar currencyThreeLettersName[4]; // 3 letters currency iso name + NULL
     ucurr_forLocale(locale, currencyThreeLettersName, 4, &status);
     if (!U_SUCCESS(status))
     {
         return status;
     }
-
+    
     int32_t len;
     UBool formatChoice;
     const UChar *pCurrencyLongName = ucurr_getName(
-                                        currencyThreeLettersName,
-                                        nativeName ? locale : ULOC_US,
-                                        UCURR_LONG_NAME,
-                                        &formatChoice,
-                                        &len,
+                                        currencyThreeLettersName, 
+                                        nativeName ? locale : ULOC_US, 
+                                        UCURR_LONG_NAME, 
+                                        &formatChoice, 
+                                        &len, 
                                         &status);
     if (!U_SUCCESS(status))
     {
         return status;
     }
-
+    
     if (len >= valueLength) // we need to have room for NULL too
     {
         return U_BUFFER_OVERFLOW_ERROR;
@@ -211,7 +210,7 @@ int32_t GlobalizationNative_GetLocaleInfoString(const UChar* localeName,
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
-    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, false, &status);
+    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, FALSE, &status);
 
     if (U_FAILURE(status))
     {
@@ -269,10 +268,10 @@ int32_t GlobalizationNative_GetLocaleInfoString(const UChar* localeName,
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_INTL_CURRENCY_SYMBOL, value, valueLength);
             break;
         case LocaleString_CurrencyEnglishName:
-            status = GetLocaleCurrencyName(locale, false, value, valueLength);
+            status = GetLocaleCurrencyName(locale, FALSE, value, valueLength);
             break;
         case LocaleString_CurrencyNativeName:
-            status = GetLocaleCurrencyName(locale, true, value, valueLength);
+            status = GetLocaleCurrencyName(locale, TRUE, value, valueLength);
             break;
         case LocaleString_MonetaryDecimalSeparator:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_MONETARY_SEPARATOR_SYMBOL, value, valueLength);
@@ -282,10 +281,10 @@ int32_t GlobalizationNative_GetLocaleInfoString(const UChar* localeName,
                 GetLocaleInfoDecimalFormatSymbol(locale, UNUM_MONETARY_GROUPING_SEPARATOR_SYMBOL, value, valueLength);
             break;
         case LocaleString_AMDesignator:
-            status = GetLocaleInfoAmPm(locale, true, value, valueLength);
+            status = GetLocaleInfoAmPm(locale, TRUE, value, valueLength);
             break;
         case LocaleString_PMDesignator:
-            status = GetLocaleInfoAmPm(locale, false, value, valueLength);
+            status = GetLocaleInfoAmPm(locale, FALSE, value, valueLength);
             break;
         case LocaleString_PositiveSign:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_PLUS_SIGN_SYMBOL, value, valueLength);
@@ -353,10 +352,10 @@ int32_t GlobalizationNative_GetLocaleTimeFormat(const UChar* localeName,
 {
     UErrorCode err = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
-    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, false, &err);
+    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, FALSE, &err);
     UDateFormatStyle style = (shortFormat != 0) ? UDAT_SHORT : UDAT_MEDIUM;
     UDateFormat* pFormat = udat_open(style, UDAT_NONE, locale, NULL, 0, NULL, 0, &err);
-    udat_toPattern(pFormat, false, value, valueLength, &err);
+    udat_toPattern(pFormat, FALSE, value, valueLength, &err);
     udat_close(pFormat);
     return UErrorCodeToBool(err);
 }
