@@ -5,7 +5,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include "pal_localeNumberData.h"
@@ -57,10 +56,10 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
     }
 
     int index = 0;
-    int minusAdded = false;
-    int digitAdded = false;
-    int currencyAdded = false;
-    int spaceAdded = false;
+    int minusAdded = FALSE;
+    int digitAdded = FALSE;
+    int currencyAdded = FALSE;
+    int spaceAdded = FALSE;
 
     for (int i = iStart; i <= iEnd; i++)
     {
@@ -70,7 +69,7 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
             case UCHAR_MINUS:
             case UCHAR_OPENPAREN:
             case UCHAR_CLOSEPAREN:
-                minusAdded = true;
+                minusAdded = TRUE;
                 break;
         }
     }
@@ -104,7 +103,7 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
             case UCHAR_DIGIT:
                 if (!digitAdded)
                 {
-                    digitAdded = true;
+                    digitAdded = TRUE;
                     destPattern[index++] = 'n';
                 }
                 break;
@@ -112,7 +111,7 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
             case UCHAR_CURRENCY:
                 if (!currencyAdded)
                 {
-                    currencyAdded = true;
+                    currencyAdded = TRUE;
                     destPattern[index++] = 'C';
                 }
                 break;
@@ -121,19 +120,19 @@ static char* NormalizeNumericPattern(const UChar* srcPattern, int isNegative)
             case UCHAR_NBSPACE:
                 if (!spaceAdded)
                 {
-                    spaceAdded = true;
+                    spaceAdded = TRUE;
                     destPattern[index++] = ' ';
                 }
                 else
                 {
-                    assert(false);
+                    assert(FALSE);
                 }
                 break;
 
             case UCHAR_MINUS:
             case UCHAR_OPENPAREN:
             case UCHAR_CLOSEPAREN:
-                minusAdded = true;
+                minusAdded = TRUE;
                 destPattern[index++] = (char)ch;
                 break;
 
@@ -163,7 +162,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
     const int MAX_DOTNET_NUMERIC_PATTERN_LENGTH = 6; // example: "(C n)" plus terminator
 
     UErrorCode ignore = U_ZERO_ERROR;
-    int32_t icuPatternLength = unum_toPattern(pNumberFormat, false, NULL, 0, &ignore) + 1;
+    int32_t icuPatternLength = unum_toPattern(pNumberFormat, FALSE, NULL, 0, &ignore) + 1;
 
     UChar* icuPattern = calloc(icuPatternLength, sizeof(UChar));
     if (icuPattern == NULL)
@@ -173,7 +172,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
 
     UErrorCode err = U_ZERO_ERROR;
 
-    unum_toPattern(pNumberFormat, false, icuPattern, icuPatternLength, &err);
+    unum_toPattern(pNumberFormat, FALSE, icuPattern, icuPatternLength, &err);
 
     assert(U_SUCCESS(err));
 
@@ -201,7 +200,7 @@ static int GetNumericPattern(const UNumberFormat* pNumberFormat,
         }
     }
 
-    assert(false); // should have found a valid pattern
+    assert(FALSE); // should have found a valid pattern
     free(normalizedPattern);
     return INVALID_FORMAT;
 }
@@ -240,7 +239,7 @@ static int GetCurrencyNegativePattern(const char* locale)
 
     if (U_SUCCESS(status))
     {
-        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), true);
+        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), TRUE);
         if (value >= 0)
         {
             unum_close(pFormat);
@@ -271,7 +270,7 @@ static int GetCurrencyPositivePattern(const char* locale)
 
     if (U_SUCCESS(status))
     {
-        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), false);
+        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), FALSE);
         if (value >= 0)
         {
             unum_close(pFormat);
@@ -302,7 +301,7 @@ static int GetNumberNegativePattern(const char* locale)
 
     if (U_SUCCESS(status))
     {
-        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), true);
+        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), TRUE);
         if (value >= 0)
         {
             unum_close(pFormat);
@@ -334,7 +333,7 @@ static int GetPercentNegativePattern(const char* locale)
 
     if (U_SUCCESS(status))
     {
-        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), true);
+        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), TRUE);
         if (value >= 0)
         {
             unum_close(pFormat);
@@ -365,7 +364,7 @@ static int GetPercentPositivePattern(const char* locale)
 
     if (U_SUCCESS(status))
     {
-        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), false);
+        int value = GetNumericPattern(pFormat, Patterns, ARRAY_LENGTH(Patterns), FALSE);
         if (value >= 0)
         {
             unum_close(pFormat);
@@ -409,11 +408,11 @@ int32_t GlobalizationNative_GetLocaleInfoInt(
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
-    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, false, &status);
+    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, FALSE, &status);
 
     if (U_FAILURE(status))
     {
-        return false;
+        return FALSE;
     }
 
     switch (localeNumberData)
@@ -516,7 +515,7 @@ int32_t GlobalizationNative_GetLocaleInfoInt(
             break;
         default:
             status = U_UNSUPPORTED_ERROR;
-            assert(false);
+            assert(FALSE);
             break;
     }
 
@@ -535,7 +534,7 @@ int32_t GlobalizationNative_GetLocaleInfoGroupingSizes(
 {
     UErrorCode status = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
-    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, false, &status);
+    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, FALSE, &status);
 
     if (U_FAILURE(status))
     {

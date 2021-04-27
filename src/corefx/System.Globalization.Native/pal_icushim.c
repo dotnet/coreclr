@@ -5,7 +5,6 @@
 
 #include <dlfcn.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -39,13 +38,13 @@ static int FindICULibs(const char* versionPrefix, char* symbolName, char* symbol
 
     if (libicuuc == NULL)
     {
-        return false;
+        return FALSE;
     }
 
     // in OSX all ICU APIs exist in the same library libicucore.A.dylib
     libicui18n = libicuuc;
 
-    return true;
+    return TRUE;
 }
 
 #else // __APPLE__
@@ -104,13 +103,13 @@ static int FindSymbolVersion(int majorVer, int minorVer, int subVer, char* symbo
                 sprintf(symbolName, "u_strlen%s", symbolVersion);
                 if (dlsym(libicuuc, symbolName) == NULL)
                 {
-                    return false;
+                    return FALSE;
                 }
             }
         }
     }
 
-    return true;
+    return TRUE;
 }
 
 // Try to open the necessary ICU libraries
@@ -160,12 +159,12 @@ static int FindLibUsingOverride(const char* versionPrefix, char* symbolName, cha
         {
             if (OpenICULibraries(first, second, third, versionPrefix, symbolName, symbolVersion))
             {
-                return true;
+                return TRUE;
             }
         }
     }
 
-    return false;
+    return FALSE;
 }
 
 // Search for library files with names including the major version.
@@ -177,7 +176,7 @@ static int FindLibWithMajorVersion(const char* versionPrefix, char* symbolName, 
     // Select the version of ICU present at build time.
     if (OpenICULibraries(MinICUVersion, -1, -1, versionPrefix, symbolName, symbolVersion))
     {
-        return true;
+        return TRUE;
     }
 
     // Select the highest supported version of ICU present on the local machine
@@ -185,11 +184,11 @@ static int FindLibWithMajorVersion(const char* versionPrefix, char* symbolName, 
     {
         if (OpenICULibraries(i, -1, -1, versionPrefix, symbolName, symbolVersion))
         {
-            return true;
+            return TRUE;
         }
     }
 
-    return false;
+    return FALSE;
 }
 
 // Select the highest supported version of ICU present on the local machine
@@ -202,12 +201,12 @@ static int FindLibWithMajorMinorVersion(const char* versionPrefix, char* symbolN
         {
             if (OpenICULibraries(i, j, -1, versionPrefix, symbolName, symbolVersion))
             {
-                return true;
+                return TRUE;
             }
         }
     }
 
-    return false;
+    return FALSE;
 }
 
 // Select the highest supported version of ICU present on the local machine
@@ -222,13 +221,13 @@ static int FindLibWithMajorMinorSubVersion(const char* versionPrefix, char* symb
             {
                 if (OpenICULibraries(i, j, k, versionPrefix, symbolName, symbolVersion))
                 {
-                    return true;
+                    return TRUE;
                 }
             }
         }
     }
 
-    return false;
+    return FALSE;
 }
 
 
@@ -257,7 +256,7 @@ int32_t GlobalizationNative_LoadICU()
         if (!FindICULibs(VERSION_PREFIX_SUSE, symbolName, symbolVersion))
 #endif
         {
-            return false;
+            return FALSE;
         }
     }
 
@@ -276,7 +275,7 @@ int32_t GlobalizationNative_LoadICU()
     libicui18n = NULL;
 #endif // __APPLE__
 
-    return true;
+    return TRUE;
 }
 
 // GlobalizationNative_GetICUVersion
