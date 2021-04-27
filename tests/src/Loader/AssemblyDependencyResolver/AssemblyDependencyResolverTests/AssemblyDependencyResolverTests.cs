@@ -135,7 +135,7 @@ namespace AssemblyDependencyResolverTests
         {
             // Testing case sensitive file name resolution
             // Host policy returns 2 file paths with the casing changed,
-            // AssemblyDependencyResolver should not throw
+            // AssemblyDependencyResolver should not throw since the first path exists in the file system
             string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseDifferent.dll");
             string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
             string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
@@ -170,8 +170,11 @@ namespace AssemblyDependencyResolverTests
         public void TestAssemblyWithCaseReversed()
         {            
             // Testing case sensitive file name resolution
-            // Host policy returns 2 file paths with the casing changed and names swapped,
-            // AssemblyDependencyResolver should not throw
+            // Host policy returns 2 file paths with the casing changed and names swapped.
+            // AssemblyDependencyResolver should not throw but has different returned values,
+            // Based on case sensitive nature of the file system since AssemblyDependencyResolver checks if file exists 
+            // Case insensitive file systems: a valid path is returned
+            // Case sensitive file systems: null (since the first path does not exist in the system)
             string assemblyDependencyPath = CreateMockAssembly("TestAssemblyWithCaseReversed.dll");
             string nameWOExtension = Path.GetFileNameWithoutExtension(assemblyDependencyPath);
             string nameWOExtensionCaseChanged = (Char.IsUpper(nameWOExtension[0]) ? nameWOExtension[0].ToString().ToLower() : nameWOExtension[0].ToString().ToUpper()) + nameWOExtension.Substring(1);
@@ -194,9 +197,15 @@ namespace AssemblyDependencyResolverTests
 
                     string asmResolveName = resolver.ResolveAssemblyToPath(new AssemblyName(nameWOExtensionCaseChanged));
 
-                    Assert.Equal(
-                        assemblyDependencyPath, asmResolveName, StringComparer.InvariantCultureIgnoreCase
-                        );
+                    // Case sensitive systems return null (see notes above)
+                    // We don't check the OS or the file system here since AssemblyDependencyResolver itself stays away from OS specific checks
+                    // In path resolutions
+                    if(asmResolveName != null)
+                    {
+                        Assert.Equal(
+                            assemblyDependencyPath, asmResolveName, StringComparer.InvariantCultureIgnoreCase
+                            );
+                    }
 
                     // After everything is done, the error writer should be reset to the original value.
                     Assert.Equal(previousWriter, errorWriterMock.LastSetErrorWriterPtr);
