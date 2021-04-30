@@ -21,6 +21,8 @@ void ReleaseEventPipeThreadRef(EventPipeThread* pThread);
 void AcquireEventPipeThreadRef(EventPipeThread* pThread);
 typedef Wrapper<EventPipeThread*, AcquireEventPipeThreadRef, ReleaseEventPipeThreadRef> EventPipeThreadHolder;
 
+typedef EventPipeIterator<EventPipeThread*> EventPipeThreadIterator;
+
 class EventPipeThreadSessionState
 {
     // immutable
@@ -90,6 +92,8 @@ public:
 class EventPipeThread
 {
     static EVENTPIPE_THREAD_LOCAL EventPipeThreadHolder gCurrentEventPipeThreadHolder;
+    static SpinLock s_threadsLock;
+    static SList<SListElem<EventPipeThread *>> s_pThreads;
 
     ~EventPipeThread();
 
@@ -121,11 +125,24 @@ class EventPipeThread
     //
     EventPipeSession *m_pRundownSession = nullptr;
 
+    // Use Get/GetOrCreate instead
+    EventPipeThread();
+
+
 public:
+    static void Initialize();
+
     static EventPipeThread *Get();
     static EventPipeThread* GetOrCreate();
 
-    EventPipeThread();
+    static EventPipeThreadIterator GetThreads();
+    static SpinLock *GetGlobalThreadLock()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return &s_threadsLock;
+    }
+
     void AddRef();
     void Release();
     SpinLock *GetLock();
