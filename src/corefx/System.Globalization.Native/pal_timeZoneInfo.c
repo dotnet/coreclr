@@ -4,6 +4,7 @@
 //
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <unistd.h>
 
 #include "pal_timeZoneInfo.h"
@@ -19,7 +20,7 @@ ResultCode GlobalizationNative_GetTimeZoneDisplayName(const UChar* localeName,
 {
     UErrorCode err = U_ZERO_ERROR;
     char locale[ULOC_FULLNAME_CAPACITY];
-    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, FALSE, &err);
+    GetLocale(localeName, locale, ULOC_FULLNAME_CAPACITY, false, &err);
 
     int32_t timeZoneIdLength = -1; // timeZoneId is NULL-terminated
     UCalendar* calendar = ucal_open(timeZoneId, timeZoneIdLength, locale, UCAL_DEFAULT, &err);
