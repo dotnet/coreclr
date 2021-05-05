@@ -24,8 +24,13 @@ DAC/DBI set.
 Assumes the user has a clone of the dotnet/coreclr repo.
 
 In the afternoon when a servicing release has occurred.
-- Checkout this release/3.1-crossdac branch of the repo.
+- Checkout release/3.1-crossdac branch of the repo.
 - Run ./crossDacMergeLatestTag.sh <upstream>
+  - For my use case, I have created a remote with `git remote add <remoteName> <url>`.
+  In my case it is `git remote add sdmaclea git@github.com:sdmaclea\coreclr`.
+  So I would this as `./crossDacMergeLatestTag.sh sdmaclea`.
+  - You could choose to pass a URL instead.  So in my case it would be
+  `./crossDacMergeLatestTag.sh git@github.com:sdmaclea\coreclr`
 - Create a PR to merge from <upstream>:release/3.1-crossdac-<latestTag>
   to dotnet/coreclr:release/3.1-crossdac
   - Review PR looking for changes which could potentially break the Cross
