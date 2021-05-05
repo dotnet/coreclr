@@ -56,9 +56,9 @@ fi
 
 if ( "$upstream" == "" )
 then
-  echo Usage : ./crossDacMergeLatestTag.sh <upstreamUrl>
-  echo <upstreamUrl> empty.  Please provide remote name or URL to push merge commit upstream
-  echo You can also just execute 'git push <upstreamUrl>' yourself...
+  echo "Usage : ./crossDacMergeLatestTag.sh <upstreamUrl>"
+  echo "<upstreamUrl> empty.  Please provide remote name or URL to push merge commit upstream"
+  echo "You can also just execute 'git push <upstreamUrl>' yourself..."
   exit 4
 fi
 
