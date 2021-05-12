@@ -76,4 +76,5 @@ jobs:
       inputs:
         PathtoPublish: '$(Build.StagingDirectory)\BuildLogs'
         ArtifactName: Finalize_Publish_Versions
+      continueOnError: true
       condition: succeededOrFailed()
