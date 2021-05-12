@@ -38,27 +38,27 @@ jobs:
         artifactName: PackageArtifacts
         downloadPath: ${{ parameters.artifactsDir }}/nuget
 
-    - powershell: |
-        $prefix = "refs/heads/"
-        $branch = "$(Build.SourceBranch)"
-        $branchName = $branch
-        if ($branchName.StartsWith($prefix))
-        {
-          $branchName = $branchName.Substring($prefix.Length)
-        }
-        Write-Host "For Build.SourceBranch $branch, FullBranchName is $branchName"
-        Write-Host "##vso[task.setvariable variable=FullBranchName;]$branchName"
-        ls -R ${{ parameters.artifactsDir }}/nuget/*.nupkg
-        $(Build.SourcesDirectory)/UpdatePublishedVersions.ps1 `
-        -gitHubUser ${{ parameters.gitHubUser }} `
-        -gitHubEmail ${{ parameters.gitHubEmail }} `
-        -gitHubAuthToken ${{ parameters.gitHubAuthToken }} `
-        -versionsRepoOwner ${{ parameters.versionsRepoOwner }} `
-        -versionsRepo ${{ parameters.versionsRepo }} `
-        -versionsRepoPath build-info/dotnet/coreclr/$branchName `
-        -nupkgPath ${{ parameters.artifactsDir }}/nuget/*.nupkg
+    #- powershell: |
+    #    $prefix = "refs/heads/"
+    #    $branch = "$(Build.SourceBranch)"
+    #    $branchName = $branch
+    #    if ($branchName.StartsWith($prefix))
+    #    {
+    #      $branchName = $branchName.Substring($prefix.Length)
+    #    }
+    #    Write-Host "For Build.SourceBranch $branch, FullBranchName is $branchName"
+    #    Write-Host "##vso[task.setvariable variable=FullBranchName;]$branchName"
+    #    ls -R ${{ parameters.artifactsDir }}/nuget/*.nupkg
+    #    $(Build.SourcesDirectory)/UpdatePublishedVersions.ps1 `
+    #    -gitHubUser ${{ parameters.gitHubUser }} `
+    #    -gitHubEmail ${{ parameters.gitHubEmail }} `
+    #    -gitHubAuthToken ${{ parameters.gitHubAuthToken }} `
+    #    -versionsRepoOwner ${{ parameters.versionsRepoOwner }} `
+    #    -versionsRepo ${{ parameters.versionsRepo }} `
+    #    -versionsRepoPath build-info/dotnet/coreclr/$branchName `
+    #    -nupkgPath ${{ parameters.artifactsDir }}/nuget/*.nupkg
 
-      displayName: Run UpdatePublishedVersions.ps1
+    # displayName: Run UpdatePublishedVersions.ps1
 
     - task: CopyFiles@2
       displayName: Copy Files to $(Build.StagingDirectory)\BuildLogs
