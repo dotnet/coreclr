@@ -493,12 +493,44 @@ void EventPipeSession::SuspendWriteEvent()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        // Need to disable the session before calling this method
+        PRECONDITION(!EventPipe::IsSessionEnabled(reinterpret_cast<EventPipeSessionID>(this)));
     }
     CONTRACTL_END;
 
-    // Force all in-progress writes to either finish or cancel
-    // This is required to ensure we can safely flush and delete the buffers
-    m_pBufferManager->SuspendWriteEvent(GetIndex());
+    // Collect all threads that are currently active so we don't have to
+    // wait for events to finish writing under the lock.
+    CQuickArrayList<EventPipeThread *> threadList;
+    {
+        SpinLockHolder holder(EventPipeThread::GetGlobalThreadLock());
+
+        EventPipeThreadIterator eventPipeThreads = EventPipeThread::GetThreads();
+        EventPipeThread *pThread = nullptr;
+        while (eventPipeThreads.Next(&pThread))
+        {
+            // Add ref so the thread doesn't disappear when we release the lock
+            pThread->AddRef();
+            threadList.Push(pThread);
+        }
+    }
+
+    for (size_t i = 0; i < threadList.Size(); i++)
+    {
+        EventPipeThread *pThread = threadList[i];
+        // Wait for the thread to finish any writes to this session
+        YIELD_WHILE(pThread->GetSessionWriteInProgress() == GetIndex());
+
+        // Since we've already disabled the session, the thread won't call back in to this
+        // session once its done with the current write
+
+        pThread->Release();
+    }
+
+    if (m_pBufferManager != nullptr)
+    {
+        // Convert all buffers to read only to ensure they get flushed
+        m_pBufferManager->SuspendWriteEvent(GetIndex());
+    }
 }
 
 void EventPipeSession::ExecuteRundown()

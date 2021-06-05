@@ -411,6 +411,14 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
     }
 }
 
+bool EventPipe::IsSessionEnabled(EventPipeSessionID id)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    const EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
+    return s_pSessions[pSession->GetIndex()].Load() != nullptr;
+}
+
 EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
 {
     CONTRACTL

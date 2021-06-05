@@ -115,6 +115,38 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
+template <class T>
+class EventPipeIterator
+{
+private:
+    SList<SListElem<T>> *m_pList;
+    typename SList<SListElem<T>>::Iterator m_iterator;
+
+public:
+    EventPipeIterator(SList<SListElem<T>> *pList) :
+        m_pList(pList),
+        m_iterator(pList->begin())
+    {
+        _ASSERTE(m_pList != nullptr);
+    }
+
+    bool Next(T *ppProvider)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_NOTRIGGER;
+            MODE_ANY;
+            PRECONDITION(ppProvider != nullptr);
+        }
+        CONTRACTL_END;
+
+        *ppProvider = *m_iterator;
+        ++m_iterator;
+        return m_iterator != m_pList->end();
+    }
+};
+
 #endif // FEATURE_PERFTRACING
 
 #endif // __EVENTPIPE_PROVIDERCALLBACKDATA_H__
