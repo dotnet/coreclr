@@ -564,6 +564,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   #These seem to indicate real issues
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>)
 
+  # Some newer compilers default to -fno-common; revert to -fcommon
+  add_compile_options(-fcommon)
+
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
     # after hitting just about 20 errors.

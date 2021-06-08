@@ -4,6 +4,7 @@
 //
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "pal_icushim.h"
 #include "pal_normalization.h"
@@ -48,7 +49,7 @@ int32_t GlobalizationNative_IsNormalized(
 
     if (U_SUCCESS(err))
     {
-        return isNormalized == TRUE ? 1 : 0;
+        return isNormalized == true ? 1 : 0;
     }
     else
     {
