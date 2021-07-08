@@ -14,7 +14,7 @@ elif [ "$1" = "OSX" ]; then
     if [ "$?" != "0" ]; then
         exit 1;
     fi
-    brew install icu4c openssl
+    HOMEBREW_NO_AUTO_UPDATE=1 brew install icu4c openssl
     if [ "$?" != "0" ]; then
         exit 1;
     fi
@@ -26,4 +26,3 @@ else
     echo "Must pass \"Linux\" or \"OSX\" as first argument."
     exit 1
 fi
-
