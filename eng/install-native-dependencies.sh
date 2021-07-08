@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 if [ "$1" = "Linux" ]; then
     sudo apt update
@@ -14,7 +14,9 @@ elif [ "$1" = "OSX" ]; then
     if [ "$?" != "0" ]; then
         exit 1;
     fi
-    brew install icu4c openssl
+
+    engdir=$(dirname "${BASH_SOURCE[0]}")
+    brew bundle --no-upgrade --no-lock --file "${engdir}/Brewfile"
     if [ "$?" != "0" ]; then
         exit 1;
     fi
@@ -26,4 +28,3 @@ else
     echo "Must pass \"Linux\" or \"OSX\" as first argument."
     exit 1
 fi
-
