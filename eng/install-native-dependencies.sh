@@ -14,7 +14,9 @@ elif [ "$1" = "OSX" ]; then
     if [ "$?" != "0" ]; then
         exit 1;
     fi
-    HOMEBREW_NO_AUTO_UPDATE=1 brew install icu4c openssl
+
+    engdir=$(dirname "${BASH_SOURCE[0]}")
+    brew bundle --no-upgrade --no-lock --file "${engdir}/Brewfile"
     if [ "$?" != "0" ]; then
         exit 1;
     fi
