@@ -93,19 +93,24 @@ jobs:
 
 #
 # CoreFX test runs against CoreCLR
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - Windows_NT_x64
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      corefxTests: true
-      displayNameArgs: CoreFX
+# Now that the branch is on servicing, and the churn is low, exclude these as they
+# break far more often than they detect issues. These already run in CoreFX CI on release bits.
+# In case we want to bring them back for checked testing, we need to fix CoreFX.depproj.
+# It has a package - Microsoft.Private.CoreFx.OOB - that's supposed to bring in all deps
+# that are out of box. These are currently not getting restored and this ends up causing 
+# File not found issues in the binder when compiling tests, making test exclusions impossible.
+# - template: /eng/platform-matrix.yml
+#   parameters:
+#     jobTemplate: test-job.yml
+#     buildConfig: checked
+#     platforms:
+#     - Linux_x64
+#     - Windows_NT_x64
+#     helixQueueGroup: pr
+#     jobParameters:
+#       testGroup: innerloop
+#       corefxTests: true
+#       displayNameArgs: CoreFX
 
 #
 # Release test builds
