@@ -89,3 +89,10 @@
 
 # Test failure: https://github.com/dotnet/runtime/issues/43166
 -nomethod System.IO.Tests.File_GetSetTimes.SetDateTimeMax
+
+# We have issues in restoring the OOB packages to run these tests. Disable for now.
+-nonamespace System.Data.Common.Tests
+-nonamespace System.IO.Pipelines.Tests
+-nonamespace System.Resources.Extensions.Tests
+-nonamespace System.Resources.ResourceManager.Tests
+-nonamespace System.Runtime.Serialization.Formatters.Tests
