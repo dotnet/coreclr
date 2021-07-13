@@ -125,9 +125,6 @@ jobs:
         image: centos-6-3e800f1-20190501005338
         registry: mcr
       helixQueues:
-      # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
-      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        - RedHat.6.Amd64
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux x64
