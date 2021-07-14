@@ -26,18 +26,10 @@ if (NOT CLR_CMAKE_PLATFORM_DARWIN)
         return()
     endif()
 else()
-    find_library(ICUCORE icucore)
-    if(ICUI18N STREQUAL ICUCORE-NOTFOUND)
-        message(FATAL_ERROR "Cannot find libicucore, skipping build for System.Globalization.Native. .NET globalization is not expected to function.")
-        return()
-    endif()
-
-    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"/usr/lib/libicucore.dylib\")
+    add_definitions(-DOSX_ICU_LIBRARY_PATH="/usr/lib/libicucore.dylib")
 endif()
 
 include(configure.cmake)
-
-add_compile_options(-fPIC)
 
 set(NATIVEGLOBALIZATION_SOURCES
     pal_calendarData.c
