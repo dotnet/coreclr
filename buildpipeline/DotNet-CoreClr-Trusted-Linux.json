@@ -433,7 +433,7 @@
       "value": "$(DockerRepository):$(DockerTag)"
     },
     "DockerRepository": {
-      "value": "microsoft/dotnet-buildtools-prereqs"
+      "value": "mcr.microsoft.com/dotnet-buildtools/prereqs"
     },
     "DockerTag": {
       "value": "centos-7-d485f41-20173404063424",
