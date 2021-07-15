@@ -377,7 +377,7 @@ function run_tests_using_docker {
             __dockerEnvironmentVariables=" -e ROOTFS_DIR=/crossrootfs/arm"
         ;;
         xenial)
-            __dockerImage=" microsoft/dotnet-buildtools-prereqs:ubuntu1604_cross_prereqs_v3"
+            __dockerImage=" mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu1604_cross_prereqs_v3"
             __skipRootFS=1
             __dockerEnvironmentVariables=" -e ROOTFS_DIR=/crossrootfs/arm"
         ;;
