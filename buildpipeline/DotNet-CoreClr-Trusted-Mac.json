@@ -292,9 +292,7 @@
       "value": "$(Build.BuildNumber)"
     }
   },
-  "demands": [
-    "Agent.Name -equals DDMBLDM002"
-  ],
+  "demands": [],
   "retentionRules": [
     {
       "branches": [
@@ -338,11 +336,11 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "id": 681,
-    "name": "VSEng-MicroBuildMacSierra",
+    "id": 24,
+    "name": "MicroBuildV2MacPool",
     "pool": {
-      "id": 120,
-      "name": "VSEng-MicroBuildMacSierra"
+      "id": 25,
+      "name": "MicroBuildV2MacPool"
     }
   },
   "id": 1680,
