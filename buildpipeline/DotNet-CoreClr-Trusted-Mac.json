@@ -338,14 +338,8 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "_links": {
-      "self": {
-        "href": "https://devdiv.visualstudio.com/_apis/build/Queues/681"
-      }
-    },
     "id": 681,
     "name": "VSEng-MicroBuildMacSierra",
-    "url": "https://devdiv.visualstudio.com/_apis/build/Queues/681",
     "pool": {
       "id": 120,
       "name": "VSEng-MicroBuildMacSierra"
