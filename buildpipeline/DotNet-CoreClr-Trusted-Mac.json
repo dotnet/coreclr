@@ -292,7 +292,9 @@
       "value": "$(Build.BuildNumber)"
     }
   },
-  "demands": [],
+  "demands": [
+    "Agent.Name -equals DDMBLDM002"
+  ],
   "retentionRules": [
     {
       "branches": [
@@ -336,11 +338,17 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "id": 24,
-    "name": "MicroBuildV2MacPool",
+    "_links": {
+      "self": {
+        "href": "https://devdiv.visualstudio.com/_apis/build/Queues/681"
+      }
+    },
+    "id": 681,
+    "name": "VSEng-MicroBuildMacSierra",
+    "url": "https://devdiv.visualstudio.com/_apis/build/Queues/681",
     "pool": {
-      "id": 25,
-      "name": "MicroBuildV2MacPool"
+      "id": 120,
+      "name": "VSEng-MicroBuildMacSierra"
     }
   },
   "id": 1680,
