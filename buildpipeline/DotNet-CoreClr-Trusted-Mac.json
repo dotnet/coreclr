@@ -292,7 +292,9 @@
       "value": "$(Build.BuildNumber)"
     }
   },
-  "demands": [],
+  "demands": [
+    "Agent.Name -equals DCI-MAC-BUILD-017"
+  ],
   "retentionRules": [
     {
       "branches": [
@@ -336,11 +338,11 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "id": 24,
-    "name": "MicroBuildV2MacPool",
+    "id": 681,
+    "name": "VSEng-MicroBuildMacSierra",
     "pool": {
-      "id": 25,
-      "name": "MicroBuildV2MacPool"
+      "id": 120,
+      "name": "VSEng-MicroBuildMacSierra"
     }
   },
   "id": 1680,
