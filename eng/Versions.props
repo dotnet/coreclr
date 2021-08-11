@@ -2,7 +2,7 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.1.17</ProductVersion>
+    <ProductVersion>3.1.18</ProductVersion>
     <!-- File version numbers -->
     <MajorVersion>4</MajorVersion>
     <MinorVersion>7</MinorVersion>
@@ -22,12 +22,12 @@
     <!-- roslyn -->
     <MicrosoftNetCompilersToolsetVersion>3.3.0-beta2-19367-02</MicrosoftNetCompilersToolsetVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.7.0-servicing.20460.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.7.0-servicing.21310.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
     <MicrosoftNETCorePlatformsVersion>3.1.0</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0</MicrosoftBclAsyncInterfacesVersion>
     <SystemIOFileSystemAccessControlVersion>4.7.0</SystemIOFileSystemAccessControlVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.1.9-servicing.20459.3</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.1.17-servicing.21309.1</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
