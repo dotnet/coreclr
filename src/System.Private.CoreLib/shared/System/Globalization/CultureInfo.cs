@@ -1142,9 +1142,10 @@ namespace System.Globalization
                 {
                     Debug.Assert(name != null && (lcid != -1 || altName != null));
                     bool ret;
+                    string key = lcid == 0 ? name! : name! + '\xfffd' + altName!;
                     lock (_lock)
                     {
-                        ret = tempNameHT.TryGetValue(lcid == 0 ? name! : name! + '\xfffd' + altName!, out retval);
+                        ret = tempNameHT.TryGetValue(key, out retval);
                     }
 
                     if (ret && retval != null)
@@ -1211,10 +1212,11 @@ namespace System.Globalization
 
             if (lcid == -1)
             {
+                string key = name + '\xfffd' + altName;
                 lock (_lock)
                 {
                     // This new culture will be added only to the name hash table.
-                    tempNameHT[name + '\xfffd' + altName] = retval;
+                    tempNameHT[key] = retval;
                 }
                 // when lcid == -1 then TextInfo object is already get created and we need to set it as read only.
                 retval.TextInfo.SetReadOnlyState(true);
