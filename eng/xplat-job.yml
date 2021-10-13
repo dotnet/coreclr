@@ -57,7 +57,7 @@ jobs:
 
       # Public OSX Build Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: Hosted Mac Internal
+        vmImage: macOS-latest
 
       # Official Build OSX Pool
       ${{ if and(eq(parameters.osGroup, 'OSX'), eq(variables['System.TeamProject'], 'public')) }}:
