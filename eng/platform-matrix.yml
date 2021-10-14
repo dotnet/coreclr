@@ -111,7 +111,6 @@ jobs:
       crossrootfsDir: '/crossrootfs/arm64'
       ${{ insert }}: ${{ parameters.jobParameters }}
 
-
 # Linux x64
 
 - ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
