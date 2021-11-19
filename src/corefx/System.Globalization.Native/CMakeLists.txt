@@ -7,9 +7,14 @@ add_definitions(-DBIT64)
 
 set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 
-find_path(UTYPES_H "unicode/utypes.h" PATHS ${ICU_HOMEBREW_INC_PATH})
-if(UTYPES_H STREQUAL UTYPES_H-NOTFOUND)
-    message(FATAL_ERROR "Cannot find utypes.h, try installing libicu-dev (or the appropriate package for your platform)")
+if (CLR_CMAKE_PLATFORM_DARWIN)
+  execute_process(COMMAND  brew --prefix OUTPUT_VARIABLE brew_prefix OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(ICU_HOMEBREW_INC_PATH "${brew_prefix}/opt/icu4c/include")
+endif()
+
+find_path(UCURR_H "unicode/ucurr.h" PATHS ${ICU_HOMEBREW_INC_PATH})
+if(UCURR_H STREQUAL UCURR_H-NOTFOUND)
+    message(FATAL_ERROR "Cannot find ucurr.h, try installing libicu-dev (or the appropriate package for your platform)")
     return()
 endif()
 
@@ -44,7 +49,7 @@ set(NATIVEGLOBALIZATION_SOURCES
     pal_icushim.c
 )
 
-include_directories(${UTYPES_H})
+include_directories(${UCURR_H})
 
 _add_library(System.Globalization.Native
     SHARED
