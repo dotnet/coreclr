@@ -206,6 +206,7 @@ function_name() to call the system's implementation
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
 #define atof DUMMY_atof
+#define atoll DUMMY_atoll
 #define tm PAL_tm
 #define size_t DUMMY_size_t
 #define time_t PAL_time_t
@@ -413,6 +414,7 @@ function_name() to call the system's implementation
 #undef wint_t
 #undef atoi
 #undef atol
+#undef atoll
 #undef atof
 #undef malloc
 #undef realloc
