@@ -44,12 +44,12 @@ jobs:
       # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
         name:  NetCore1ESPool-Svc-Public
-        demands: ImageOverride -equals Build.Ubuntu.1604.Amd64.Open
+        demands: ImageOverride -equals Build.Ubuntu.1804.Amd64.Open
 
       # Official Build Linux Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
         name: NetCore1ESPool-Svc-Internal
-        demands: ImageOverride -equals Build.Ubuntu.1604.Amd64
+        demands: ImageOverride -equals Build.Ubuntu.1804.Amd64
 
       # FreeBSD builds only in the internal project
       ${{ if and(eq(parameters.osGroup, 'FreeBSD'), ne(variables['System.TeamProject'], 'public')) }}:
