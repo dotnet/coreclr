@@ -1050,11 +1050,18 @@ void EventPipeBufferManager::SuspendWriteEvent(uint32_t sessionIndex)
 
     // Wait for any straggler WriteEvent threads that may have already allocated a buffer but
     // hadn't yet relinquished it.
-    {
+    bool hasWriteInProgress = false;
+    do {
+        // check whether we are breaking out of the loop due a blocked write. If we are, then sleep arbitrary length before taking m_lock
+        if (hasWriteInProgress)
+            ClrSleepEx(10 /* ms */, FALSE);
+
         SpinLockHolder _slh(&m_lock);
         SListElem<EventPipeThreadSessionState *> *pElem = m_pThreadSessionStateList->GetHead();
         while (pElem != NULL)
         {
+            // initial assumption is that there is a write in progress
+            hasWriteInProgress = true;
             // Get the list and remove it from the thread.
             EventPipeBufferList *const pBufferList = pElem->GetValue()->GetBufferList();
             if (pBufferList != nullptr)
@@ -1062,7 +1069,11 @@ void EventPipeBufferManager::SuspendWriteEvent(uint32_t sessionIndex)
                 EventPipeThread *const pEventPipeThread = pBufferList->GetThread();
                 if (pEventPipeThread != nullptr)
                 {
-                    YIELD_WHILE(pEventPipeThread->GetSessionWriteInProgress() == sessionIndex);
+                    // attempt to yield until writes are complete.
+                    // see https://github.com/dotnet/runtime/issues/51579 for why we can't use YIELD_WHILE directly.
+                    // In the successful case, this will set hasWriteInProgress to _false_ for each thread
+                    for (int i = 0; hasWriteInProgress && i < 10000; i++)
+                        hasWriteInProgress = pEventPipeThread->GetSessionWriteInProgress() == sessionIndex;
                     // It still guarantees that the thread has returned its buffer, but it also now guarantees that
                     // that the thread has returned from Session::WriteEvent() and has relinquished the session pointer
                     // This yield is guaranteed to eventually finish because threads will eventually exit WriteEvent()
@@ -1071,11 +1082,16 @@ void EventPipeBufferManager::SuspendWriteEvent(uint32_t sessionIndex)
                     // setting s_pSessions[this_session_id] = NULL above guaranteed that can't happen indefinately.
                     // Sooner or later the thread is going to see the NULL value and once it does it won't store
                     // this_session_id into the flag again.
+
+                    // If there was a write in progress that didn't complete, we are probably blocking it by holding m_lock.
+                    // we should break out of the lock and re-enter after a brief sleep.
+                    if (hasWriteInProgress)
+                        break;
                 }
             }
             pElem = m_pThreadSessionStateList->GetNext(pElem);
         }
-    }
+    } while (hasWriteInProgress);
 }
 
 void EventPipeBufferManager::DeAllocateBuffers()
