@@ -335,7 +335,7 @@ struct COR_ILMETHOD_SECT
     const COR_ILMETHOD_SECT* Next() const   
     {
         if (!More()) return(0);
-        return ((COR_ILMETHOD_SECT*)(((BYTE *)this) + DataSize()))->Align();
+        return ((COR_ILMETHOD_SECT*)Align(((BYTE *)this) + DataSize()));
     }
 
     const BYTE* Data() const 
@@ -373,9 +373,9 @@ struct COR_ILMETHOD_SECT
         return((AsSmall()->Kind & CorILMethod_Sect_FatFormat) != 0); 
     }
 
-    const COR_ILMETHOD_SECT* Align() const        
+    static const void* Align(const void* p)
     { 
-        return((COR_ILMETHOD_SECT*) ((((UINT_PTR) this) + 3) & ~3));  
+        return((void*) ((((UINT_PTR) p) + 3) & ~3));
     }
 
 protected:
@@ -578,7 +578,7 @@ typedef struct tagCOR_ILMETHOD_FAT : IMAGE_COR_ILMETHOD_FAT
 
     const COR_ILMETHOD_SECT* GetSect() const {
         if (!More()) return (0);
-        return(((COR_ILMETHOD_SECT*) (GetCode() + GetCodeSize()))->Align());
+        return(((COR_ILMETHOD_SECT*) COR_ILMETHOD_SECT::Align(GetCode() + GetCodeSize())));
     }
 } COR_ILMETHOD_FAT;
 
