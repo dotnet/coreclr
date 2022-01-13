@@ -2936,7 +2936,7 @@ namespace System.Diagnostics.Tracing
                     m_rawManifest = manifest;
                 }
                 // TODO Enforce singleton pattern 
-                if (!AllowDiplicateSourceNames)
+                if (!AllowDuplicateSourceNames)
                 {
                     Debug.Assert(EventListener.s_EventSources != null, "should be called within lock on EventListener.EventListenersLock which ensures s_EventSources to be initialized");
                     foreach (WeakReference eventSourceRef in EventListener.s_EventSources)
