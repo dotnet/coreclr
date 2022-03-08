@@ -32,7 +32,9 @@ namespace System
             private const int MaxBits = BitsForLongestBinaryMantissa + BitsForLongestDigitSequence + BitsPerBlock;
 
             private const int BitsPerBlock = sizeof(int) * 8;
-            private const int MaxBlockCount = (MaxBits + (BitsPerBlock - 1)) / BitsPerBlock;
+
+            // We need one extra block to make our shift left algorithm significantly simpler
+            private const int MaxBlockCount = ((MaxBits + (BitsPerBlock - 1)) / BitsPerBlock) + 1;
 
             private static readonly uint[] s_Pow10UInt32Table = new uint[]
             {
@@ -300,7 +302,8 @@ namespace System
                 0xD9D61A05,
                 0x00000325,
 
-                // 9 Trailing blocks to ensure MaxBlockCount
+                // 10 Trailing blocks to ensure MaxBlockCount
+                0x00000000,
                 0x00000000,
                 0x00000000,
                 0x00000000,
@@ -353,18 +356,33 @@ namespace System
                 while (index < lhsLength)
                 {
                     ulong sum = (ulong)(lhs._blocks[index]) + carry;
-                    lhs._blocks[index] = (uint)(sum);
+                    result._blocks[index] = (uint)(sum);
                     carry = (uint)(sum >> 32);
 
                     index++;
                 }
 
+                int resultLength = lhsLength;
+
                 if (carry != 0)
                 {
-                    Debug.Assert(unchecked((uint)(lhsLength)) + 1 <= MaxBlockCount);
+                    Debug.Assert(unchecked((uint)(resultLength)) < MaxBlockCount);
+
+                    if (unchecked((uint)(resultLength)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        result.SetZero();
+                        return;
+                    }
+
                     result._blocks[index] = carry;
-                    result._length = (lhsLength + 1);
+                    resultLength += 1;
                 }
+
+                result._length = resultLength;
             }
 
             public static void Add(ref BigInteger lhs, ref BigInteger rhs, out BigInteger result)
@@ -409,15 +427,30 @@ namespace System
                     resultIndex++;
                 }
 
+                int resultLength = largeLength;
+
                 // If there's still a carry, append a new block
                 if (carry != 0)
                 {
                     Debug.Assert(carry == 1);
-                    Debug.Assert((resultIndex == largeLength) && (largeLength < MaxBlockCount));
+                    Debug.Assert(resultIndex == resultLength);
+                    Debug.Assert(unchecked((uint)(resultLength)) < MaxBlockCount);
+
+                    if (unchecked((uint)(resultLength)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        result.SetZero();
+                        return;
+                    }
 
                     result._blocks[resultIndex] = 1;
-                    result._length += 1;
+                    resultLength += 1;
                 }
+
+                result._length = resultLength;
             }
 
             public static int Compare(ref BigInteger lhs, ref BigInteger rhs)
@@ -765,12 +798,27 @@ namespace System
                     index++;
                 }
 
+                int resultLength = lhsLength;
+
                 if (carry != 0)
                 {
-                    Debug.Assert(unchecked((uint)(lhsLength)) + 1 <= MaxBlockCount);
+                    Debug.Assert(unchecked((uint)(resultLength)) < MaxBlockCount);
+
+                    if (unchecked((uint)(resultLength)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        result.SetZero();
+                        return;
+                    }
+                    
                     result._blocks[index] = carry;
-                    result._length = (lhsLength + 1);
+                    resultLength += 1;
                 }
+
+                result._length = resultLength;
             }
 
             public static void Multiply(ref BigInteger lhs, ref BigInteger rhs, ref BigInteger result)
@@ -804,6 +852,16 @@ namespace System
 
                 int maxResultLength = smallLength + largeLength;
                 Debug.Assert(unchecked((uint)(maxResultLength)) <= MaxBlockCount);
+                
+                if (unchecked((uint)(maxResultLength)) > MaxBlockCount)
+                {
+                    // We shouldn't reach here, and the above assert will help flag this
+                    // during testing, but we'll ensure that we return a safe value of
+                    // zero in the case we end up overflowing in any way.
+
+                    result.SetZero();
+                    return;
+                }
 
                 // Zero out result internal blocks.
                 Buffer.ZeroMemory((byte*)(result.GetBlocksPointer()), (maxResultLength * sizeof(uint)));
@@ -1072,6 +1130,18 @@ namespace System
             {
                 _blocks[_length] = blockValue;
                 _length++;
+
+                Debug.Assert(unchecked((uint)(_length)) <= MaxBlockCount);
+
+                if (unchecked((uint)(_length)) > MaxBlockCount)
+                {
+                    // We shouldn't reach here, and the above assert will help flag this
+                    // during testing, but we'll ensure that we return a safe value of
+                    // zero in the case we end up overflowing in any way.
+
+                    SetZero();
+                    return;
+                }
             }
 
             public void ExtendBlocks(uint blockValue, uint blockCount)
@@ -1081,7 +1151,19 @@ namespace System
                 if (blockCount == 1)
                 {
                     ExtendBlock(blockValue);
+                    return;
+                }
 
+                int resultLength = _length + (int)(blockCount);
+                Debug.Assert(unchecked((uint)(resultLength)) <= MaxBlockCount);
+
+                if (unchecked((uint)(resultLength)) > MaxBlockCount)
+                {
+                    // We shouldn't reach here, and the above assert will help flag this
+                    // during testing, but we'll ensure that we return a safe value of
+                    // zero in the case we end up overflowing in any way.
+
+                    SetZero();
                     return;
                 }
 
@@ -1149,9 +1231,20 @@ namespace System
 
                 if (carry != 0)
                 {
-                    Debug.Assert(unchecked((uint)(_length)) + 1 <= MaxBlockCount);
+                    Debug.Assert(unchecked((uint)(length)) < MaxBlockCount);
+
+                    if (unchecked((uint)(length)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        SetZero();
+                        return;
+                    }
+
                     _blocks[index] = (uint)(carry);
-                    _length += 1;
+                    _length = length + 1;
                 }
             }
 
@@ -1214,10 +1307,30 @@ namespace System
                 int readIndex = (length - 1);
                 int writeIndex = readIndex + (int)(blocksToShift);
 
+                if (unchecked((uint)(writeIndex)) >= MaxBlockCount)
+                {
+                    // We shouldn't reach here, and the above assert will help flag this
+                    // during testing, but we'll ensure that we return a safe value of
+                    // zero in the case we end up overflowing in any way.
+
+                    SetZero();
+                    return;
+                }
+
                 // Check if the shift is block aligned
                 if (remainingBitsToShift == 0)
                 {
-                    Debug.Assert(writeIndex < MaxBlockCount);
+                    Debug.Assert(unchecked((uint)(length)) < MaxBlockCount);
+
+                    if (unchecked((uint)(length)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        SetZero();
+                        return;
+                    }
 
                     while (readIndex >= 0)
                     {
@@ -1234,8 +1347,19 @@ namespace System
                 else
                 {
                     // We need an extra block for the partial shift
+
                     writeIndex++;
-                    Debug.Assert(writeIndex < MaxBlockCount);
+                    Debug.Assert(unchecked((uint)(length)) < MaxBlockCount);
+
+                    if (unchecked((uint)(length)) >= MaxBlockCount)
+                    {
+                        // We shouldn't reach here, and the above assert will help flag this
+                        // during testing, but we'll ensure that we return a safe value of
+                        // zero in the case we end up overflowing in any way.
+
+                        SetZero();
+                        return;
+                    }
 
                     // Set the length to hold the shifted blocks
                     _length = writeIndex + 1;
