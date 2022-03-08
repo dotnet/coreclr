@@ -346,7 +346,7 @@ public:
     {
         if (IsShort(env))
         {
-            (size_t&)out = (size_t)out & ((size_t)gen | (size_t)in);
+            out = (BitSetShortLongRep)((size_t)out & ((size_t)gen | (size_t)in));
         }
         else
         {
@@ -362,7 +362,7 @@ public:
     {
         if (IsShort(env))
         {
-            (size_t&)in = (size_t)use | ((size_t)out & ~(size_t)def);
+            in = (BitSetShortLongRep)((size_t)use | ((size_t)out & ~(size_t)def));
         }
         else
         {
