@@ -3,14 +3,8 @@
 set -x
 export CrossDacCoreClrVersion=${CrossDacCoreClrVersion:-latest}
 
-# Install prerequisites
-wget https://dotnet.microsoft.com/download/dotnet-core/scripts/v1/dotnet-install.sh
-
-chmod u+x dotnet-install.sh
-
 # Fetch prebuilt runtime pieces
-
-RUNTIME_URL_PREFIX=$(./dotnet-install.sh --dry-run --runtime dotnet --channel 3.1 --version ${CrossDacCoreClrVersion} --arch arm64 | grep 'Primary named payload URL:' | sed -e 's/^.*URL: //' -e 's/linux-musl/linux/' -e 's/linux-arm64.tar.gz//')
+RUNTIME_URL_PREFIX=$(curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --dry-run --runtime dotnet --channel 3.1 --version ${CrossDacCoreClrVersion} --arch arm64 | grep 'URL #0 - primary:' | sed -e 's/^.*primary: //' -e 's/linux-musl/linux/' -e 's/linux-arm64.tar.gz//')
 
 for rid in linux-arm linux-arm64 linux-musl-arm64 linux-x64 linux-musl-x64
 do
