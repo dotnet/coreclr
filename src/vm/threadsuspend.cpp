@@ -3538,7 +3538,7 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
 
     // Temporarily set the IP of the context to the target for SetThreadContext
     PCODE dwOrigEip = GetIP(pCtx);
-#ifdef TARGET_ARM
+#ifdef _TARGET_ARM_
     // Redirection can be required when in IT Block.
     // In that case must reset the IT state before redirection.
     DWORD dwOrigCpsr = pCtx->Cpsr;
