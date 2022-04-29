@@ -10,6 +10,7 @@ param(
 
 try {
   $url = "https://raw.githubusercontent.com/NuGet/NuGetGallery/jver-verify/src/VerifyMicrosoftPackage/verify.ps1" 
+  $url = "https://raw.githubusercontent.com/NuGet/NuGetGallery/master/src/VerifyMicrosoftPackage/verify.ps1"
 
   New-Item -ItemType "directory" -Path ${ToolDestinationPath} -Force
 
