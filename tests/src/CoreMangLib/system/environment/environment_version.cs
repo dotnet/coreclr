@@ -28,7 +28,7 @@ class enviroment_version
         // the file version as product version by accident.
         if (ver.Major == 4 && (ver.Minor >= 6))
         {
-            Console.WriteLine("ERROR: Version is 4.6+.");
+            Console.WriteLine("ERROR: Version is 4.6+ .");
             return -1;
         }
 
