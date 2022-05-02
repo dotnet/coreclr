@@ -28,6 +28,9 @@
       <DisabledProjects Include="JIT\config\**" />
       <DisabledProjects Include="JIT\Performance\**" /> <!-- old packages and not used -->
       <DisabledProjects Include="Performance\performance.csproj" />
+      <DisabledProjects Include="Performance\linkbench\linkbench.csproj" /> <!-- Not used -->
+      <DisabledProjects Include="Performance\perflab\perflab.csproj" /> <!-- Not used -->
+      <DisabledProjects Include="Performance\Scenario\JitBench\JitBench.csproj" /> <!-- Not used -->
       <DisabledProjects Include="Performance\Scenario\JitBench\unofficial_dotnet\JitBench.csproj" /> <!-- no official build support for SDK-style netcoreapp2.0 projects -->
       <DisabledProjects Include="Loader\classloader\generics\regressions\DD117522\Test.csproj" />
       <DisabledProjects Include="Loader\classloader\generics\GenericMethods\VSW491668.csproj" /> <!-- issue 5501 -->
