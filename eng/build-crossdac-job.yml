@@ -47,16 +47,6 @@ jobs:
         value: '-officialbuildid=$(Build.BuildNumber)'
 
     steps:
-
-    # Install native dependencies
-    # Linux builds use docker images with dependencies preinstalled,
-    # and FreeBSD builds use a build agent with dependencies
-    # preinstalled, so we only need this step for OSX and Windows.
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      # Necessary to install python
-      - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
-        displayName: Install native dependencies
-
     # Install internal tools on official builds
     # Since our internal tools are behind an authenticated feed,
     # we need to use the DotNetCli AzDO task to restore from the feed using a service connection.
