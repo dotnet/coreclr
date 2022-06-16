@@ -14,9 +14,7 @@
  <CliVersion>1.0.0-preview1-002702</CliVersion> 
  <DebuggeeNativeLibRoot>$(DebuggeeRootDir)\native</DebuggeeNativeLibRoot> 
  <DebuggeeBuildRoot>$(DebuggeeRootDir)\dotnet.$(CliVersion)</DebuggeeBuildRoot> 
- <ProjectJsonNetStandardLibraryVersion>1.0.0-rc2-23811</ProjectJsonNetStandardLibraryVersion> 
- <ProjectJsonSystemThreadingThreadVersion>4.0.0-rc2-24027</ProjectJsonSystemThreadingThreadVersion> 
- <ProjectJsonMicrosoftCSharpVersion>4.0.1-rc2-23811</ProjectJsonMicrosoftCSharpVersion> 
+ <ProjectJsonNetStandardLibraryVersion>2.0.0</ProjectJsonNetStandardLibraryVersion> 
  <CliPath>##Cli_Path##</CliPath> 
  <NuGetPackageCacheDir>$(NugetCacheRoot)</NuGetPackageCacheDir> 
  <NuGetPackageFeeds> 
