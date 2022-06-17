@@ -2426,6 +2426,9 @@ typedef BOOL(WINAPI* PINITIALIZECONTEXT2)(PVOID Buffer, DWORD ContextFlags, PCON
 PINITIALIZECONTEXT2 pfnInitializeContext2 = NULL;
 
 #ifdef _TARGET_X86_
+typedef VOID(__cdecl* PRTLRESTORECONTEXT)(PCONTEXT ContextRecord, struct _EXCEPTION_RECORD* ExceptionRecord);
+PRTLRESTORECONTEXT pfnRtlRestoreContext = NULL;
+
 #define CONTEXT_COMPLETE (CONTEXT_FULL | CONTEXT_FLOATING_POINT |       \
                           CONTEXT_DEBUG_REGISTERS | CONTEXT_EXTENDED_REGISTERS | CONTEXT_EXCEPTION_REQUEST)
 #else
@@ -2446,13 +2449,20 @@ CONTEXT* AllocateOSContextHelper(BYTE** contextBuffer)
         pfnInitializeContext2 = (PINITIALIZECONTEXT2)GetProcAddress(hm, "InitializeContext2");
     }
 
+#ifdef _TARGET_X86_
+    if (pfnRtlRestoreContext == NULL)
+    {
+        HMODULE hm = GetModuleHandleW(_T("ntdll.dll"));
+        pfnRtlRestoreContext = (PRTLRESTORECONTEXT)GetProcAddress(hm, "RtlRestoreContext");
+    }
+#endif //_TARGET_X86_
+
     // Determine if the processor supports AVX so we could 
     // retrieve extended registers
     DWORD64 FeatureMask = GetEnabledXStateFeatures();
     if ((FeatureMask & XSTATE_MASK_AVX) != 0)
     {
         context = context | CONTEXT_XSTATE;
-        supportsAVX = TRUE;
     }
 
     // Retrieve contextSize by passing NULL for Buffer
@@ -2463,7 +2473,14 @@ CONTEXT* AllocateOSContextHelper(BYTE** contextBuffer)
         pfnInitializeContext2(NULL, context, NULL, &contextSize, xStateCompactionMask) :
         InitializeContext(NULL, context, NULL, &contextSize);
 
-    _ASSERTE(!success && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
+    // Spec mentions that we may get a different error (it was observed on Windows7).
+    // In such case the contextSize is undefined.
+    if (success || GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+    {
+        STRESS_LOG2(LF_SYNC, LL_INFO1000, "AllocateOSContextHelper: Unexpected result from InitializeContext (success: %d, error: %d).\n",
+            success, GetLastError());
+        return NULL;
+    }
 
     // So now allocate a buffer of that size and call InitializeContext again
     BYTE* buffer = new (nothrow)BYTE[contextSize];
@@ -2472,15 +2489,6 @@ CONTEXT* AllocateOSContextHelper(BYTE** contextBuffer)
         success = pfnInitializeContext2 ?
             pfnInitializeContext2(buffer, context, &pOSContext, &contextSize, xStateCompactionMask) :
             InitializeContext(buffer, context, &pOSContext, &contextSize);
-
-        // if AVX is supported set the appropriate features mask in the context
-        if (success && supportsAVX)
-        {
-            // This should not normally fail.
-            // The system silently ignores any feature specified in the FeatureMask
-            // which is not enabled on the processor.
-            success = SetXStateFeaturesMask(pOSContext, XSTATE_MASK_AVX);
-        }
 
         if (!success)
         {
@@ -3122,6 +3130,7 @@ void RedirectedThreadFrame::ExceptionUnwind()
 #ifndef PLATFORM_UNIX
 
 #ifdef _TARGET_X86_
+
 //****************************************************************************************
 // This will check who caused the exception.  If it was caused by the the redirect function,
 // the reason is to resume the thread back at the point it was redirected in the first
@@ -3133,18 +3142,18 @@ void RedirectedThreadFrame::ExceptionUnwind()
 int RedirectedHandledJITCaseExceptionFilter(
     PEXCEPTION_POINTERS pExcepPtrs,     // Exception data
     RedirectedThreadFrame *pFrame,      // Frame on stack
-    BOOL fDone,                         // Whether redirect completed without exception
-    CONTEXT *pCtx)                      // Saved context
+    CONTEXT *pCtx,                      // Saved context
+    DWORD dwLastError)                  // saved last error
 {
     // !!! Do not use a non-static contract here.
     // !!! Contract may insert an exception handling record.
     // !!! This function assumes that GetCurrentSEHRecord() returns the exception record set up in
-    // !!! Thread::RedirectedHandledJITCase
+    // !!! Thread::RestoreContextSimulated
     //
     // !!! Do not use an object with dtor, since it injects a fs:0 entry.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_ANY;
+    STATIC_CONTRACT_MODE_COOPERATIVE;
 
     if (pExcepPtrs->ExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
     {
@@ -3153,48 +3162,25 @@ int RedirectedHandledJITCaseExceptionFilter(
 
     // Get the thread handle
     Thread *pThread = GetThread();
-    _ASSERTE(pThread);
-
-
-    STRESS_LOG2(LF_SYNC, LL_INFO100, "In RedirectedHandledJITCaseExceptionFilter fDone = %d pFrame = %p\n", fDone, pFrame);
-
-    // If we get here via COM+ exception, gc-mode is unknown.  We need it to
-    // be cooperative for this function.
-    GCX_COOP_NO_DTOR();
-
-    // If the exception was due to the called client, then we need to figure out if it
-    // is an exception that can be eaten or if it needs to be handled elsewhere.
-    if (!fDone)
-    {
-        if (pExcepPtrs->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE)
-        {
-            return (EXCEPTION_CONTINUE_SEARCH);
-        }
-
-        // Get the latest thrown object
-        OBJECTREF throwable = CLRException::GetThrowableFromExceptionRecord(pExcepPtrs->ExceptionRecord);
-
-        // If this is an uncatchable exception, then let the exception be handled elsewhere
-        if (IsUncatchable(&throwable))
-        {
-            pThread->EnablePreemptiveGC();
-            return (EXCEPTION_CONTINUE_SEARCH);
-        }
-    }
-#ifdef _DEBUG
-    else
-    {
-        _ASSERTE(pExcepPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_HIJACK);
-    }
-#endif
+    STRESS_LOG1(LF_SYNC, LL_INFO100, "In RedirectedHandledJITCaseExceptionFilter pFrame = %p\n", pFrame);
+    _ASSERTE(pExcepPtrs->ExceptionRecord->ExceptionCode == EXCEPTION_HIJACK);
 
     // Unlink the frame in preparation for resuming in managed code
     pFrame->Pop();
 
-    // Copy the saved context record into the EH context;
-    ReplaceExceptionContextRecord(pExcepPtrs->ContextRecord, pCtx);
+    // Copy everything in the saved context record into the EH context.
+    // Historically the EH context has enough space for every enabled context feature.
+    // That may not hold for the future features beyond AVX, but this codepath is
+    // supposed to be used only on OSes that do not have RtlRestoreContext.
+    CONTEXT* pTarget = pExcepPtrs->ContextRecord;
+    if (!CopyContext(pTarget, pCtx->ContextFlags, pCtx))
+    {
+        STRESS_LOG1(LF_SYNC, LL_ERROR, "ERROR: Could not set context record, lastError = 0x%x\n", GetLastError());
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    }
 
     DWORD espValue = pCtx->Esp;
+
     // Allow future use to avoid repeatedly new'ing
     pThread->UnmarkRedirectContextInUse(pCtx);
 
@@ -3220,6 +3206,9 @@ int RedirectedHandledJITCaseExceptionFilter(
 
     // Register the special OS handler as the top handler with the OS
     SetCurrentSEHRecord(pCurSEH);
+
+    // restore last error
+    SetLastError(dwLastError);
 
     // Resume execution at point where thread was originally redirected
     return (EXCEPTION_CONTINUE_EXECUTION);
@@ -3251,6 +3240,38 @@ extern "C" PCONTEXT __stdcall GetCurrentSavedRedirectContext()
     return pContext;
 }
 
+#ifdef _TARGET_X86_
+
+void Thread::RestoreContextSimulated(Thread* pThread, CONTEXT* pCtx, void* pFrame, DWORD dwLastError)
+{
+    pThread->HandleThreadAbort();        // Might throw an exception.
+
+    // A counter to avoid a nasty case where an
+    // up-stack filter throws another exception
+    // causing our filter to be run again for
+    // some unrelated exception.
+    int filter_count = 0;
+
+    __try
+    {
+        // Save the instruction pointer where we redirected last.  This does not race with the check
+        // against this variable in HandledJitCase because the GC will not attempt to redirect the
+        // thread until the instruction pointer of this thread is back in managed code.
+        pThread->m_LastRedirectIP = GetIP(pCtx);
+        pThread->m_SpinCount = 0;
+
+        RaiseException(EXCEPTION_HIJACK, 0, 0, NULL);
+    }
+    __except (++filter_count == 1
+        ? RedirectedHandledJITCaseExceptionFilter(GetExceptionInformation(), (RedirectedThreadFrame*)pFrame, pCtx, dwLastError)
+        : EXCEPTION_CONTINUE_SEARCH)
+    {
+        _ASSERTE(!"Reached body of __except in Thread::RedirectedHandledJITCase");
+    }
+}
+
+#endif // _TARGET_X86_
+
 void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 {
     STATIC_CONTRACT_THROWS;
@@ -3259,10 +3280,9 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
     // We must preserve this in case we've interrupted an IL pinvoke stub before it
     // was able to save the error.
-    DWORD dwLastError = GetLastError();
+    DWORD dwLastError = GetLastError(); // BEGIN_PRESERVE_LAST_ERROR
 
     Thread *pThread = GetThread();
-    _ASSERTE(pThread);
 
     // Get the saved context
     CONTEXT *pCtx = pThread->GetSavedRedirectContext();
@@ -3275,140 +3295,106 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
     STRESS_LOG5(LF_SYNC, LL_INFO1000, "In RedirectedHandledJITcase reason 0x%x pFrame = %p pc = %p sp = %p fp = %p", reason, &frame, GetIP(pCtx), GetSP(pCtx), GetFP(pCtx));
 
-#ifdef _TARGET_X86_
-    // This will indicate to the exception filter whether or not the exception is caused
-    // by us or the client.
-    BOOL fDone = FALSE;
-    int filter_count = 0;       // A counter to avoid a nasty case where an
-                                // up-stack filter throws another exception
-                                // causing our filter to be run again for
-                                // some unrelated exception.
+    // Make sure this thread doesn't reuse the context memory.
+    pThread->MarkRedirectContextInUse(pCtx);
 
-    __try
-#endif // _TARGET_X86_
+    // Link in the frame
+    frame.Push();
+
+#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
+    if (reason == RedirectReason_GCStress)
     {
-        // Make sure this thread doesn't reuse the context memory.
-        pThread->MarkRedirectContextInUse(pCtx);
-
-        // Link in the frame
-        frame.Push();
-
-#if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-        if (reason == RedirectReason_GCStress)
-        {
-            _ASSERTE(pThread->PreemptiveGCDisabledOther());
-            DoGcStress(frame.GetContext(), NULL);
-        }
-        else
+        _ASSERTE(pThread->PreemptiveGCDisabledOther());
+        DoGcStress(frame.GetContext(), NULL);
+    }
+    else
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
-        {
-            // Enable PGC before calling out to the client to allow runtime suspend to finish
-            GCX_PREEMP_NO_DTOR();
+    {
+        _ASSERTE(reason == RedirectReason_GCSuspension ||
+                    reason == RedirectReason_DebugSuspension ||
+                    reason == RedirectReason_UserSuspension);
 
-            // Notify the interface of the pending suspension
-            switch (reason) {
-            case RedirectReason_GCSuspension:
-                break;
-            case RedirectReason_DebugSuspension:
-                break;
-            case RedirectReason_UserSuspension:
-                // Do nothing;
-                break;
-            default:
-                _ASSERTE(!"Invalid redirect reason");
-                break;
-            }
+        // Actual self-suspension.
+        // Leave and reenter COOP mode to be trapped on the way back.
+        GCX_PREEMP_NO_DTOR();
+        GCX_PREEMP_NO_DTOR_END();
+    }
 
-            // Disable preemptive GC so we can unlink the frame
-            GCX_PREEMP_NO_DTOR_END();
-        }
+    // Once we get here the suspension is over!
+    // We will restore the state as it was at the point of redirection
+    // and continue normal execution.
 
 #ifdef _TARGET_X86_
-        pThread->HandleThreadAbort();        // Might throw an exception.
+    if (!pfnRtlRestoreContext)
+    {
+        RestoreContextSimulated(pThread, pCtx, &frame, dwLastError);
 
-        // Indicate that the call to the service went without an exception, and that
-        // we're raising our own exception to resume the thread to where it was
-        // redirected from
-        fDone = TRUE;
-
-        // Save the instruction pointer where we redirected last.  This does not race with the check
-        // against this variable in HandledJitCase because the GC will not attempt to redirect the
-        // thread until the instruction pointer of this thread is back in managed code.
-        pThread->m_LastRedirectIP = GetIP(pCtx);
-        pThread->m_SpinCount = 0;
-
-        RaiseException(EXCEPTION_HIJACK, 0, 0, NULL);
-
-#else // _TARGET_X86_
+        // we never return to the caller.
+        __UNREACHABLE();
+    }
+#endif // _TARGET_X86_
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-        //
-        // If GCStress interrupts an IL stub or inlined p/invoke while it's running in preemptive mode, it switches the mode to 
-        // cooperative - but we will resume to preemptive below.  We should not trigger an abort in that case, as it will fail 
-        // due to the GC mode.
-        //
-        if (!pThread->m_fPreemptiveGCDisabledForGCStress)
-#endif 
+    //
+    // If GCStress interrupts an IL stub or inlined p/invoke while it's running in preemptive mode, it switches the mode to
+    // cooperative - but we will resume to preemptive below.  We should not trigger an abort in that case, as it will fail
+    // due to the GC mode.
+    //
+    if (!pThread->m_fPreemptiveGCDisabledForGCStress)
+#endif
+    {
+
+        UINT_PTR uAbortAddr;
+        UINT_PTR uResumePC = (UINT_PTR)GetIP(pCtx);
+        CopyOSContext(pThread->m_OSContext, pCtx);
+        uAbortAddr = (UINT_PTR)COMPlusCheckForAbort();
+        if (uAbortAddr)
         {
+            LOG((LF_EH, LL_INFO100, "thread abort in progress, resuming thread under control... (handled jit case)\n"));
 
-            UINT_PTR uAbortAddr;
-            UINT_PTR uResumePC = (UINT_PTR)GetIP(pCtx);
-            CopyOSContext(pThread->m_OSContext, pCtx);
-            uAbortAddr = (UINT_PTR)COMPlusCheckForAbort();
-            if (uAbortAddr)
-            {
-                LOG((LF_EH, LL_INFO100, "thread abort in progress, resuming thread under control... (handled jit case)\n"));
+            CONSISTENCY_CHECK(CheckPointer(pCtx));
 
-                CONSISTENCY_CHECK(CheckPointer(pCtx));
+            STRESS_LOG1(LF_EH, LL_INFO10, "resume under control: ip: %p (handled jit case)\n", uResumePC);
 
-                STRESS_LOG1(LF_EH, LL_INFO10, "resume under control: ip: %p (handled jit case)\n", uResumePC);
-
-                SetIP(pThread->m_OSContext, uResumePC);
+            SetIP(pThread->m_OSContext, uResumePC);
 
 #if defined(_TARGET_ARM_)
-                // Save the original resume PC in Lr
-                pCtx->Lr = uResumePC;
+            // Save the original resume PC in Lr
+            pCtx->Lr = uResumePC;
 
-                // Since we have set a new IP, we have to clear conditional execution flags too.
-                ClearITState(pThread->m_OSContext);
+            // Since we have set a new IP, we have to clear conditional execution flags too.
+            ClearITState(pThread->m_OSContext);
 #endif // _TARGET_ARM_
 
-                SetIP(pCtx, uAbortAddr);
-            }
+            SetIP(pCtx, uAbortAddr);
         }
+    }
 
-        // Unlink the frame in preparation for resuming in managed code
-        frame.Pop();
+    // Unlink the frame in preparation for resuming in managed code
+    frame.Pop();
 
-        {
-            // Allow future use of the context
-            pThread->UnmarkRedirectContextInUse(pCtx);
+    // Allow future use of the context
+    pThread->UnmarkRedirectContextInUse(pCtx);
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
-            if (pThread->m_fPreemptiveGCDisabledForGCStress)
-            {
-                pThread->EnablePreemptiveGC();
-                pThread->m_fPreemptiveGCDisabledForGCStress = false;
-            }
+    if (pThread->m_fPreemptiveGCDisabledForGCStress)
+    {
+        pThread->EnablePreemptiveGC();
+        pThread->m_fPreemptiveGCDisabledForGCStress = false;
+    }
 #endif
 
-            LOG((LF_SYNC, LL_INFO1000, "Resuming execution with RtlRestoreContext\n"));
+    LOG((LF_SYNC, LL_INFO1000, "Resuming execution with RtlRestoreContext\n"));
+    SetLastError(dwLastError); // END_PRESERVE_LAST_ERROR
 
-            SetLastError(dwLastError);
-
-            RtlRestoreContext(pCtx, NULL);
-        }
-#endif // _TARGET_X86_
-    }
 #ifdef _TARGET_X86_
-    __except (++filter_count == 1
-        ? RedirectedHandledJITCaseExceptionFilter(GetExceptionInformation(), &frame, fDone, pCtx)
-        : EXCEPTION_CONTINUE_SEARCH)
-    {
-        _ASSERTE(!"Reached body of __except in Thread::RedirectedHandledJITCase");
-    }
+    pfnRtlRestoreContext(pCtx, NULL);
+#else
+    RtlRestoreContext(pCtx, NULL);
+#endif
 
-#endif // _TARGET_X86_
+    // we never return to the caller.
+    __UNREACHABLE();
 }
 
 //****************************************************************************************
@@ -3511,14 +3497,34 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
     if (!pCtx)
     {
         pCtx = m_pSavedRedirectContext = ThreadStore::GrabOSContext(&m_pOSContextBuffer);
-        _ASSERTE(GetSavedRedirectContext() != NULL);
     }
+
+    // We may not have a preallocated context. Could be short on memory when we tried to preallocate.
+    // We cannot allocate here since we have a thread stopped in a random place, possibly holding locks
+    // that we would need while allocating.
+    // Other ways and attempts at suspending may yet succeed, but this redirection cannot continue.
+    if (!pCtx)
+        return (FALSE);
 
     //////////////////////////////////////
     // Get and save the thread's context
+    BOOL bRes = true;
 
     // Always get complete context, pCtx->ContextFlags are set during Initialization
-    BOOL bRes = EEGetThreadContext(this, pCtx);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    // Scenarios like GC stress may indirectly disable XState features in the pCtx
+    // depending on the state at the time of GC stress interrupt.
+    // 
+    // Make sure that AVX feature mask is set, if supported.
+    // 
+    // This should not normally fail.
+    // The system silently ignores any feature specified in the FeatureMask
+    // which is not enabled on the processor.
+    bRes &= SetXStateFeaturesMask(pCtx, XSTATE_MASK_AVX);
+#endif //defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    bRes &= EEGetThreadContext(this, pCtx);
     _ASSERTE(bRes && "Failed to GetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
 
     if (!bRes)
@@ -3546,7 +3552,26 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
         this, this->GetThreadId(), dwOrigEip, pTgt);
 
     bRes = EESetThreadContext(this, pCtx);
-    _ASSERTE(bRes && "Failed to SetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
+    if (!bRes)
+    {
+#ifdef _DEBUG
+        // In some rare cases the stack pointer may be outside the stack limits.
+        // SetThreadContext would fail assuming that we are trying to bypass CFG.
+        // 
+        // NB: the check here is slightly more strict than what OS requires,
+        //     but it is simple and uses only documented parts of TEB
+        auto pTeb = this->GetTEB();
+        void* stackPointer = (void*)GetSP(pCtx);
+        if ((stackPointer < pTeb->StackLimit) || (stackPointer > pTeb->StackBase))
+        {
+            return (FALSE);
+        }
+
+        _ASSERTE(!"Failed to SetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
+#endif
+
+        return FALSE;
+    }
 
     // Restore original IP
     SetIP(pCtx, dwOrigEip);
@@ -3614,8 +3639,35 @@ BOOL Thread::RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, CONT
 
     //////////////////////////////////////
     // Get and save the thread's context
-    BOOL success = CopyContext(pCtx, pCtx->ContextFlags, pCurrentThreadCtx);
+    BOOL success = TRUE;
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    // This method is called for GC stress interrupts in managed code.
+    // The current context may have various XState features, depending on what is used/dirty,
+    // but only AVX feature may contain live data. (that could change with new features in JIT)
+    // Besides pCtx may not have space to store other features.
+    // So we will mask out everything but AVX.
+    DWORD64 srcFeatures = 0;
+    success = GetXStateFeaturesMask(pCurrentThreadCtx, &srcFeatures);
     _ASSERTE(success);
+    if (!success)
+        return FALSE;
+
+    // Get may return 0 if no XState is set, which Set would not accept.
+    if (srcFeatures != 0)
+    {
+        success = SetXStateFeaturesMask(pCurrentThreadCtx, srcFeatures & XSTATE_MASK_AVX);
+        _ASSERTE(success);
+        if (!success)
+            return FALSE;
+    }
+
+#endif //defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    success = CopyContext(pCtx, pCtx->ContextFlags, pCurrentThreadCtx);
+    _ASSERTE(success);
+    if (!success)
+        return FALSE;
 
     // Ensure that this flag is set for the next time through the normal path,
     // RedirectThreadAtHandledJITCase.
