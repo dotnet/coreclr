@@ -5,6 +5,7 @@ parameters:
   osIdentifier: ''
   container: ''
   timeoutInMinutes: ''
+  crossDacCoreClrVersion: ''
 
 ### Product build
 jobs:
@@ -70,6 +71,8 @@ jobs:
     # Build-Linux
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-crossdac.sh
+        env:
+          CrossDacCoreClrVersion: ${{ parameters.crossDacCoreClrVersion }}   
         displayName: Build product
 
       - task: PublishBuildArtifacts@1

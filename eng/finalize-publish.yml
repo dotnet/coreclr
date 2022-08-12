@@ -12,12 +12,27 @@ parameters:
   versionsRepo: versions
 
 jobs:
+  - job: waitForValidation
+    displayName: Wait for external validation
+    pool: server
+    timeoutInMinutes: 1440 # job times out in 3 days
+    steps:
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440 # task times out in 1 day
+      inputs:
+        notifyUsers: |
+          clrdiagd@microsoft.com
+        instructions: 'Please validate the DAC assets and resume'
+  
   - template: /eng/common/templates/job/publish-build-assets.yml
     parameters:
       configuration: Release
       pool:
         name: NetCore1ESPool-Svc-Internal
         demands: ImageOverride -equals Build.Windows.10.Amd64.VS2017
-      dependsOn: ${{ parameters.dependsOn }}
+      dependsOn:
+      - waitForValidation
+      - ${{ if ne(parameters.dependsOn,'') }}:
+        - ${{ parameters.dependsOn }}
       publishUsingPipelines: true
       enablePublishBuildArtifacts: true

@@ -1,9 +1,4 @@
-trigger:
-  batch: true
-  branches:
-    include:
-    - release/3.1-crossdac
-
+trigger: none
 pr: none
 
 parameters:
@@ -14,7 +9,7 @@ parameters:
 # Set `SymStoreCrossDacIndex: true` to index the DAC for a given release
 - name: SymStoreCrossDacIndex
   type: boolean
-  default: false
+  default: true
 # Set `MicrosoftSymbolUploaderBuildTaskVersion` to fix the version of the symbol task to use.
 - name: MicrosoftSymbolUploaderBuildTaskVersion
   type: string
@@ -39,6 +34,8 @@ stages:
       parameters:
         jobTemplate: build-crossdac-job.yml
         buildConfig: release
+        jobParameters:
+          CrossDacCoreClrVersion: ${{ parameters.CrossDacCoreClrVersion }}
         platforms:
         - Linux_arm64 # Needs an ubuntu container
 
