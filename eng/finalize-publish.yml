@@ -21,7 +21,7 @@ jobs:
       timeoutInMinutes: 1440 # task times out in 1 day
       inputs:
         notifyUsers: |
-          juhoyosa@microsoft.com
+          clrdiagd@microsoft.com
         instructions: 'Please validate the DAC assets and resume'
   
   - template: /eng/common/templates/job/publish-build-assets.yml
