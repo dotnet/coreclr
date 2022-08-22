@@ -19,9 +19,9 @@
 
   <ItemGroup>
     <!-- The DAC and the DBI must be signed separately. -->
-    <ItemsToSign Exclude="$(BinDir)/mscordaccore*.dll" />
-    <ItemsToSign Include="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" />
-    <ItemsToSign Exclude="$(BinDir)/mscordbi.dll" />
+    <ItemsToSign Remove="$(BinDir)/mscordaccore*.dll" />
+    <ItemsToSign Remove="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" />
+    <ItemsToSign Remove="$(BinDir)/mscordbi.dll" />
     <FileSignInfo Include="mscordaccore.dll" CertificateName="None" />
     <FileSignInfo Include="mscordbi.dll" CertificateName="None" />
   </ItemGroup>
