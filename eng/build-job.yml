@@ -134,6 +134,11 @@ jobs:
       - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
         displayName: Sign Binaries
 
+      - template: /eng/sign-diagnostic-files.yml
+        parameters:
+          basePath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(_BuildConfig)
+          timeoutInMinutes: 30
+
       - task: PublishBuildArtifacts@1
         displayName: Publish Signing Logs
         inputs:
