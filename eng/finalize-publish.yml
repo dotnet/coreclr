@@ -35,4 +35,3 @@ jobs:
       - ${{ if ne(parameters.dependsOn,'') }}:
         - ${{ parameters.dependsOn }}
       publishUsingPipelines: true
-      enablePublishBuildArtifacts: true
