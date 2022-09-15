@@ -6,10 +6,6 @@
     <ItemsToSign Include="$(BinDir)*.exe" />
   </ItemGroup>
 
-  <ItemGroup>
-    <FileSignInfo Include="mscordaccore.dll" CertificateName="MicrosoftSHA2" />
-  </ItemGroup>
-
   <ItemGroup Condition="'$(BuildArch)' == 'x86'">
     <!-- Sign api-ms-win-core-xstate-l2-1-0 binary as it is only catalog signed in the current SDK. -->
     <ItemsToSign Condition="'$(BuildType)'=='Release'" Include="$(BinDir)Redist\ucrt\DLLs\$(BuildArch)\api-ms-win-core-xstate-l2-1-0.dll" />
@@ -19,6 +15,15 @@
   <ItemGroup Condition="'$(CrossTargetComponentFolder)' != ''">
     <ItemsToSign Include="$(BinDir)$(CrossTargetComponentFolder)/*.dll" />
     <ItemsToSign Include="$(BinDir)$(CrossTargetComponentFolder)/*.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The DAC and the DBI must be signed separately. -->
+    <ItemsToSign Remove="$(BinDir)/mscordaccore*.dll" />
+    <ItemsToSign Remove="$(BinDir)$(CrossTargetComponentFolder)/mscordaccore*.dll" />
+    <ItemsToSign Remove="$(BinDir)/mscordbi.dll" />
+    <FileSignInfo Include="mscordaccore.dll" CertificateName="None" />
+    <FileSignInfo Include="mscordbi.dll" CertificateName="None" />
   </ItemGroup>
 
   <Target Name="ValidateSignFileListIsNotEmpty" BeforeTargets="Sign">
